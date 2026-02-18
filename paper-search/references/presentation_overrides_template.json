@@ -1,0 +1,16 @@
+{
+  "_notes": [
+    "Use keys like CVPR-2026 or AAAI-2026.",
+    "List paper titles exactly as published when possible.",
+    "Use poster_titles/oral_titles/bestpaper_titles arrays, or paper_levels map.",
+    "Allowed levels in paper_levels: poster, oral, bestpaper."
+  ],
+  "CVPR-2026": {
+    "bestpaper_titles": [],
+    "oral_titles": [],
+    "poster_titles": [],
+    "paper_levels": {
+      "Example Paper Title": "oral"
+    }
+  }
+}
