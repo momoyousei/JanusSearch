@@ -11,7 +11,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 ## 当前阶段
 - 长期目标：以现有 16 个会议年份文件为基线，走通完整项目（M1→M4）。
 - 当前冻结点：M1 初步冻结（见 `docs/14_M1_FREEZE_2026-02-19.md`）。
-- 当前重点：在 M2 基线上推进 M3（向量、缓存、混合检索）闭环。
+- 当前重点：在 M3 基线上推进 M4（云端硬门禁的端到端验收）闭环。
 
 ## 技术约束
 - Python 3.11+
@@ -47,10 +47,15 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - M2 入库与校验：`docs/20_M2_DATABASE.md`
 - M2 检索 CLI（SQL+FTS）：`docs/21_M2_SEARCH_CLI.md`
 - M3 缓存与混合检索：`docs/22_M3_CACHE_AND_HYBRID.md`
+- M4 Agent 验收：`docs/30_M4_AGENT_VALIDATION.md`
 
 ## M3 执行入口
-- 全流程：`python3 -m tools.m3_pipeline run --db-path data/papers.db --embed-base-url http://127.0.0.1:1234/v1 --embed-model text-embedding-qwen3-embedding-8b --exclude-placeholder`
-- 混合检索：`python3 -m tools.search hybrid --query "continual learning replay" --embed-base-url http://127.0.0.1:1234/v1 --embed-model text-embedding-qwen3-embedding-8b --alpha 0.6 --top-k 20`
+- 全流程：`python3 -m tools.m3_pipeline run --db-path data/papers.db --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --exclude-placeholder`
+- 混合检索：`python3 -m tools.search hybrid --query "continual learning replay" --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --alpha 0.6 --top-k 20`
+
+## M4 执行入口
+- 全量验收：`python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file index/m3_topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
+- 状态摘要：`python3 -m tools.m4_validate status`
 
 ## 验证基准
 - 端到端基准主题：**Continual Learning > Replay Methods**

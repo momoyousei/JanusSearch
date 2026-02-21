@@ -1,6 +1,6 @@
 # M1 Quality Stats
 
-Generated at: `2026-02-19T15:13:25.708287+00:00`
+Generated at: `2026-02-21T15:27:41.494817+00:00`
 
 | File | Total | Resolved | Placeholder | Dup | Resolved Authors % | Resolved Abstract % | Alignment | Gate |
 |---|---:|---:|---:|---:|---:|---:|---|---|

@@ -1,0 +1,47 @@
+cases:
+  - case_id: fixed_search_replay_baseline
+    mode: search
+    query: continual learning replay
+    filters:
+      venue: [ICLR, ICML, NEURIPS]
+    top_k: 50
+    expect_min_results: 10
+    expect_any_title_fragments:
+      - continual learning
+      - replay
+
+  - case_id: fixed_search_rar_neurips_2022
+    mode: search
+    query: Repeated Augmented Rehearsal
+    filters:
+      venue: [NEURIPS]
+      year_from: 2022
+      year_to: 2022
+    top_k: 20
+    expect_min_results: 1
+    expect_any_title_fragments:
+      - Repeated Augmented Rehearsal
+
+  - case_id: fixed_hybrid_memory_replay_iclr_2022
+    mode: hybrid
+    query: Memory Replay with Data Compression for Continual Learning
+    filters:
+      venue: [ICLR]
+      year_from: 2022
+      year_to: 2022
+    top_k: 20
+    expect_min_results: 1
+    expect_any_title_fragments:
+      - Memory Replay with Data Compression for Continual Learning
+
+  - case_id: fixed_hybrid_layerwise_proximal_replay_icml_2024
+    mode: hybrid
+    query: Layerwise Proximal Replay
+    filters:
+      venue: [ICML]
+      year_from: 2024
+      year_to: 2024
+    top_k: 20
+    expect_min_results: 1
+    expect_any_title_fragments:
+      - Layerwise Proximal Replay

@@ -21,7 +21,7 @@
 3. M3：缓存层与向量/混合检索  
    规划：`docs/01_SCOPE_AND_MILESTONES.md`，执行手册：`docs/22_M3_CACHE_AND_HYBRID.md`
 4. M4：Agent 端到端验证与回归  
-   规划：`docs/01_SCOPE_AND_MILESTONES.md`
+   规划：`docs/01_SCOPE_AND_MILESTONES.md`，执行手册：`docs/30_M4_AGENT_VALIDATION.md`
 
 ## 文档导航
 - 文档总入口：`docs/README.md`
@@ -32,6 +32,7 @@
 - M2 入库手册：`docs/20_M2_DATABASE.md`
 - M2 检索手册：`docs/21_M2_SEARCH_CLI.md`
 - M3 缓存与混合检索手册：`docs/22_M3_CACHE_AND_HYBRID.md`
+- M4 Agent 验收手册：`docs/30_M4_AGENT_VALIDATION.md`
 
 ## 设计原则
 - 先建立稳定数据基线，再扩展功能

@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import math
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -18,7 +19,8 @@ LOGGER = logging.getLogger("search_cli")
 DEFAULT_DB_PATH = Path("data/papers.db")
 DEFAULT_VECTORS_ROOT = Path("data/vectors/chroma")
 DEFAULT_COLLECTION_NAME = "papers_v1"
-DEFAULT_EMBED_MODEL = "text-embedding-qwen3-embedding-8b"
+DEFAULT_EMBED_BASE_URL = "https://api.siliconflow.cn/v1"
+DEFAULT_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
 
 DEFAULT_TOP_K = 20
 DEFAULT_OFFSET = 0
@@ -84,6 +86,22 @@ def normalize_fts_query(query: str) -> str:
     if not tokens:
         raise ValueError("Query contains no searchable tokens.")
     return " ".join(tokens)
+
+
+def normalize_openai_base_url(raw_url: str) -> str:
+    """Normalize OpenAI-compatible base URL.
+
+    Accepts full embedding endpoint URLs like .../v1/embeddings and normalizes to .../v1.
+    """
+    base = ensure_str(raw_url).rstrip("/")
+    if not base:
+        raise ValueError("Embedding base URL must not be empty.")
+    lowered = base.lower()
+    if lowered.endswith("/v1/embeddings"):
+        return base[: -len("/embeddings")]
+    if lowered.endswith("/embeddings"):
+        return base[: -len("/embeddings")]
+    return base
 
 
 def _build_filters(
@@ -329,7 +347,7 @@ def run_search(
         conn.close()
 
 
-def _make_embedding_client(base_url: str) -> Any:
+def _make_embedding_client(base_url: str, api_key: str | None = None) -> Any:
     """Create OpenAI-compatible client for embeddings."""
     try:
         from openai import OpenAI
@@ -339,17 +357,23 @@ def _make_embedding_client(base_url: str) -> Any:
         import httpx
     except ImportError as exc:
         raise RuntimeError("Missing dependency `httpx`. Install with: uv add httpx") from exc
-    # Most local OpenAI-compatible embedding endpoints accept any key.
+    normalized_base = normalize_openai_base_url(base_url)
+    key = (
+        ensure_str(api_key)
+        or ensure_str(os.getenv("JANUS_EMBED_API_KEY"))
+        or ensure_str(os.getenv("JANUS_LLM_API_KEY"))
+        or "not-required"
+    )
     return OpenAI(
-        base_url=base_url,
-        api_key="not-required",
+        base_url=normalized_base,
+        api_key=key,
         http_client=httpx.Client(trust_env=False),
     )
 
 
-def _embed_query(base_url: str, model: str, query: str) -> List[float]:
+def _embed_query(base_url: str, model: str, query: str, api_key: str | None = None) -> List[float]:
     """Embed query text via OpenAI-compatible endpoint."""
-    client = _make_embedding_client(base_url=base_url)
+    client = _make_embedding_client(base_url=base_url, api_key=api_key)
     response = client.embeddings.create(model=model, input=[query])
     if not response.data:
         raise RuntimeError("Embedding response is empty.")
@@ -426,6 +450,7 @@ def run_hybrid(
     query: str,
     embed_base_url: str,
     embed_model: str,
+    embed_api_key: str | None = None,
     alpha: float,
     vector_top_k: int,
     bm25_top_k: int,
@@ -484,7 +509,7 @@ def run_hybrid(
         }
 
         # 2) Vector recall
-        query_vector = _embed_query(embed_base_url, embed_model, query)
+        query_vector = _embed_query(embed_base_url, embed_model, query, embed_api_key)
         collection = _load_vector_collection(vectors_root=vectors_root, collection_name=collection_name)
         vector_payload = collection.query(
             query_embeddings=[query_vector],
@@ -890,11 +915,25 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     hybrid = subparsers.add_parser("hybrid", help="Hybrid search (FTS + vector)")
     _add_common_filter_args(hybrid)
-    hybrid.add_argument("--embed-base-url", required=True, help="Embedding endpoint base URL")
+    hybrid.add_argument(
+        "--embed-base-url",
+        default=ensure_str(os.getenv("JANUS_EMBED_BASE_URL")) or DEFAULT_EMBED_BASE_URL,
+        help=(
+            "Embedding endpoint base URL. "
+            f"(default env JANUS_EMBED_BASE_URL or {DEFAULT_EMBED_BASE_URL})"
+        ),
+    )
     hybrid.add_argument(
         "--embed-model",
         default=DEFAULT_EMBED_MODEL,
         help=f"Embedding model name (default: {DEFAULT_EMBED_MODEL})",
+    )
+    hybrid.add_argument(
+        "--embed-api-key",
+        default=ensure_str(os.getenv("JANUS_EMBED_API_KEY"))
+        or ensure_str(os.getenv("JANUS_LLM_API_KEY"))
+        or None,
+        help="Embedding API key (default env JANUS_EMBED_API_KEY or JANUS_LLM_API_KEY)",
     )
     hybrid.add_argument(
         "--alpha",
@@ -973,6 +1012,7 @@ def main() -> int:
                 query=args.query,
                 embed_base_url=args.embed_base_url,
                 embed_model=args.embed_model,
+                embed_api_key=args.embed_api_key,
                 alpha=args.alpha,
                 vector_top_k=args.vector_top_k,
                 bm25_top_k=args.bm25_top_k,

@@ -56,8 +56,17 @@ class FakeCollection:
                 "metadata": metadatas[idx],
             }
 
-    def get(self, include: List[str] | None = None) -> Dict[str, Any]:
+    def get(
+        self,
+        include: List[str] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> Dict[str, Any]:
+        _ = include
         ids = list(self.rows.keys())
+        start = int(offset or 0)
+        end = start + int(limit) if limit is not None else len(ids)
+        ids = ids[start:end]
         return {
             "ids": ids,
             "documents": [self.rows[item]["document"] for item in ids],

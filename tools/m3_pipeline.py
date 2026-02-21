@@ -50,7 +50,8 @@ DEFAULT_VENUES_ROOT = Path("venues")
 DEFAULT_TOPICS_ROOT = Path("topics")
 DEFAULT_SUBTOPICS_ROOT = Path("subtopics")
 
-DEFAULT_EMBED_MODEL = "text-embedding-qwen3-embedding-8b"
+DEFAULT_EMBED_BASE_URL = "https://api.siliconflow.cn/v1"
+DEFAULT_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
 DEFAULT_EMBED_BATCH_SIZE = 128
 
 DEFAULT_LLM_BASE_URL = "https://api.siliconflow.cn/v1"
@@ -101,6 +102,22 @@ def slugify(value: Any) -> str:
     text = ensure_str(value).lower()
     text = re.sub(r"[^a-z0-9]+", "_", text)
     return text.strip("_") or "unknown"
+
+
+def normalize_openai_base_url(raw_url: str) -> str:
+    """Normalize OpenAI-compatible base URL.
+
+    Accepts full embedding endpoint URLs like .../v1/embeddings and normalizes to .../v1.
+    """
+    base = ensure_str(raw_url).rstrip("/")
+    if not base:
+        raise ValueError("Embedding base URL must not be empty.")
+    lowered = base.lower()
+    if lowered.endswith("/v1/embeddings"):
+        return base[: -len("/embeddings")]
+    if lowered.endswith("/embeddings"):
+        return base[: -len("/embeddings")]
+    return base
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
@@ -202,6 +219,7 @@ def make_embedding_client(base_url: str, api_key: str | None = None) -> Any:
             "Missing dependency `httpx`. Install with: uv add httpx"
         ) from exc
 
+    normalized_base = normalize_openai_base_url(base_url)
     key = (
         ensure_str(api_key)
         or ensure_str(os.getenv("JANUS_EMBED_API_KEY"))
@@ -209,7 +227,7 @@ def make_embedding_client(base_url: str, api_key: str | None = None) -> Any:
         or "not-required"
     )
     return OpenAI(
-        base_url=base_url,
+        base_url=normalized_base,
         api_key=key,
         http_client=httpx.Client(trust_env=False),
     )
@@ -230,13 +248,14 @@ def make_llm_client(base_url: str, api_key: str | None = None) -> Any:
             "Missing dependency `httpx`. Install with: uv add httpx"
         ) from exc
 
+    normalized_base = normalize_openai_base_url(base_url)
     key = ensure_str(api_key) or ensure_str(os.getenv("JANUS_LLM_API_KEY"))
     if not key:
         raise ValueError(
             "JANUS_LLM_API_KEY is required for build-topics (LLM naming hard-fail policy)."
         )
     return OpenAI(
-        base_url=base_url,
+        base_url=normalized_base,
         api_key=key,
         http_client=httpx.Client(trust_env=False),
     )
@@ -487,7 +506,7 @@ def run_build_vectors(
         "db_path": str(db_path),
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
-        "embed_base_url": embed_base_url,
+        "embed_base_url": normalize_openai_base_url(embed_base_url),
         "embed_model": embed_model,
         "embed_cooldown_seconds": embed_cooldown_seconds,
         "exclude_placeholder": exclude_placeholder,
@@ -549,37 +568,47 @@ def _cluster_labels(
 
 def _load_vector_items(collection: Any) -> List[VectorItem]:
     """Load all vector items from Chroma collection."""
-    payload = collection.get(include=["embeddings", "documents", "metadatas"])
-    ids = payload.get("ids", [])
-    embeddings = payload.get("embeddings", [])
-    documents = payload.get("documents", [])
-    metadatas = payload.get("metadatas", [])
-    if ids is None:
-        ids = []
-    if embeddings is None:
-        embeddings = []
-    if documents is None:
-        documents = []
-    if metadatas is None:
-        metadatas = []
-    if not (len(ids) == len(embeddings) == len(documents) == len(metadatas)):
-        raise RuntimeError(
-            "Vector collection payload size mismatch: ids/embeddings/documents/metadatas"
-        )
+    count = int(collection.count())
+    if count <= 0:
+        return []
 
+    step = 2000
     items: List[VectorItem] = []
-    for index, paper_id in enumerate(ids):
-        metadata = metadatas[index]
-        if not isinstance(metadata, dict):
-            metadata = {}
-        items.append(
-            VectorItem(
-                paper_id=ensure_str(paper_id),
-                embedding=[float(value) for value in embeddings[index]],
-                document=ensure_str(documents[index]),
-                metadata=metadata,
-            )
+    for offset in range(0, count, step):
+        payload = collection.get(
+            include=["embeddings", "documents", "metadatas"],
+            limit=step,
+            offset=offset,
         )
+        ids = payload.get("ids", [])
+        embeddings = payload.get("embeddings", [])
+        documents = payload.get("documents", [])
+        metadatas = payload.get("metadatas", [])
+        if ids is None:
+            ids = []
+        if embeddings is None:
+            embeddings = []
+        if documents is None:
+            documents = []
+        if metadatas is None:
+            metadatas = []
+        if not (len(ids) == len(embeddings) == len(documents) == len(metadatas)):
+            raise RuntimeError(
+                "Vector collection payload size mismatch: ids/embeddings/documents/metadatas"
+            )
+
+        for index, paper_id in enumerate(ids):
+            metadata = metadatas[index]
+            if not isinstance(metadata, dict):
+                metadata = {}
+            items.append(
+                VectorItem(
+                    paper_id=ensure_str(paper_id),
+                    embedding=[float(value) for value in embeddings[index]],
+                    document=ensure_str(documents[index]),
+                    metadata=metadata,
+                )
+            )
     return items
 
 
@@ -734,7 +763,7 @@ def run_build_topics(
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
         "llm": {
-            "base_url": llm_base_url,
+            "base_url": normalize_openai_base_url(llm_base_url),
             "model": llm_model,
         },
         "summary": {
@@ -1367,8 +1396,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     common.add_argument(
         "--embed-base-url",
-        default="http://127.0.0.1:1234/v1",
-        help="Embedding endpoint base URL (OpenAI-compatible).",
+        default=ensure_str(os.getenv("JANUS_EMBED_BASE_URL")) or DEFAULT_EMBED_BASE_URL,
+        help=(
+            "Embedding endpoint base URL (OpenAI-compatible). "
+            f"(default env JANUS_EMBED_BASE_URL or {DEFAULT_EMBED_BASE_URL})"
+        ),
     )
     common.add_argument(
         "--embed-model",

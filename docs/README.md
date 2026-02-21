@@ -19,6 +19,8 @@
    M2-B：基于 SQL+FTS 的检索 CLI（search/get/stats）。
 9. `22_M3_CACHE_AND_HYBRID.md`
    M3：向量构建、主题缓存（L1-L4）与混合检索（hybrid）。
+10. `30_M4_AGENT_VALIDATION.md`
+   M4：云端硬门禁 + 固定查询 + 抽样查询 + Replay 当前覆盖口径验收。
 
 ## 文档关系
 - `AGENTS.md`：全局约束与执行入口（链接到本目录）
@@ -31,6 +33,9 @@
 - `index/m3_build_report.json`：M3 构建执行报告
 - `index/m3_validate_report.json`：M3 校验报告
 - `index/m3_topic_assignments.json`：M3 主题/子主题分配结果
+- `index/m4_eval_report.json`：M4 机器可读验收报告
+- `index/m4_eval_report.md`：M4 人工可读验收摘要
+- `index/m4_sampled_queries.json`：M4 抽样查询快照
 
 ## 更新规则
 - 规则变化优先更新 `10~13` 系列文档。
