@@ -13,12 +13,24 @@
    实操命令、无 key 场景策略、回填节奏。
 6. `14_M1_FREEZE_2026-02-19.md`  
    本次 M1 初步冻结结果与遗留风险。
+7. `20_M2_DATABASE.md`
+   M2-A：JSON 到 SQLite 的入库与校验规范。
+8. `21_M2_SEARCH_CLI.md`
+   M2-B：基于 SQL+FTS 的检索 CLI（search/get/stats）。
+9. `22_M3_CACHE_AND_HYBRID.md`
+   M3：向量构建、主题缓存（L1-L4）与混合检索（hybrid）。
 
 ## 文档关系
 - `AGENTS.md`：全局约束与执行入口（链接到本目录）
 - `PROJECT.md`：项目目标与阶段状态（链接到本目录）
 - `index/m1_quality_report.json`：当前质量事实来源
 - `index/m1_backfill_report.json`：最近回填结果事实来源
+- `index/m2_load_report.json`：M2 入库执行报告
+- `index/m2_validate_report.json`：M2 一致性校验报告
+- `index/m2_fts_report.json`：FTS 重建报告（手动 reindex 时生成）
+- `index/m3_build_report.json`：M3 构建执行报告
+- `index/m3_validate_report.json`：M3 校验报告
+- `index/m3_topic_assignments.json`：M3 主题/子主题分配结果
 
 ## 更新规则
 - 规则变化优先更新 `10~13` 系列文档。
