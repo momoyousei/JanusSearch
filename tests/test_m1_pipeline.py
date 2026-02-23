@@ -11,6 +11,7 @@ from tools.m1_pipeline import (
     dedupe_records,
     is_placeholder_record,
     normalize_title,
+    resolve_icml_pmlr_volume,
 )
 
 
@@ -29,6 +30,10 @@ class TestM1Pipeline(unittest.TestCase):
             "10.1109/CVPR.2016.90",
         )
         self.assertIsNone(canonicalize_doi(""))
+
+    def test_icml_pmlr_volume_mapping(self) -> None:
+        self.assertEqual(resolve_icml_pmlr_volume(2021), "v139")
+        self.assertIsNone(resolve_icml_pmlr_volume(2019))
 
     def test_placeholder_detection(self) -> None:
         placeholder = {
@@ -79,4 +84,3 @@ class TestM1Pipeline(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import html as html_lib
 import json
 import logging
 import os
@@ -26,7 +27,7 @@ from urllib.request import Request, urlopen
 
 LOGGER = logging.getLogger("m1_pipeline")
 
-DEFAULT_INPUT_GLOB = "*-*.json"
+DEFAULT_INPUT_GLOB = "archives/root_json/*-*.json"
 DEFAULT_CANONICAL_ROOT = Path("data/raw")
 DEFAULT_BACKUP_ROOT = Path("backups/raw")
 DEFAULT_INDEX_ROOT = Path("index")
@@ -39,8 +40,14 @@ S2_FIELDS = "paperId,title,abstract,authors,citationCount,url,externalIds"
 ARXIV_BASE = "https://export.arxiv.org/api/query"
 ARXIV_DEFAULT_MIN_INTERVAL_SECONDS = 3.0
 ARXIV_DEFAULT_USER_AGENT = "JanusSearch/0.1"
+PMLR_BASE = "https://proceedings.mlr.press"
 _ARXIV_LAST_REQUEST_AT = 0.0
 _NEURIPS_OFFICIAL_STATS_CACHE: Dict[str, Dict[str, Any]] = {}
+_PMLR_INDEX_CACHE: Dict[str, Dict[str, str]] = {}
+_PMLR_ABSTRACT_CACHE: Dict[str, Optional[str]] = {}
+_ICML_PMLR_VOLUMES: Dict[int, str] = {
+    2021: "v139",
+}
 
 
 @dataclass
@@ -1222,7 +1229,7 @@ class SemanticScholarClient:
                 body_text = err.read().decode("utf-8", errors="ignore")
                 LOGGER.warning("S2 request failed (%s): %s", err.code, body_text[:180])
                 return None
-            except (URLError, TimeoutError, json.JSONDecodeError) as err:
+            except (URLError, TimeoutError, socket.timeout, json.JSONDecodeError) as err:
                 if attempt > self.retries:
                     LOGGER.warning("S2 request failed after retries: %s", err)
                     return None
@@ -1244,6 +1251,178 @@ class SemanticScholarClient:
         params = {"query": query, "limit": str(limit), "fields": S2_FIELDS}
         url = f"{S2_BASE}/paper/search?{urlencode(params)}"
         return self._request_json(url=url, method="GET")
+
+
+def fetch_text_with_retry(
+    url: str,
+    *,
+    timeout: float,
+    retries: int,
+    headers: Optional[Dict[str, str]] = None,
+) -> Optional[str]:
+    """Fetch URL text with retry and transient error handling."""
+    request_headers = {"Accept": "text/html,application/json", "User-Agent": "JanusSearch/0.1"}
+    if headers:
+        request_headers.update(headers)
+    for attempt in range(1, retries + 1):
+        try:
+            request = Request(url, headers=request_headers, method="GET")
+            with urlopen(request, timeout=timeout) as response:
+                return response.read().decode("utf-8", errors="ignore")
+        except HTTPError as err:
+            if err.code == 404:
+                return None
+            if attempt < retries and (err.code == 429 or 500 <= err.code < 600):
+                wait = min(12.0, 1.4 * (2 ** (attempt - 1)))
+                time.sleep(wait)
+                continue
+            LOGGER.warning("HTTP fetch failed (%s): %s", err.code, url)
+            return None
+        except (URLError, TimeoutError, socket.timeout) as err:
+            if attempt >= retries:
+                LOGGER.warning("URL fetch failed after retries (%s): %s", url, err)
+                return None
+            wait = min(12.0, 1.4 * (2 ** (attempt - 1)))
+            time.sleep(wait)
+    return None
+
+
+def resolve_icml_pmlr_volume(year: int) -> Optional[str]:
+    """Resolve ICML year to PMLR volume slug."""
+    return _ICML_PMLR_VOLUMES.get(year)
+
+
+def load_pmlr_title_index(volume: str, timeout: float, retries: int) -> Dict[str, str]:
+    """Build normalized-title -> PMLR abstract page URL index for one volume."""
+    cached = _PMLR_INDEX_CACHE.get(volume)
+    if cached is not None:
+        return cached
+
+    index_url = f"{PMLR_BASE}/{volume}/"
+    html_text = fetch_text_with_retry(index_url, timeout=timeout, retries=retries)
+    if not html_text:
+        _PMLR_INDEX_CACHE[volume] = {}
+        return {}
+
+    mapping: Dict[str, str] = {}
+    blocks = re.findall(r'<div class="paper">(.*?)</div>', html_text, flags=re.IGNORECASE | re.DOTALL)
+    for block in blocks:
+        title_match = re.search(r'<p class="title">(.*?)</p>', block, flags=re.IGNORECASE | re.DOTALL)
+        link_match = re.search(r'\[<a href="([^"]+)">abs</a>\]', block, flags=re.IGNORECASE)
+        if not title_match or not link_match:
+            continue
+        raw_title = html_lib.unescape(re.sub(r"<[^>]+>", " ", title_match.group(1)))
+        clean_title = re.sub(r"\s+", " ", raw_title).strip()
+        normalized = normalize_title(clean_title)
+        if not normalized:
+            continue
+        abs_url = ensure_str(link_match.group(1))
+        if abs_url.startswith("http://") or abs_url.startswith("https://"):
+            mapping[normalized] = abs_url
+        elif abs_url.startswith("/"):
+            mapping[normalized] = f"{PMLR_BASE}{abs_url}"
+        else:
+            mapping[normalized] = f"{PMLR_BASE}/{volume}/{abs_url}"
+
+    _PMLR_INDEX_CACHE[volume] = mapping
+    return mapping
+
+
+def resolve_pmlr_abs_url_by_title(
+    *,
+    venue: str,
+    year: int,
+    title: str,
+    timeout: float,
+    retries: int,
+) -> Optional[str]:
+    """Resolve PMLR abstract-page URL by title for ICML records."""
+    if ensure_str(venue).upper() != "ICML":
+        return None
+    volume = resolve_icml_pmlr_volume(year)
+    if not volume:
+        return None
+    mapping = load_pmlr_title_index(volume=volume, timeout=timeout, retries=retries)
+    if not mapping:
+        return None
+
+    normalized = normalize_title(title)
+    if normalized in mapping:
+        return mapping[normalized]
+
+    if not normalized:
+        return None
+    best_url: Optional[str] = None
+    best_ratio = 0.0
+    for candidate_norm, candidate_url in mapping.items():
+        ratio = SequenceMatcher(None, normalized, candidate_norm).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_url = candidate_url
+    if best_ratio >= 0.992:
+        return best_url
+    return None
+
+
+def fetch_pmlr_abstract(abs_url: str, timeout: float, retries: int) -> Optional[str]:
+    """Fetch abstract text from one PMLR abstract page."""
+    cached = _PMLR_ABSTRACT_CACHE.get(abs_url)
+    if cached is not None:
+        return cached
+
+    html_text = fetch_text_with_retry(abs_url, timeout=timeout, retries=retries)
+    if not html_text:
+        _PMLR_ABSTRACT_CACHE[abs_url] = None
+        return None
+
+    match = re.search(
+        r'<div[^>]*id="abstract"[^>]*>(.*?)</div>',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        _PMLR_ABSTRACT_CACHE[abs_url] = None
+        return None
+
+    abstract = html_lib.unescape(re.sub(r"<[^>]+>", " ", match.group(1)))
+    abstract = re.sub(r"\s+", " ", abstract).strip()
+    _PMLR_ABSTRACT_CACHE[abs_url] = abstract or None
+    return _PMLR_ABSTRACT_CACHE[abs_url]
+
+
+def backfill_from_pmlr(
+    *,
+    record: Dict[str, Any],
+    venue: str,
+    year: int,
+    timeout: float,
+    retries: int,
+) -> bool:
+    """Backfill abstract from PMLR for ICML papers when available."""
+    if not is_missing_text(record.get("abstract")):
+        return False
+    title = ensure_str(record.get("paper_title") or record.get("title"))
+    if not title:
+        return False
+    abs_url = resolve_pmlr_abs_url_by_title(
+        venue=venue,
+        year=year,
+        title=title,
+        timeout=timeout,
+        retries=retries,
+    )
+    if not abs_url:
+        return False
+    abstract = fetch_pmlr_abstract(abs_url=abs_url, timeout=timeout, retries=retries)
+    if not abstract:
+        return False
+    record["abstract"] = abstract
+    source_ids = record.get("source_ids", {})
+    if not isinstance(source_ids, dict):
+        source_ids = {}
+    source_ids.setdefault("pmlr_abs_url", abs_url)
+    record["source_ids"] = source_ids
+    return True
 
 
 def arxiv_wait_for_rate_limit(min_interval_seconds: float = ARXIV_DEFAULT_MIN_INTERVAL_SECONDS) -> None:
@@ -1469,6 +1648,8 @@ def apply_s2_data(record: Dict[str, Any], payload: Dict[str, Any]) -> bool:
 def backfill_records(
     records: List[Dict[str, Any]],
     *,
+    venue: str,
+    year: int,
     client: SemanticScholarClient,
     timeout: float,
     retries: int,
@@ -1488,6 +1669,7 @@ def backfill_records(
     stats = {
         "candidates": len(candidates),
         "updated_records": 0,
+        "pmlr_hits": 0,
         "s2_doi_hits": 0,
         "s2_title_hits": 0,
         "arxiv_hits": 0,
@@ -1502,8 +1684,18 @@ def backfill_records(
         updated = False
         s2_data: Optional[Dict[str, Any]] = None
 
+        if backfill_from_pmlr(
+            record=record,
+            venue=venue,
+            year=year,
+            timeout=timeout,
+            retries=retries,
+        ):
+            updated = True
+            stats["pmlr_hits"] += 1
+
         doi = canonicalize_doi(record.get("doi"))
-        if doi:
+        if doi and is_missing_text(record.get("abstract")):
             s2_data = client.lookup_by_doi(doi)
             if s2_data and titles_match(title, ensure_str(s2_data.get("title"))):
                 if apply_s2_data(record, s2_data):
@@ -1512,7 +1704,7 @@ def backfill_records(
             else:
                 s2_data = None
 
-        if not s2_data:
+        if not s2_data and is_missing_text(record.get("abstract")):
             s2_search = client.search_by_title(title)
             candidate = parse_s2_result_by_title(local_title=title, payload=s2_search)
             if candidate:
@@ -1675,7 +1867,7 @@ def run_backfill(
     min_interval: float,
     enable_arxiv_title: bool,
 ) -> Dict[str, Any]:
-    """Run Semantic Scholar + arXiv backfill for missing abstracts."""
+    """Run PMLR + Semantic Scholar + arXiv backfill for missing abstracts."""
     files = find_input_files(input_glob)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     api_key = ensure_str(os.environ.get("SEMANTIC_SCHOLAR_API_KEY")) or None
@@ -1706,6 +1898,8 @@ def run_backfill(
         records = root_payload["papers"]
         stats = backfill_records(
             records=records,
+            venue=context.venue,
+            year=context.year,
             client=client,
             timeout=timeout,
             retries=retries,
@@ -1892,7 +2086,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--input-glob",
         default=DEFAULT_INPUT_GLOB,
-        help=f"Input file glob in repo root (default: {DEFAULT_INPUT_GLOB})",
+        help=f"Input file glob (default: {DEFAULT_INPUT_GLOB})",
     )
     parser.add_argument(
         "--canonical-root",

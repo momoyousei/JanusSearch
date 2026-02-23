@@ -29,6 +29,7 @@ Input:
 Output:
 
 - One JSON file (do not split by track)
+- Recommended path: `archives/root_json/{VENUE}-{YY}.json`
 - Per-paper fields include:
   - `paper_title`
   - `authors`
@@ -115,17 +116,17 @@ NeurIPS uses official tracks first, then fallback heuristics only if unmatched.
 
 ```bash
 python3 paper-search/scripts/fetch_conference_papers.py CVPR-26 \
-  --output CVPR-26.json \
+  --output archives/root_json/CVPR-26.json \
   --api-key "$OPENALEX_API_KEY"
 
 python3 paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
-  --output NeurIPS-25.json \
+  --output archives/root_json/NeurIPS-25.json \
   --provider openreview \
   --reconcile-url https://neurips.cc/virtual/2025/papers.html \
   --reconcile-include-missing
 
 python3 paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
-  --output NeurIPS-25.json \
+  --output archives/root_json/NeurIPS-25.json \
   --provider auto \
   --api-key "$OPENALEX_API_KEY" \
   --no-progress
@@ -136,7 +137,7 @@ Batch rerun NeurIPS 2021-2025:
 ```bash
 for y in 21 22 23 24 25; do
   python3 paper-search/scripts/fetch_conference_papers.py "NeurIPS-$y" \
-    --output "NeurIPS-$y.json" \
+    --output "archives/root_json/NeurIPS-$y.json" \
     --provider openreview \
     --reconcile-url "https://neurips.cc/virtual/20${y}/papers.html" \
     --reconcile-include-missing
@@ -150,8 +151,13 @@ python3 paper-search/scripts/fetch_conference_papers.py CVPR-26 \
   --source-id https://openalex.org/S4306400393 \
   --source-name "IEEE/CVF Conference on Computer Vision and Pattern Recognition" \
   --api-key "$OPENALEX_API_KEY" \
-  --output cvpr26.json
+  --output archives/root_json/cvpr26.json
 ```
+
+After collection, continue with:
+- `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' normalize`
+- `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' validate`
+- `python3 -m tools.m2_db run`
 
 ## Data quality details
 

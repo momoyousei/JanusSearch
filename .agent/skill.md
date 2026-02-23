@@ -21,6 +21,7 @@ Use this skill when the user asks to:
 - find papers by topic, venue, year, track, or presentation level
 - retrieve one full paper record by `paper_id`
 - inspect DB/search coverage stats
+- collect new venue-year papers and merge them into current baseline
 - rebuild FTS index or validate DB consistency
 - rebuild vectors/cache layers
 - run M4 end-to-end validation and read reports
@@ -53,6 +54,7 @@ Default policy is `search-first, upgrade-later`.
 - Vector/cache rebuild -> `python3 -m tools.m3_pipeline run` (or step-by-step commands)
 - End-to-end validation -> `python3 -m tools.m4_validate run` / `status`
 - Data quality processing -> `python3 -m tools.m1_pipeline` subcommands
+- Expansion collection -> `python3 paper-search/scripts/fetch_conference_papers.py` + `m1_pipeline` + `m2_db run`
 
 ## Parameter Extraction Rules
 
@@ -170,6 +172,15 @@ Rules:
 - On failure fallback:
   - `python3 -m tools.search search --query "continual replay"`
 - Response must include fallback reason and vector-chain error snippet.
+
+10. Expansion batch onboarding
+- User: "新增 AAAI 2024-2025 并接入检索"
+- Route:
+  - `python3 paper-search/scripts/fetch_conference_papers.py AAAI-24 --output archives/root_json/AAAI-24.json`
+  - `python3 paper-search/scripts/fetch_conference_papers.py AAAI-25 --output archives/root_json/AAAI-25.json`
+  - `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/AAAI-2*.json' normalize`
+  - `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/AAAI-2*.json' validate`
+  - `python3 -m tools.m2_db run`
 
 ## Test Scenarios For This Skill
 

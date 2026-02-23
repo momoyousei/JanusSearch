@@ -29,8 +29,8 @@ python3 -m tools.m2_db stats
 - `--log-level`
 
 ## 输入与事实来源
-- 本阶段仅使用 `data/raw`，不直接读取根目录 16 个历史文件。
-- 根目录文件保留用于历史追溯，不参与 M2 入库。
+- 本阶段仅使用 `data/raw`，不直接读取 `archives/root_json/` 下的历史文件（当前为 21 个）。
+- `archives/root_json/` 保留用于历史追溯，不参与 M2 入库。
 
 ## 表结构
 - 主表：`papers`

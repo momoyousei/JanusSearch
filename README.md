@@ -12,10 +12,17 @@ It supports structured data ingestion, SQLite + FTS retrieval, vector retrieval,
 
 ## Current Milestone Status
 
-- M1: data normalization baseline frozen.
+- M1: data normalization baseline available and validated.
 - M2: SQLite ingestion + FTS retrieval available.
 - M3: vector store + topic/subtopic cache + hybrid retrieval available.
 - M4: cloud-gated end-to-end validation pipeline available.
+
+## Current Baseline Snapshot (2026-02-22)
+
+- Full M1→M4 pipeline is implemented and basic E2E cases are validated.
+- Baseline coverage: 21 venue-year files (ICLR, ICML, NeurIPS, CVPR).
+- Current phase: conference/paper expansion from this stable baseline.
+- Expansion runbook: `docs/40_EXPANSION_PLAYBOOK.md`
 
 ## Core Architecture
 
@@ -101,11 +108,12 @@ python3 -m tools.m4_validate status
 ## Documentation Entry
 
 - `docs/README.md`
+- `docs/40_EXPANSION_PLAYBOOK.md`
 - `docs/21_M2_SEARCH_CLI.md`
 - `docs/22_M3_CACHE_AND_HYBRID.md`
 - `docs/30_M4_AGENT_VALIDATION.md`
 
 ## Notes
 
-- Root-level `ICLR-*.json`, `ICML-*.json`, `NeurIPS-*.json` are historical files kept for traceability.
+- Historical input snapshots are stored in `archives/root_json/` (`ICLR-*.json`, `ICML-*.json`, `NeurIPS-*.json`, `CVPR-*.json`) for traceability.
 - Canonical operational source is `data/raw`.

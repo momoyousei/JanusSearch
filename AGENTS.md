@@ -9,9 +9,10 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - 进入任务前先阅读：`docs/README.md`。
 
 ## 当前阶段
-- 长期目标：以现有 16 个会议年份文件为基线，走通完整项目（M1→M4）。
+- 长期目标：以现有 21 个会议年份文件（ICLR/ICML/NeurIPS/CVPR）为基线，走通完整项目（M1→M4）。
 - 当前冻结点：M1 初步冻结（见 `docs/14_M1_FREEZE_2026-02-19.md`）。
-- 当前重点：在 M3 基线上推进 M4（云端硬门禁的端到端验收）闭环。
+- 当前状态：M1→M4 主链路已贯通，且已完成基础端到端用例验证。
+- 当前重点：进入“会议/论文扩充阶段”，按批次扩展会议与年份覆盖。
 
 ## 技术约束
 - Python 3.11+
@@ -48,6 +49,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - M2 检索 CLI（SQL+FTS）：`docs/21_M2_SEARCH_CLI.md`
 - M3 缓存与混合检索：`docs/22_M3_CACHE_AND_HYBRID.md`
 - M4 Agent 验收：`docs/30_M4_AGENT_VALIDATION.md`
+- 扩充阶段手册：`docs/40_EXPANSION_PLAYBOOK.md`
 
 ## M3 执行入口
 - 全流程：`python3 -m tools.m3_pipeline run --db-path data/papers.db --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --exclude-placeholder`

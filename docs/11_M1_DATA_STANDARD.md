@@ -1,7 +1,7 @@
 # M1 数据规范（Data Contract）
 
-## 顶层文件结构（根文件）
-每个 `*-*.json` 在 M1 规范化后应包含：
+## 顶层文件结构（历史输入文件）
+每个 `archives/root_json/*-*.json` 在 M1 规范化后应包含：
 - `query`: 查询上下文（target, venue_code, year, provider 等）
 - `source`: 数据源描述
 - `generated_at_utc`
@@ -71,6 +71,30 @@
 满足以下典型条件之一时标记为 `placeholder`：
 - `external_only = true`
 - 作者缺失 + 摘要缺失 + 无 DOI/OpenReview/OpenAlex 主锚点，且仅外链存在
+
+## CVPR 补充约定（2026-02）
+- 当来源为 CVF OpenAccess 时，`query.provider` 与 `source.provider` 统一使用 `cvf_openaccess`。
+- `source_ids` 建议包含：
+  - `cvf_paper_html`
+  - `cvf_pdf_url`
+  - `cvf_arxiv_url`（若存在）
+  - `arxiv_id`（若存在）
+  - `cvf_bibtex_key`（若存在）
+  - `cvf_pages`（若存在）
+- 若通过 Wayback 恢复摘要，补充 `source_ids.wayback_pdf_url`，并将 `record_status` 置为 `repaired`。
+- 若官方链接长期 404 且无法恢复，保留 `missing_abstract` 质量标记并在阶段报告登记，不得修改 `paper_count`。
+
+## AAAI OpenReview 回补约定（2026-02）
+- 当 `AAAI-YY` 在 OJS 尚无 Technical Tracks 时，可使用 OpenReview 回补，`query.provider` 与 `source.provider` 统一为 `openreview`。
+- `source_ids` 建议包含：
+  - `openreview_note_id`
+  - `openreview_forum_id`
+  - `openreview_venue`
+  - `openreview_venueid`
+  - `openreview_invitation`（若有）
+  - `openreview_pdf_url`（若有）
+- 回补数据需在 `query.work_filter_strategy` 中显式记录匹配策略（如 `content.venue in [...]`）。
+- 回补结果属于“早期可见样本”，不得与 OJS 正式最终口径直接混算。
 
 ## 关联文档
 - 方法论：`10_M1_METHOD.md`

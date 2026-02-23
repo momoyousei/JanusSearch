@@ -9,7 +9,7 @@
 入口脚本：`tools/m1_pipeline.py`
 
 1. `inventory`（盘点）
-- 读取输入文件（默认 `*-*.json`）
+- 读取输入文件（默认 `archives/root_json/*-*.json`）
 - 预估规范化后质量指标，不改动数据
 - 输出：`index/m1_inventory.json`
 
@@ -24,6 +24,7 @@
 
 3. `backfill`（摘要补全）
 - 优先级：
+  - ICML 优先 PMLR（`proceedings.mlr.press`）按标题回填 abstract
   - S2 DOI 查询
   - S2 标题查询
   - arXiv ID 补全
@@ -38,6 +39,26 @@
 - 输出：
   - `index/m1_quality_report.json`
   - `index/stats.md`
+
+## CVPR 官方源策略（2026-02 增补）
+- 采集源：CVF OpenAccess（`https://openaccess.thecvf.com/CVPR{year}?day=all`）。
+- 执行顺序必须为：
+  1. 先统计官方口径总量（list 页面 `ptitle` 条目数）
+  2. 再批量抓取论文
+  3. 最后做一致性校验（official count == collected count）
+- 对 CVPR 的摘要补全优先级：
+  1. 详情页 `paper.html` 的 `div#abstract`
+  2. `m1_pipeline backfill`（S2 / arXiv）
+  3. Wayback 历史快照（仅在官方链接 404 且可追溯时启用）
+- 当官方链接长期 404 且外部源不可用时，允许保留极小规模残缺并在报告中显式登记，不改动官方总量口径。
+
+## AAAI 新年份回补策略（2026-02 增补）
+- 主口径仍为 AAAI OJS Technical Tracks（`AAAI-YY Technical Tracks *`）。
+- 当 OJS 尚未发布对应年份 issue 时，允许启用 OpenReview fallback：
+  1. 先确认 OJS 缺失（无对应 Technical Tracks issue）。
+  2. 再按 OpenReview `content.venue` 精确匹配回补（如 `AAAI 2026`, `AAAI 2026 Oral`）。
+  3. 最后将“OpenReview 公告/官方通报”中的投稿规模作为参考口径写入报告，不与已发布 OJS 正式总量混算。
+- fallback 结果必须在报告中显式标注来源为 `openreview`，避免与 OJS 正式口径混淆。
 
 ## 官方口径对齐策略
 - NeurIPS：优先使用 `official_tracks + source_url` 拉取官方 catalog，并按标题映射回写 track/presentation。
@@ -54,3 +75,4 @@
 - 质量门禁：`12_M1_QUALITY_GATES.md`
 - 实操命令：`13_M1_OPERATIONS_RUNBOOK.md`
 - 冻结结果：`14_M1_FREEZE_2026-02-19.md`
+- 增量复盘：`16_M1_CVPR2021_2025_PATCH_AND_LESSONS_2026-02-22.md`

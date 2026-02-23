@@ -8,7 +8,7 @@
 
 ## 范围定义
 - 目标会议（16）：CVPR, ICCV, ECCV, NeurIPS, ICML, ICLR, AAAI, IJCAI, ACL, EMNLP, NAACL, KDD, WWW, ACM MM, CoRL, WACV
-- 当前基线：先在已有 16 个会议年份文件上跑通完整链路
+- 当前基线：先在已有 21 个会议年份文件（ICLR/ICML/NeurIPS/CVPR）上跑通完整链路
 - 数据源策略：
   - 首选：OpenReview / OpenAlex / DBLP（按会议可用性）
   - 补全：Semantic Scholar + arXiv
@@ -26,6 +26,7 @@
    目标：以固定查询集做端到端回归验证
 
 ## 当前所处阶段
-- 状态：M1 初步冻结
-- 冻结文档：`14_M1_FREEZE_2026-02-19.md`
-- 下一步：在冻结基线上推进 M2，避免边开发边改采集基线
+- 状态：M1→M4 主链路已打通并完成基础用例验证
+- 基线：21 个会议年份文件（ICLR/ICML/NeurIPS/CVPR）
+- 当前重点：进入会议/论文扩充阶段，按批次扩展到更多会议与年份
+- 执行入口：`40_EXPANSION_PLAYBOOK.md`
