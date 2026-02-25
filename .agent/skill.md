@@ -194,6 +194,8 @@ Rules:
 
 ## Documentation Entry Links
 
-- `/Users/yangli/Workspace/JanusSearch/docs/21_M2_SEARCH_CLI.md`
-- `/Users/yangli/Workspace/JanusSearch/docs/22_M3_CACHE_AND_HYBRID.md`
-- `/Users/yangli/Workspace/JanusSearch/docs/30_M4_AGENT_VALIDATION.md`
+- `/Users/yangli/Workspace/JanusSearch/docs/README.md`
+- `/Users/yangli/Workspace/JanusSearch/docs/10_CORE_ARCHITECTURE.md`
+- `/Users/yangli/Workspace/JanusSearch/docs/20_PIPELINE_AND_GATES.md`
+- `/Users/yangli/Workspace/JanusSearch/docs/30_EXPANSION_POLICY.md`
+- `/Users/yangli/Workspace/JanusSearch/docs/90_HISTORY.md`

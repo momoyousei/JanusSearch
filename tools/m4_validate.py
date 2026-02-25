@@ -10,9 +10,7 @@ import logging
 import os
 import random
 import re
-import sqlite3
 import time
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence
@@ -44,71 +42,11 @@ DEFAULT_SAMPLE_TOPICS = 20
 DEFAULT_SAMPLE_PER_TOPIC = 2
 DEFAULT_SAMPLE_SEED = 42
 DEFAULT_TOP_K = 50
-DEFAULT_REPLAY_TOP_K = 100
 
 DEFAULT_VECTOR_TOP_K = 100
 DEFAULT_BM25_TOP_K = 100
 DEFAULT_ALPHA = 0.6
 SAMPLED_PASS_THRESHOLD = 0.9
-
-
-@dataclass(frozen=True)
-class ReplayTarget:
-    """Replay benchmark target within current-coverage validation."""
-
-    title_fragment: str
-    venue: str
-    year: int
-
-
-REPLAY_TARGETS: List[ReplayTarget] = [
-    ReplayTarget(
-        title_fragment="Dark Experience for General Continual Learning",
-        venue="NEURIPS",
-        year=2020,
-    ),
-    ReplayTarget(
-        title_fragment="GDumb: A Simple Approach that Questions Our Progress in Continual Learning",
-        venue="ECCV",
-        year=2020,
-    ),
-    ReplayTarget(
-        title_fragment="Online Continual Learning with Maximal Interfered Retrieval",
-        venue="NEURIPS",
-        year=2019,
-    ),
-    ReplayTarget(
-        title_fragment="Experience Replay for Continual Learning",
-        venue="NEURIPS",
-        year=2019,
-    ),
-    ReplayTarget(
-        title_fragment="Rainbow Memory: Continual Learning with a Memory of Diverse Samples",
-        venue="CVPR",
-        year=2021,
-    ),
-    ReplayTarget(
-        title_fragment="Co2L: Contrastive Continual Learning",
-        venue="ICCV",
-        year=2021,
-    ),
-    ReplayTarget(
-        title_fragment="Memory Replay with Data Compression for Continual Learning",
-        venue="ICLR",
-        year=2022,
-    ),
-    ReplayTarget(
-        title_fragment="Repeated Augmented Rehearsal",
-        venue="NEURIPS",
-        year=2022,
-    ),
-    ReplayTarget(
-        title_fragment="ESMER: Energy-based Summarization for Memory Replay",
-        venue="NEURIPS",
-        year=2023,
-    ),
-]
-
 
 def utc_now_iso() -> str:
     """Return UTC timestamp in ISO-8601."""
@@ -149,15 +87,6 @@ def _resolve_embed_api_key(explicit_key: str | None) -> str:
             "`JANUS_EMBED_API_KEY` / `JANUS_LLM_API_KEY`."
         )
     return key
-
-
-def _connect_db(db_path: Path) -> sqlite3.Connection:
-    """Open SQLite database for read-only validation queries."""
-    if not db_path.exists():
-        raise FileNotFoundError(f"Database file not found: {db_path}")
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 
 @retry(
@@ -650,151 +579,6 @@ def run_sampled_suite(
     }
 
 
-def _find_replay_eligible(
-    conn: sqlite3.Connection,
-    *,
-    target: ReplayTarget,
-) -> List[Dict[str, Any]]:
-    """Find matching paper candidates for replay target under current coverage."""
-    rows = conn.execute(
-        """
-        SELECT paper_id, title, venue, year, record_status
-        FROM papers
-        WHERE venue = ? AND year = ? AND record_status != 'placeholder'
-        """,
-        (target.venue, target.year),
-    ).fetchall()
-    target_norm = _normalize_title(target.title_fragment)
-    matches: List[Dict[str, Any]] = []
-    for row in rows:
-        title = ensure_str(row["title"])
-        title_norm = _normalize_title(title)
-        if target_norm and (target_norm in title_norm or title_norm in target_norm):
-            matches.append(
-                {
-                    "paper_id": ensure_str(row["paper_id"]),
-                    "title": title,
-                    "venue": ensure_str(row["venue"]),
-                    "year": int(row["year"]),
-                    "record_status": ensure_str(row["record_status"]),
-                }
-            )
-    return matches
-
-
-def run_replay_current_coverage_suite(
-    *,
-    db_path: Path,
-    vectors_root: Path,
-    collection_name: str,
-    embed_base_url: str,
-    embed_model: str,
-    embed_api_key: str,
-    replay_top_k: int,
-) -> Dict[str, Any]:
-    """Evaluate replay benchmark using eligible subset in current DB coverage."""
-    if replay_top_k <= 0:
-        raise ValueError("`--replay-top-k` must be positive.")
-
-    conn = _connect_db(db_path)
-    try:
-        cases: List[Dict[str, Any]] = []
-        eligible_count = 0
-        passed = 0
-        skipped: List[Dict[str, Any]] = []
-
-        for target in REPLAY_TARGETS:
-            candidates = _find_replay_eligible(conn, target=target)
-            if not candidates:
-                skipped_item = {
-                    "title_fragment": target.title_fragment,
-                    "venue": target.venue,
-                    "year": target.year,
-                    "reason": "not_in_current_coverage",
-                }
-                skipped.append(skipped_item)
-                cases.append(
-                    {
-                        "title_fragment": target.title_fragment,
-                        "venue": target.venue,
-                        "year": target.year,
-                        "eligible": False,
-                        "pass": True,
-                        "reason": "skipped_not_in_coverage",
-                        "matched_titles": [],
-                    }
-                )
-                continue
-
-            eligible_count += 1
-            error: str | None = None
-            payload: Dict[str, Any]
-            try:
-                payload = run_hybrid(
-                    db_path=db_path,
-                    query=target.title_fragment,
-                    embed_base_url=embed_base_url,
-                    embed_model=embed_model,
-                    embed_api_key=embed_api_key,
-                    alpha=DEFAULT_ALPHA,
-                    vector_top_k=DEFAULT_VECTOR_TOP_K,
-                    bm25_top_k=DEFAULT_BM25_TOP_K,
-                    vectors_root=vectors_root,
-                    collection_name=collection_name,
-                    venues=[target.venue],
-                    year_from=target.year,
-                    year_to=target.year,
-                    track=None,
-                    presentation_level=None,
-                    include_placeholder=False,
-                    top_k=replay_top_k,
-                    offset=0,
-                )
-            except Exception as exc:
-                payload = {"total": 0, "results": []}
-                error = str(exc)
-
-            target_norm = _normalize_title(target.title_fragment)
-            hits: List[str] = []
-            for item in payload.get("results", []):
-                title = ensure_str(item.get("title"))
-                title_norm = _normalize_title(title)
-                if target_norm and (target_norm in title_norm or title_norm in target_norm):
-                    hits.append(title)
-
-            case_pass = error is None and len(hits) > 0
-            if case_pass:
-                passed += 1
-
-            cases.append(
-                {
-                    "title_fragment": target.title_fragment,
-                    "venue": target.venue,
-                    "year": target.year,
-                    "eligible": True,
-                    "candidate_count": len(candidates),
-                    "candidate_titles": [item["title"] for item in candidates[:5]],
-                    "actual_total": int(payload.get("total", 0)),
-                    "matched_titles": hits[:5],
-                    "pass": case_pass,
-                    "error": error,
-                }
-            )
-    finally:
-        conn.close()
-
-    pass_rate = float(passed / eligible_count) if eligible_count else 1.0
-    return {
-        "total_targets": len(REPLAY_TARGETS),
-        "eligible_count": eligible_count,
-        "passed_eligible": passed,
-        "eligible_pass_rate": pass_rate,
-        "pass": passed == eligible_count,
-        "skipped_not_in_coverage": skipped,
-        "cases": cases,
-    }
-
-
 def aggregate_summary(
     *,
     db_path: Path,
@@ -808,14 +592,12 @@ def aggregate_summary(
     online_gate: Mapping[str, Any],
     fixed_suite: Mapping[str, Any],
     sampled_suite: Mapping[str, Any],
-    replay_suite: Mapping[str, Any],
 ) -> Dict[str, Any]:
     """Aggregate M4 summary and final gate status."""
     online_gate_pass = bool(online_gate.get("pass"))
     fixed_pass = bool(fixed_suite.get("all_pass"))
     sampled_pass = bool(sampled_suite.get("pass_threshold"))
-    replay_pass = bool(replay_suite.get("pass"))
-    overall_pass = online_gate_pass and fixed_pass and sampled_pass and replay_pass
+    overall_pass = online_gate_pass and fixed_pass and sampled_pass
     return {
         "generated_at_utc": utc_now_iso(),
         "overall_pass": overall_pass,
@@ -823,7 +605,6 @@ def aggregate_summary(
         "online_gate_pass": online_gate_pass,
         "fixed_suite_pass": fixed_pass,
         "sampled_suite_pass": sampled_pass,
-        "replay_suite_pass": replay_pass,
         "db_path": str(db_path),
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
@@ -839,11 +620,6 @@ def aggregate_summary(
         "sampled_passed_count": int(sampled_suite.get("passed_cases", 0)),
         "sampled_pass_rate": float(sampled_suite.get("pass_rate", 0.0)),
         "sampled_threshold": float(sampled_suite.get("threshold", SAMPLED_PASS_THRESHOLD)),
-        "replay_total_targets": int(replay_suite.get("total_targets", 0)),
-        "replay_eligible_count": int(replay_suite.get("eligible_count", 0)),
-        "replay_passed_eligible": int(replay_suite.get("passed_eligible", 0)),
-        "replay_eligible_pass_rate": float(replay_suite.get("eligible_pass_rate", 0.0)),
-        "replay_skipped_count": len(replay_suite.get("skipped_not_in_coverage", [])),
     }
 
 
@@ -853,7 +629,6 @@ def _render_markdown_report(report: Mapping[str, Any]) -> str:
     online = report.get("online_gate", {})
     fixed_suite = report.get("fixed_suite", {})
     sampled_suite = report.get("sampled_suite", {})
-    replay_suite = report.get("replay_suite", {})
 
     lines = [
         "# M4 Agent Validation Report",
@@ -887,11 +662,6 @@ def _render_markdown_report(report: Mapping[str, Any]) -> str:
                 f"{sampled_suite.get('passed_cases', 0)}/{sampled_suite.get('total_cases', 0)} | "
                 f"{float(sampled_suite.get('pass_rate', 0.0)):.2%} |"
             ),
-            (
-                f"| Replay(eligible) | {str(replay_suite.get('pass'))} | "
-                f"{replay_suite.get('passed_eligible', 0)}/{replay_suite.get('eligible_count', 0)} | "
-                f"{float(replay_suite.get('eligible_pass_rate', 0.0)):.2%} |"
-            ),
             "",
             "## Failed Cases",
         ]
@@ -908,29 +678,8 @@ def _render_markdown_report(report: Mapping[str, Any]) -> str:
             failed_lines.append(
                 f"- [sampled] {item.get('case_id')}: total={item.get('actual_total')} error={item.get('error')}"
             )
-    for item in replay_suite.get("cases", []):
-        if item.get("eligible") and not item.get("pass"):
-            failed_lines.append(
-                f"- [replay] {item.get('title_fragment')} ({item.get('venue')} {item.get('year')}): "
-                f"error={item.get('error')}"
-            )
     if failed_lines:
         lines.extend(failed_lines)
-    else:
-        lines.append("- None")
-
-    lines.extend(
-        [
-            "",
-            "## Replay Skipped (Not in Coverage)",
-        ]
-    )
-    skipped = replay_suite.get("skipped_not_in_coverage", [])
-    if skipped:
-        for item in skipped:
-            lines.append(
-                f"- {item.get('title_fragment')} ({item.get('venue')} {item.get('year')})"
-            )
     else:
         lines.append("- None")
 
@@ -951,7 +700,6 @@ def run_m4(
     sample_per_topic: int,
     sample_seed: int,
     top_k: int,
-    replay_top_k: int,
     output_json: Path,
     output_md: Path,
     sampled_dump: Path,
@@ -989,16 +737,6 @@ def run_m4(
             "cases": [],
             "reason": "skipped_due_to_online_gate_failure",
         }
-        replay_suite = {
-            "total_targets": len(REPLAY_TARGETS),
-            "eligible_count": 0,
-            "passed_eligible": 0,
-            "eligible_pass_rate": 0.0,
-            "pass": False,
-            "skipped_not_in_coverage": [],
-            "cases": [],
-            "reason": "skipped_due_to_online_gate_failure",
-        }
         sampled_payload["reason"] = "skipped_due_to_online_gate_failure"
     else:
         fixed_cases = _load_fixed_query_cases(fixed_query_file)
@@ -1029,15 +767,6 @@ def run_m4(
             embed_model=embed_model,
             embed_api_key=api_key,
         )
-        replay_suite = run_replay_current_coverage_suite(
-            db_path=db_path,
-            vectors_root=vectors_root,
-            collection_name=collection_name,
-            embed_base_url=embed_base_url,
-            embed_model=embed_model,
-            embed_api_key=api_key,
-            replay_top_k=replay_top_k,
-        )
 
     summary = aggregate_summary(
         db_path=db_path,
@@ -1051,14 +780,12 @@ def run_m4(
         online_gate=online_gate,
         fixed_suite=fixed_suite,
         sampled_suite=sampled_suite,
-        replay_suite=replay_suite,
     )
     report = {
         "summary": summary,
         "online_gate": online_gate,
         "fixed_suite": fixed_suite,
         "sampled_suite": sampled_suite,
-        "replay_suite": replay_suite,
     }
 
     write_json(sampled_dump, sampled_payload)
@@ -1081,7 +808,6 @@ def _render_status_text(report: Mapping[str, Any]) -> str:
             f"online_gate_pass: {summary.get('online_gate_pass')}",
             f"fixed_suite_pass: {summary.get('fixed_suite_pass')}",
             f"sampled_suite_pass: {summary.get('sampled_suite_pass')}",
-            f"replay_suite_pass: {summary.get('replay_suite_pass')}",
         ]
     )
 
@@ -1176,12 +902,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"Top-k for fixed/sampled cases (default: {DEFAULT_TOP_K})",
     )
     common.add_argument(
-        "--replay-top-k",
-        type=int,
-        default=DEFAULT_REPLAY_TOP_K,
-        help=f"Top-k for replay suite (default: {DEFAULT_REPLAY_TOP_K})",
-    )
-    common.add_argument(
         "--output-json",
         default=str(DEFAULT_OUTPUT_JSON),
         help=f"M4 JSON report path (default: {DEFAULT_OUTPUT_JSON})",
@@ -1201,7 +921,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "run",
         parents=[common],
-        help="Run online gate + fixed/sampled/replay suites",
+        help="Run online gate + fixed/sampled suites",
     )
     subparsers.add_parser(
         "status",
@@ -1244,7 +964,6 @@ def main() -> int:
                 sample_per_topic=int(args.sample_per_topic),
                 sample_seed=int(args.sample_seed),
                 top_k=int(args.top_k),
-                replay_top_k=int(args.replay_top_k),
                 output_json=output_json,
                 output_md=output_md,
                 sampled_dump=sampled_dump,

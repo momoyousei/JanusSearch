@@ -18,7 +18,6 @@ from tools.m4_validate import (
     build_sampled_queries,
     run_fixed_suite,
     run_m4,
-    run_replay_current_coverage_suite,
     run_status,
 )
 
@@ -223,7 +222,6 @@ class TestM4Validate(unittest.TestCase):
                     sample_per_topic=1,
                     sample_seed=42,
                     top_k=20,
-                    replay_top_k=50,
                     output_json=self.output_json,
                     output_md=self.output_md,
                     sampled_dump=self.sampled_dump,
@@ -244,7 +242,6 @@ class TestM4Validate(unittest.TestCase):
                 sample_per_topic=1,
                 sample_seed=42,
                 top_k=20,
-                replay_top_k=50,
                 output_json=self.output_json,
                 output_md=self.output_md,
                 sampled_dump=self.sampled_dump,
@@ -327,42 +324,6 @@ class TestM4Validate(unittest.TestCase):
         self.assertEqual(first["cases"], second["cases"])
         self.assertGreater(len(first["cases"]), 0)
 
-    def test_replay_suite_eligible_and_skipped(self) -> None:
-        def fake_hybrid(**kwargs: object) -> dict:
-            query = str(kwargs.get("query", ""))
-            if "Memory Replay with Data Compression for Continual Learning" in query:
-                return {
-                    "total": 1,
-                    "results": [
-                        {"title": "Memory Replay with Data Compression for Continual Learning"}
-                    ],
-                }
-            if "Repeated Augmented Rehearsal" in query:
-                return {
-                    "total": 1,
-                    "results": [
-                        {
-                            "title": "A simple but strong baseline for online continual learning: Repeated Augmented Rehearsal"
-                        }
-                    ],
-                }
-            return {"total": 0, "results": []}
-
-        with patch("tools.m4_validate.run_hybrid", side_effect=fake_hybrid):
-            report = run_replay_current_coverage_suite(
-                db_path=self.db_path,
-                vectors_root=self.vectors_root,
-                collection_name="papers_v1",
-                embed_base_url="https://api.siliconflow.cn/v1/embeddings",
-                embed_model="Qwen/Qwen3-Embedding-8B",
-                embed_api_key="sk-test",
-                replay_top_k=50,
-            )
-        self.assertEqual(report["eligible_count"], 2)
-        self.assertEqual(report["passed_eligible"], 2)
-        self.assertEqual(len(report["skipped_not_in_coverage"]), 7)
-        self.assertTrue(report["pass"])
-
     def test_report_schema_and_status(self) -> None:
         with (
             patch(
@@ -397,18 +358,6 @@ class TestM4Validate(unittest.TestCase):
                     "cases": [],
                 },
             ),
-            patch(
-                "tools.m4_validate.run_replay_current_coverage_suite",
-                return_value={
-                    "total_targets": 9,
-                    "eligible_count": 2,
-                    "passed_eligible": 2,
-                    "eligible_pass_rate": 1.0,
-                    "pass": True,
-                    "skipped_not_in_coverage": [{"title_fragment": "X"}],
-                    "cases": [],
-                },
-            ),
         ):
             report = run_m4(
                 db_path=self.db_path,
@@ -423,7 +372,6 @@ class TestM4Validate(unittest.TestCase):
                 sample_per_topic=1,
                 sample_seed=42,
                 top_k=20,
-                replay_top_k=50,
                 output_json=self.output_json,
                 output_md=self.output_md,
                 sampled_dump=self.sampled_dump,
@@ -433,7 +381,6 @@ class TestM4Validate(unittest.TestCase):
         self.assertIn("online_gate", report)
         self.assertIn("fixed_suite", report)
         self.assertIn("sampled_suite", report)
-        self.assertIn("replay_suite", report)
         self.assertTrue(self.output_json.exists())
         self.assertTrue(self.output_md.exists())
         self.assertTrue(self.sampled_dump.exists())

@@ -1,58 +1,29 @@
 # JanusSearch
 
-JanusSearch is a local AI paper vault and retrieval system.
-It supports structured data ingestion, SQLite + FTS retrieval, vector retrieval, topic cache generation, and end-to-end validation.
+JanusSearch 是本地 AI 顶会论文归档与智能检索系统，覆盖从采集、规范化、入库到向量检索与端到端验收的完整 CLI 流程。
 
-## Project Goals
+如果你是AI、LLM、Agent、Bot，请阅读AGENTS.md
 
-- Build a reproducible local paper search workflow for top AI venues.
-- Keep `data/raw` as canonical facts.
-- Provide CLI-only operations for data processing and retrieval.
-- Support natural-language driven operation through skill routing.
+## 当前状态
+- M1→M4 主链路已打通并完成基础端到端验证
+- 当前工作重心：按批次扩充会议与年份覆盖
 
-## Current Milestone Status
+## 快速开始
 
-- M1: data normalization baseline available and validated.
-- M2: SQLite ingestion + FTS retrieval available.
-- M3: vector store + topic/subtopic cache + hybrid retrieval available.
-- M4: cloud-gated end-to-end validation pipeline available.
-
-## Current Baseline Snapshot (2026-02-22)
-
-- Full M1→M4 pipeline is implemented and basic E2E cases are validated.
-- Baseline coverage: 21 venue-year files (ICLR, ICML, NeurIPS, CVPR).
-- Current phase: conference/paper expansion from this stable baseline.
-- Expansion runbook: `docs/40_EXPANSION_PLAYBOOK.md`
-
-## Core Architecture
-
-- Canonical data: `data/raw/{venue}/{year}.json`
-- Database: `data/papers.db` (SQLite)
-- FTS index: `papers_fts` (title + abstract)
-- Vector store: `data/vectors/chroma`
-- Cache outputs:
-  - `index/master_index.md`
-  - `venues/`
-  - `topics/`
-  - `subtopics/`
-
-## Prerequisites
-
+### 环境要求
 - Python 3.11+
 - `uv`
-- macOS / Unix shell
+- macOS / Unix CLI
 
-## Setup
-
+### 安装
 ```bash
 uv sync
 uv run python -V
 ```
 
-## Common Commands
+### 常用命令
 
-### Search
-
+1. 检索
 ```bash
 python3 -m tools.search search --query "continual learning replay"
 python3 -m tools.search hybrid --query "continual learning replay" --top-k 20
@@ -60,16 +31,12 @@ python3 -m tools.search get --paper-id <PAPER_ID>
 python3 -m tools.search stats
 ```
 
-### M2 (DB + FTS)
-
+2. 入库（M2）
 ```bash
 python3 -m tools.m2_db run
-python3 -m tools.m2_db reindex-fts
-python3 -m tools.m2_db validate
 ```
 
-### M3 (Vectors + Cache)
-
+3. 向量与缓存（M3）
 ```bash
 python3 -m tools.m3_pipeline run \
   --db-path data/papers.db \
@@ -78,8 +45,7 @@ python3 -m tools.m3_pipeline run \
   --exclude-placeholder
 ```
 
-### M4 (Formal Validation)
-
+4. 端到端验收（M4）
 ```bash
 export JANUS_EMBED_API_KEY="<YOUR_KEY>"
 
@@ -95,25 +61,19 @@ python3 -m tools.m4_validate run \
 python3 -m tools.m4_validate status
 ```
 
-## Reports and Outputs
+## 数据与产物
+- 历史输入：`archives/root_json/`
+- 规范化事实源：`data/raw/{venue}/{year}.json`
+- 数据库：`data/papers.db`
+- 向量库：`data/vectors/chroma`
+- 报告：`index/*.json`, `index/*.md`
 
-- `index/m1_quality_report.json`
-- `index/m2_load_report.json`
-- `index/m2_validate_report.json`
-- `index/m3_build_report.json`
-- `index/m3_validate_report.json`
-- `index/m4_eval_report.json`
-- `index/m4_eval_report.md`
+## 文档入口
+- 架构与范围：`docs/10_CORE_ARCHITECTURE.md`
+- 全流程与门禁：`docs/20_PIPELINE_AND_GATES.md`
+- 扩充策略：`docs/30_EXPANSION_POLICY.md`
+- 历史复盘：`docs/90_HISTORY.md`
+- 操作流程模板：`AGENTS.md`（SOP 章节）
 
-## Documentation Entry
-
-- `docs/README.md`
-- `docs/40_EXPANSION_PLAYBOOK.md`
-- `docs/21_M2_SEARCH_CLI.md`
-- `docs/22_M3_CACHE_AND_HYBRID.md`
-- `docs/30_M4_AGENT_VALIDATION.md`
-
-## Notes
-
-- Historical input snapshots are stored in `archives/root_json/` (`ICLR-*.json`, `ICML-*.json`, `NeurIPS-*.json`, `CVPR-*.json`) for traceability.
-- Canonical operational source is `data/raw`.
+## AI 协作入口
+- AI 执行约束见：`AGENTS.md`
