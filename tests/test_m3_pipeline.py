@@ -365,6 +365,55 @@ class TestM3Pipeline(unittest.TestCase):
         self.assertGreaterEqual(topics_payload["summary"]["topic_count"], 1)
         self.assertGreaterEqual(topics_payload["summary"]["subtopic_count"], 1)
 
+    def test_build_vectors_uses_source_file_marker_and_force_rebuild(self) -> None:
+        patches = self._patch_m3()
+        for item in patches:
+            item.start()
+        try:
+            first = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+            second = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+            third = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+                force_rebuild_vectors=True,
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+
+        self.assertEqual(first["summary"]["embedded_count"], 3)
+        self.assertEqual(second["summary"]["embedded_count"], 0)
+        self.assertEqual(second["summary"]["source_files_skipped_by_marker"], 1)
+        self.assertEqual(third["summary"]["embedded_count"], 3)
+        self.assertTrue(third["force_rebuild_vectors"])
+
     def test_build_cache_generates_l1_l4(self) -> None:
         patches = self._patch_m3()
         for item in patches:

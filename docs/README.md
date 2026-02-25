@@ -19,15 +19,17 @@
    CVPR 2021-2025 官方口径采集、摘要补齐与验收复盘。
 9. `17_M1_AAAI2021_2026_COLLECTION_AND_LESSONS_2026-02-22.md`
    AAAI 2021-2025 官方口径采集、对齐统计与执行复盘（AAAI-26 已移除）。
-10. `20_M2_DATABASE.md`
+10. `18_M1_ACL2021_2025_COLLECTION_AND_LESSONS_2026-02-23.md`
+   ACL 2021-2025 官方口径采集与摘要补全复盘（含 DOI->标题检索多源回填经验）。
+11. `20_M2_DATABASE.md`
    M2-A：JSON 到 SQLite 的入库与校验规范。
-11. `21_M2_SEARCH_CLI.md`
+12. `21_M2_SEARCH_CLI.md`
    M2-B：基于 SQL+FTS 的检索 CLI（search/get/stats）。
-12. `22_M3_CACHE_AND_HYBRID.md`
+13. `22_M3_CACHE_AND_HYBRID.md`
    M3：向量构建、主题缓存（L1-L4）与混合检索（hybrid）。
-13. `30_M4_AGENT_VALIDATION.md`
+14. `30_M4_AGENT_VALIDATION.md`
    M4：云端硬门禁 + 固定查询 + 抽样查询 + Replay 当前覆盖口径验收。
-14. `40_EXPANSION_PLAYBOOK.md`
+15. `40_EXPANSION_PLAYBOOK.md`
    扩充阶段：新会议/新年份的采集、规范化、入库、验收批处理手册。
 
 ## 文档关系
@@ -37,6 +39,7 @@
 - `index/m1_backfill_report.json`：最近回填结果事实来源
 - `index/cvpr_collection_report.json`：CVPR 官方口径采集与补齐执行报告
 - `index/aaai_collection_report.json`：AAAI 官方口径采集与补齐执行报告
+- `index/acl_collection_report.json`：ACL 官方口径采集与摘要补齐执行报告
 - `index/m2_load_report.json`：M2 入库执行报告
 - `index/m2_validate_report.json`：M2 一致性校验报告
 - `index/m2_fts_report.json`：FTS 重建报告（手动 reindex 时生成）

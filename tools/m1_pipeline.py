@@ -76,6 +76,94 @@ def ensure_str(value: Any) -> str:
     return str(value).strip()
 
 
+def should_skip_neurips_source_fetch() -> bool:
+    """Whether to skip remote NeurIPS official catalog fetch."""
+    flag = ensure_str(os.getenv("JANUS_SKIP_NEURIPS_SOURCE_FETCH")).lower()
+    return flag in {"1", "true", "yes", "on"}
+
+
+def empty_neurips_catalog() -> Dict[str, Any]:
+    """Return empty NeurIPS official catalog shape."""
+    return {
+        "presentation_counts": {},
+        "track_counts": {},
+        "paper_count_unique": 0,
+        "presentation_counts_raw": {},
+        "track_counts_raw": {},
+        "title_map": {},
+    }
+
+
+def parse_neurips_catalog_payload(payload: Any) -> Dict[str, Any]:
+    """Parse NeurIPS official payload into normalized catalog."""
+    results = payload.get("results") if isinstance(payload, dict) else None
+    if not isinstance(results, list):
+        return empty_neurips_catalog()
+
+    presentation_counts_raw: Dict[str, int] = {}
+    track_counts_raw: Dict[str, int] = {}
+    title_map: Dict[str, Dict[str, str]] = {}
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        paper_title = ensure_str(item.get("name"))
+        title_key = normalize_title(paper_title)
+        if not title_key:
+            continue
+        decision = ensure_str(item.get("decision"))
+        level = normalize_presentation_level(decision)
+        presentation_counts_raw[level] = presentation_counts_raw.get(level, 0) + 1
+
+        sourceurl = ensure_str(item.get("sourceurl"))
+        track = _extract_group_slug_from_sourceurl(sourceurl)
+        track_counts_raw[track] = track_counts_raw.get(track, 0) + 1
+        paper_url = ensure_str(item.get("paper_url"))
+        title_map[title_key] = {
+            "title": paper_title,
+            "presentation_level": level,
+            "track": track,
+            "sourceurl": sourceurl,
+            "paper_url": paper_url,
+        }
+
+    presentation_counts_unique: Dict[str, int] = {}
+    track_counts_unique: Dict[str, int] = {}
+    for entry in title_map.values():
+        level = normalize_presentation_level(entry.get("presentation_level"))
+        track = normalize_track_value(entry.get("track"))
+        presentation_counts_unique[level] = presentation_counts_unique.get(level, 0) + 1
+        track_counts_unique[track] = track_counts_unique.get(track, 0) + 1
+
+    presentation_counts = {
+        k: presentation_counts_unique[k]
+        for k in sorted(
+            presentation_counts_unique,
+            key=lambda key: (-presentation_counts_unique[key], key),
+        )
+    }
+    track_counts = {
+        k: track_counts_unique[k]
+        for k in sorted(track_counts_unique, key=lambda key: (-track_counts_unique[key], key))
+    }
+    return {
+        "presentation_counts": presentation_counts,
+        "track_counts": track_counts,
+        "paper_count_unique": len(title_map),
+        "presentation_counts_raw": {
+            k: presentation_counts_raw[k]
+            for k in sorted(
+                presentation_counts_raw,
+                key=lambda key: (-presentation_counts_raw[key], key),
+            )
+        },
+        "track_counts_raw": {
+            k: track_counts_raw[k]
+            for k in sorted(track_counts_raw, key=lambda key: (-track_counts_raw[key], key))
+        },
+        "title_map": title_map,
+    }
+
+
 def unique_preserve_order(values: Iterable[str]) -> List[str]:
     """Deduplicate a string list while preserving first appearance order."""
     seen: set[str] = set()
@@ -593,20 +681,33 @@ def _extract_group_slug_from_sourceurl(sourceurl: str) -> str:
 
 
 def fetch_neurips_official_catalog(
-    source_url: str, timeout: float = 30.0, retries: int = 3
+    source_url: str, timeout: float = 300.0, retries: int = 3
 ) -> Dict[str, Any]:
     """Fetch official NeurIPS catalog with track/presentation counts and title map."""
+    if should_skip_neurips_source_fetch():
+        return empty_neurips_catalog()
     if not source_url:
-        return {
-            "presentation_counts": {},
-            "track_counts": {},
-            "paper_count_unique": 0,
-            "presentation_counts_raw": {},
-            "track_counts_raw": {},
-            "title_map": {},
-        }
+        return empty_neurips_catalog()
+
+    cache_dir = ensure_str(os.getenv("JANUS_NEURIPS_OFFICIAL_CACHE_DIR"))
+    if cache_dir:
+        cache_path = Path(cache_dir) / Path(urlparse(source_url).path).name
+        if cache_path.is_file():
+            try:
+                with cache_path.open("r", encoding="utf-8") as handle:
+                    payload = json.load(handle)
+                LOGGER.info("Using cached NeurIPS official catalog: %s", cache_path)
+                return parse_neurips_catalog_payload(payload)
+            except (OSError, json.JSONDecodeError) as err:
+                LOGGER.warning("Failed local NeurIPS cache load (%s): %s", cache_path, err)
     for attempt in range(1, retries + 1):
         try:
+            LOGGER.info(
+                "Fetching NeurIPS official catalog (attempt %s/%s): %s",
+                attempt,
+                retries,
+                source_url,
+            )
             request = Request(
                 source_url,
                 headers={"Accept": "application/json", "User-Agent": ARXIV_DEFAULT_USER_AGENT},
@@ -614,101 +715,14 @@ def fetch_neurips_official_catalog(
             )
             with urlopen(request, timeout=timeout) as response:
                 payload = json.loads(response.read().decode("utf-8", errors="ignore"))
-
-            results = payload.get("results") if isinstance(payload, dict) else None
-            if not isinstance(results, list):
-                return {
-                    "presentation_counts": {},
-                    "track_counts": {},
-                    "paper_count_unique": 0,
-                    "presentation_counts_raw": {},
-                    "track_counts_raw": {},
-                    "title_map": {},
-                }
-
-            presentation_counts_raw: Dict[str, int] = {}
-            track_counts_raw: Dict[str, int] = {}
-            title_map: Dict[str, Dict[str, str]] = {}
-            for item in results:
-                if not isinstance(item, dict):
-                    continue
-                paper_title = ensure_str(item.get("name"))
-                title_key = normalize_title(paper_title)
-                if not title_key:
-                    continue
-                decision = ensure_str(item.get("decision"))
-                level = normalize_presentation_level(decision)
-                presentation_counts_raw[level] = presentation_counts_raw.get(level, 0) + 1
-
-                sourceurl = ensure_str(item.get("sourceurl"))
-                track = _extract_group_slug_from_sourceurl(sourceurl)
-                track_counts_raw[track] = track_counts_raw.get(track, 0) + 1
-                paper_url = ensure_str(item.get("paper_url"))
-                title_map[title_key] = {
-                    "title": paper_title,
-                    "presentation_level": level,
-                    "track": track,
-                    "sourceurl": sourceurl,
-                    "paper_url": paper_url,
-                }
-
-            presentation_counts_unique: Dict[str, int] = {}
-            track_counts_unique: Dict[str, int] = {}
-            for entry in title_map.values():
-                level = normalize_presentation_level(entry.get("presentation_level"))
-                track = normalize_track_value(entry.get("track"))
-                presentation_counts_unique[level] = presentation_counts_unique.get(level, 0) + 1
-                track_counts_unique[track] = track_counts_unique.get(track, 0) + 1
-
-            presentation_counts = {
-                k: presentation_counts_unique[k]
-                for k in sorted(
-                    presentation_counts_unique,
-                    key=lambda key: (-presentation_counts_unique[key], key),
-                )
-            }
-            track_counts = {
-                k: track_counts_unique[k]
-                for k in sorted(track_counts_unique, key=lambda key: (-track_counts_unique[key], key))
-            }
-            return {
-                "presentation_counts": presentation_counts,
-                "track_counts": track_counts,
-                "paper_count_unique": len(title_map),
-                "presentation_counts_raw": {
-                    k: presentation_counts_raw[k]
-                    for k in sorted(
-                        presentation_counts_raw,
-                        key=lambda key: (-presentation_counts_raw[key], key),
-                    )
-                },
-                "track_counts_raw": {
-                    k: track_counts_raw[k]
-                    for k in sorted(track_counts_raw, key=lambda key: (-track_counts_raw[key], key))
-                },
-                "title_map": title_map,
-            }
+            return parse_neurips_catalog_payload(payload)
         except (HTTPError, URLError, TimeoutError, socket.timeout, json.JSONDecodeError) as err:
             if attempt == retries:
                 LOGGER.warning("Failed official NeurIPS stats fetch: %s", err)
-                return {
-                    "presentation_counts": {},
-                    "track_counts": {},
-                    "paper_count_unique": 0,
-                    "presentation_counts_raw": {},
-                    "track_counts_raw": {},
-                    "title_map": {},
-                }
+                return empty_neurips_catalog()
             wait = min(10.0, 1.5 * (2 ** (attempt - 1)))
             time.sleep(wait)
-    return {
-        "presentation_counts": {},
-        "track_counts": {},
-        "paper_count_unique": 0,
-        "presentation_counts_raw": {},
-        "track_counts_raw": {},
-        "title_map": {},
-    }
+    return empty_neurips_catalog()
 
 
 def extract_official_baseline(
@@ -856,6 +870,8 @@ def apply_neurips_official_catalog(
     official_tracks_payload: Any,
 ) -> Dict[str, int]:
     """Apply official NeurIPS title->track/presentation mapping and add missing placeholders."""
+    if should_skip_neurips_source_fetch():
+        return {"updated_records": 0, "added_placeholders": 0, "removed_unofficial": 0}
     if not isinstance(official_tracks_payload, dict):
         return {"updated_records": 0, "added_placeholders": 0, "removed_unofficial": 0}
 
@@ -1071,7 +1087,18 @@ def normalize_payload(
         "added_placeholders": 0,
         "removed_unofficial": 0,
     }
+    official_cache: Dict[str, Dict[str, Any]] = {}
     if context.venue == "NEURIPS":
+        official_tracks_payload = payload.get("official_tracks")
+        source_url = ""
+        if isinstance(official_tracks_payload, dict):
+            source_url = ensure_str(official_tracks_payload.get("source_url"))
+        if source_url:
+            cached_catalog = _NEURIPS_OFFICIAL_STATS_CACHE.get(source_url)
+            if cached_catalog is None:
+                cached_catalog = fetch_neurips_official_catalog(source_url=source_url)
+                _NEURIPS_OFFICIAL_STATS_CACHE[source_url] = cached_catalog
+            official_cache[f"{context.venue}-{context.year}"] = cached_catalog
         neurips_alignment_stats = apply_neurips_official_catalog(
             records=finalized,
             context=context,
@@ -1095,7 +1122,7 @@ def normalize_payload(
         payload=root_payload,
         records=finalized,
         context=context,
-        official_cache={},
+        official_cache=official_cache,
     )
     root_payload["m1"] = {
         "normalized_at_utc": utc_now_iso(),

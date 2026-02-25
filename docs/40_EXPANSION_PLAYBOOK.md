@@ -39,6 +39,29 @@ python3 -m tools.m3_pipeline validate --db-path data/papers.db --vectors-root da
 python3 -m tools.m4_validate status
 ```
 
+## 摘要缺失补齐矩阵（通用，必须执行）
+当会议文件存在 `missing_abstract` 时，按以下顺序补齐，不得跳过标题检索阶段：
+
+1. 会议专用源（优先）
+- 示例：CVPR/CVF 详情页、ICML/PMLR、ACL Anthology 详情页、OpenReview note。
+
+2. DOI 查询（通用源）
+- OpenAlex DOI
+- Semantic Scholar DOI
+
+3. 标题查询（通用源，DOI 失败后必走）
+- OpenAlex title search
+- Semantic Scholar title search
+- `m1_pipeline backfill --enable-arxiv-title`
+
+4. 人工补录（最后手段）
+- 仅对小规模残缺启用，必须记录来源与时间，且不改官方总量口径。
+
+执行约束：
+- 标题检索结果必须做相似度阈值校验后写回（防误匹配）。
+- 每轮补齐后都要重新跑 `validate`，用报告确认增益。
+- 若连续两轮增益很小（例如 < 0.5%），冻结并进入人工台账。
+
 ## 批次门禁（建议）
 1. M1 子集 `gate_fail_files = 0`。
 2. M2 `all_pass = true`。
@@ -59,7 +82,8 @@ python3 -m tools.search search --query "continual learning replay" --top-k 20
 ## 风险与处理
 1. 无 S2 key 场景：优先会议专用源（如 ICML/PMLR、CVPR/CVF）并降低对 S2 的依赖。
 2. 官方页面 404：记录到报告并区分“源失效”与“解析失败”。
-3. 某年份门禁不通过：冻结该批次，先修复后再合入下一批次。
+3. DOI 命中率低：立即切换标题检索通道（OpenAlex/S2/arXiv），禁止仅靠 DOI 重试。
+4. 某年份门禁不通过：冻结该批次，先修复后再合入下一批次。
 
 ## 与主文档关系
 - 全局入口：`AGENTS.md`, `PROJECT.md`

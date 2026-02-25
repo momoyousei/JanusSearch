@@ -25,12 +25,17 @@
 3. `backfill`（摘要补全）
 - 优先级：
   - ICML 优先 PMLR（`proceedings.mlr.press`）按标题回填 abstract
+  - OpenAlex DOI 查询
   - S2 DOI 查询
-  - S2 标题查询
+  - OpenAlex 标题查询（相似度阈值）
+  - S2 标题查询（相似度阈值）
   - arXiv ID 补全
   - （可选）arXiv 标题补全
 - 对缺摘要记录做增量修复
 - 输出：`index/m1_backfill_report.json`
+- 规则：
+  - 禁止只跑 DOI 渠道（DOI-only）；DOI 未命中时必须进入标题检索链路。
+  - 标题检索命中必须经过相似度门限后再写回，避免误填。
 
 4. `validate`（质量门禁）
 - 覆盖率门禁（作者/摘要）
@@ -60,6 +65,16 @@
   3. 最后将“OpenReview 公告/官方通报”中的投稿规模作为参考口径写入报告，不与已发布 OJS 正式总量混算。
 - fallback 结果必须在报告中显式标注来源为 `openreview`，避免与 OJS 正式口径混淆。
 
+## ACL 增量回补策略（2026-02 增补）
+- 主口径：ACL Anthology event 页面（`/events/acl-{year}/`），覆盖 `acl` 与 `findings-acl`。
+- ARR 时代同年多卷并存时，按 anthology id 规则聚合，排除 `.0` 卷条目。
+- ACL 摘要补全优先级：
+  1. event 页面内嵌 abstract
+  2. 详情页 abstract
+  3. OpenAlex DOI
+  4. 标题检索（OpenAlex + S2，带相似度阈值）
+- 仍缺失时进入 M1 backfill（可启用 `--enable-arxiv-title`）做补充，不改官方总量口径。
+
 ## 官方口径对齐策略
 - NeurIPS：优先使用 `official_tracks + source_url` 拉取官方 catalog，并按标题映射回写 track/presentation。
 - 其他会议：若无官方 catalog，使用 `reconciliation` 作为可用基线。
@@ -76,3 +91,4 @@
 - 实操命令：`13_M1_OPERATIONS_RUNBOOK.md`
 - 冻结结果：`14_M1_FREEZE_2026-02-19.md`
 - 增量复盘：`16_M1_CVPR2021_2025_PATCH_AND_LESSONS_2026-02-22.md`
+- 增量复盘：`18_M1_ACL2021_2025_COLLECTION_AND_LESSONS_2026-02-23.md`

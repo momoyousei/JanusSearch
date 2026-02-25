@@ -67,6 +67,51 @@ PYTHONPYCACHEPREFIX=.pycache python3 -m tools.m1_pipeline --input-glob 'archives
 - 门禁报告：`index/m1_quality_report.json`
 - 回填报告：`index/m1_backfill_report.json`
 
+## ACL 2021-2025 增量采集（ARR 时代口径）
+1. 先按官方页面聚合并采集（含 ACL + Findings）
+```bash
+PYTHONPYCACHEPREFIX=.pycache python3 -m tools.acl_collect \
+  --years 2021-2025 \
+  --output-root archives/root_json \
+  --index-root index \
+  --workers 16 \
+  --timeout 120 \
+  --retries 3 \
+  --min-interval 0.5 \
+  --title-threshold 0.90
+```
+
+2. 仅对 ACL 子集执行 M1 规范化与验证
+```bash
+PYTHONPYCACHEPREFIX=.pycache python3 -m tools.m1_pipeline --input-glob 'archives/root_json/ACL-2*.json' normalize
+PYTHONPYCACHEPREFIX=.pycache python3 -m tools.m1_pipeline --input-glob 'archives/root_json/ACL-2*.json' validate
+```
+
+3. 定向回填时必须启用“标题链路”
+```bash
+PYTHONPYCACHEPREFIX=.pycache python3 -m tools.m1_pipeline --input-glob 'archives/root_json/ACL-2*.json' backfill \
+  --max-records-per-file 0 \
+  --min-interval 3.0 \
+  --retries 3 \
+  --timeout 30 \
+  --enable-arxiv-title
+```
+
+4. 结果追踪
+- 采集报告：`index/acl_collection_report.json`
+- 门禁报告：`index/m1_quality_report.json`
+- 回填报告：`index/m1_backfill_report.json`
+
+## DOI 失败后的标准补齐动作（通用）
+1. 不停在 DOI 层
+- OpenAlex/S2 DOI 未命中后，必须继续标题检索（OpenAlex title + S2 title + arXiv title）。
+
+2. 标题检索必须做质量约束
+- 标题归一化后做相似度阈值过滤；不过阈值不写回。
+
+3. 每轮回填都要复核报告增益
+- 对比 `index/m1_backfill_report.json` 的命中项与失败项，避免低收益重复重跑。
+
 ## 无 S2 API key 场景建议
 问题：429 限流频繁，吞吐不稳定，长任务性价比低。
 
@@ -103,3 +148,4 @@ PYTHONPYCACHEPREFIX=.pycache python3 -m tools.m1_pipeline --input-glob 'archives
 - 当前冻结：`14_M1_FREEZE_2026-02-19.md`
 - 修复复盘：`15_M1_ICML21_PATCH_AND_LESSONS_2026-02-22.md`
 - 增量复盘：`16_M1_CVPR2021_2025_PATCH_AND_LESSONS_2026-02-22.md`
+- 增量复盘：`18_M1_ACL2021_2025_COLLECTION_AND_LESSONS_2026-02-23.md`

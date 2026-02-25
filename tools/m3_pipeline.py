@@ -43,6 +43,7 @@ DEFAULT_INDEX_ROOT = Path("index")
 DEFAULT_VECTORS_ROOT = Path("data/vectors/chroma")
 DEFAULT_COLLECTION_NAME = "papers_v1"
 DEFAULT_TOPICS_FILE = "m3_topic_assignments.json"
+DEFAULT_TOPICS_PROGRESS_FILE = "m3_topic_assignments.progress.json"
 DEFAULT_BUILD_REPORT = "m3_build_report.json"
 DEFAULT_VALIDATE_REPORT = "m3_validate_report.json"
 DEFAULT_MASTER_INDEX = Path("index/master_index.md")
@@ -57,6 +58,7 @@ DEFAULT_EMBED_BATCH_SIZE = 128
 DEFAULT_LLM_BASE_URL = "https://api.siliconflow.cn/v1"
 DEFAULT_LLM_MODEL = "Qwen/Qwen3-8B"
 DEFAULT_RANDOM_SEED = 42
+DEFAULT_PRIMARY_TOPIC_COUNT = 40
 
 
 @dataclass
@@ -71,6 +73,7 @@ class VectorPaper:
     track: str
     presentation_level: str
     record_status: str
+    source_file: str
 
 
 @dataclass
@@ -137,6 +140,15 @@ def write_text(path: Path, text: str) -> None:
             handle.write("\n")
 
 
+def load_json(path: Path) -> Dict[str, Any]:
+    """Load JSON file into dict."""
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Invalid JSON object payload: {path}")
+    return payload
+
+
 def chunked(values: Sequence[Any], chunk_size: int) -> Iterator[Sequence[Any]]:
     """Yield fixed-size chunks from a sequence."""
     if chunk_size <= 0:
@@ -177,7 +189,8 @@ def load_vector_papers(
             year,
             track,
             presentation_level,
-            record_status
+            record_status,
+            source_file
         FROM papers
         {where_sql}
         ORDER BY year, venue, paper_id
@@ -199,9 +212,110 @@ def load_vector_papers(
                 track=ensure_str(row["track"]),
                 presentation_level=ensure_str(row["presentation_level"]),
                 record_status=ensure_str(row["record_status"]),
+                source_file=ensure_str(row["source_file"]),
             )
         )
     return papers
+
+
+def load_source_file_manifest(
+    conn: sqlite3.Connection,
+    source_files: Sequence[str],
+) -> Dict[str, Dict[str, Any]]:
+    """Load source-file metadata from SQLite manifest table."""
+    result: Dict[str, Dict[str, Any]] = {}
+    unique_source_files = sorted({ensure_str(item) for item in source_files if ensure_str(item)})
+    if not unique_source_files:
+        return result
+
+    try:
+        for chunk in chunked(unique_source_files, 500):
+            placeholders = ",".join(["?"] * len(chunk))
+            rows = conn.execute(
+                f"""
+                SELECT file_path, loaded_count, loaded_at_utc
+                FROM source_files
+                WHERE file_path IN ({placeholders})
+                """  # noqa: S608
+                ,
+                tuple(chunk),
+            ).fetchall()
+            for row in rows:
+                file_path = ensure_str(row["file_path"])
+                if not file_path:
+                    continue
+                result[file_path] = {
+                    "loaded_count": int(row["loaded_count"]),
+                    "loaded_at_utc": ensure_str(row["loaded_at_utc"]),
+                }
+    except sqlite3.Error:
+        LOGGER.warning("source_files table unavailable; vector marker will use derived file stats.")
+    return result
+
+
+def vector_marker_path(vectors_root: Path, collection_name: str) -> Path:
+    """Return vector marker file path for a collection."""
+    return vectors_root / f"{slugify(collection_name)}_vectorized_sources.json"
+
+
+def load_vector_marker(path: Path) -> Dict[str, Any]:
+    """Load vectorization marker from disk if exists."""
+    if not path.exists():
+        return {}
+    try:
+        payload = load_json(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        LOGGER.warning("Failed to read vector marker: %s", path)
+        return {}
+    source_files = payload.get("source_files")
+    if not isinstance(source_files, dict):
+        return {}
+    return payload
+
+
+def marker_hit(
+    *,
+    marker_entry: Dict[str, Any],
+    loaded_count: int,
+    loaded_at_utc: str,
+    embed_model: str,
+    embed_base_url: str,
+    exclude_placeholder: bool,
+) -> bool:
+    """Check whether one source file can be skipped by marker."""
+    return (
+        ensure_str(marker_entry.get("status")) == "done"
+        and int(marker_entry.get("loaded_count") or -1) == int(loaded_count)
+        and ensure_str(marker_entry.get("loaded_at_utc")) == ensure_str(loaded_at_utc)
+        and ensure_str(marker_entry.get("embed_model")) == ensure_str(embed_model)
+        and ensure_str(marker_entry.get("embed_base_url")) == ensure_str(embed_base_url)
+        and bool(marker_entry.get("exclude_placeholder")) == bool(exclude_placeholder)
+    )
+
+
+def upsert_vector_batch(
+    collection: Any,
+    *,
+    ids: List[str],
+    documents: List[str],
+    embeddings: List[List[float]],
+    metadatas: List[Dict[str, Any]],
+) -> None:
+    """Upsert one vector batch, falling back to add when unavailable."""
+    if hasattr(collection, "upsert"):
+        collection.upsert(
+            ids=ids,
+            documents=documents,
+            embeddings=embeddings,
+            metadatas=metadatas,
+        )
+        return
+    collection.add(
+        ids=ids,
+        documents=documents,
+        embeddings=embeddings,
+        metadatas=metadatas,
+    )
 
 
 def make_embedding_client(base_url: str, api_key: str | None = None) -> Any:
@@ -366,6 +480,8 @@ def generate_topic_label(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.2,
+        max_tokens=128,
+        timeout=90.0,
         response_format={"type": "json_object"},
     )
     content = ensure_str(response.choices[0].message.content if response.choices else "")
@@ -384,50 +500,9 @@ def generate_topic_label(
         or payload.get("details")
     )
     if not name or not description:
-        # Minimal deterministic fallback when provider returns empty fields.
-        # API/transport errors still follow hard-fail policy via retry.
-        tokens = re.findall(
-            r"[a-z]+",
-            " ".join(trimmed_titles).lower(),
+        raise ValueError(
+            f"LLM returned invalid {level} label payload: missing name/description fields"
         )
-        stopwords = {
-            "the",
-            "and",
-            "for",
-            "with",
-            "from",
-            "into",
-            "using",
-            "via",
-            "towards",
-            "toward",
-            "towards",
-            "study",
-            "learning",
-            "paper",
-            "based",
-            "approach",
-            "method",
-            "methods",
-            "analysis",
-            "toward",
-            "new",
-        }
-        freq: Dict[str, int] = {}
-        for token in tokens:
-            if len(token) < 3 or token in stopwords:
-                continue
-            freq[token] = freq.get(token, 0) + 1
-        top_terms = sorted(freq, key=lambda item: (-freq[item], item))[:2]
-        keyword = "_".join(top_terms) if top_terms else "cluster"
-        if not name:
-            name = f"{level.title()} {keyword}"
-        if not description:
-            description = (
-                f"Auto-generated {level} label due empty LLM fields. "
-                f"Representative keywords: {keyword}."
-            )
-        LOGGER.warning("LLM returned empty fields; used fallback label for %s.", level)
     return {"name": name, "description": description}
 
 
@@ -443,6 +518,7 @@ def run_build_vectors(
     exclude_placeholder: bool,
     max_papers: int | None = None,
     embed_api_key: str | None = None,
+    force_rebuild_vectors: bool = False,
 ) -> Dict[str, Any]:
     """Build Chroma vectors from SQLite papers."""
     if embed_batch_size <= 0:
@@ -457,65 +533,183 @@ def run_build_vectors(
             exclude_placeholder=exclude_placeholder,
             max_papers=max_papers,
         )
+        source_manifest = load_source_file_manifest(
+            conn,
+            source_files=[paper.source_file for paper in papers],
+        )
     finally:
         conn.close()
 
-    collection = reset_chroma_collection(vectors_root=vectors_root, collection_name=collection_name)
-    embed_client = make_embedding_client(base_url=embed_base_url, api_key=embed_api_key)
+    base_url = normalize_openai_base_url(embed_base_url)
+    marker_path = vector_marker_path(vectors_root=vectors_root, collection_name=collection_name)
+    marker_payload = load_vector_marker(marker_path)
+    marker_source_files = marker_payload.get("source_files")
+    if not isinstance(marker_source_files, dict):
+        marker_source_files = {}
 
-    rows_for_embedding: List[Tuple[VectorPaper, str]] = []
-    skipped_empty = 0
+    if force_rebuild_vectors:
+        collection = reset_chroma_collection(vectors_root=vectors_root, collection_name=collection_name)
+        marker_source_files = {}
+    else:
+        collection = load_chroma_collection(vectors_root=vectors_root, collection_name=collection_name)
+        if int(collection.count()) == 0 and marker_source_files:
+            LOGGER.warning(
+                "Collection is empty but vector marker exists. Marker will be ignored and all source files re-embedded."
+            )
+            marker_source_files = {}
+
+    papers_by_source: Dict[str, List[VectorPaper]] = {}
     for paper in papers:
-        text = f"{paper.title}\n\n{paper.abstract}".strip()
-        if not text:
-            skipped_empty += 1
-            continue
-        rows_for_embedding.append((paper, text))
+        source_file = paper.source_file or "__unknown__"
+        papers_by_source.setdefault(source_file, []).append(paper)
 
+    embed_client: Any | None = None
     embedded_count = 0
-    for batch in chunked(rows_for_embedding, embed_batch_size):
-        batch = list(batch)
-        batch_papers = [item[0] for item in batch]
-        batch_texts = [item[1] for item in batch]
-        batch_vectors = embed_batch(embed_client, embed_model, batch_texts)
+    skipped_empty = 0
+    files_total = len(papers_by_source)
+    files_embedded = 0
+    files_skipped_by_marker = 0
+    files_with_no_text = 0
 
-        collection.add(
-            ids=[paper.paper_id for paper in batch_papers],
-            documents=batch_texts,
-            embeddings=batch_vectors,
-            metadatas=[
+    for source_file in sorted(papers_by_source):
+        file_papers = papers_by_source[source_file]
+        manifest = source_manifest.get(source_file, {})
+        loaded_count = int(manifest.get("loaded_count") or len(file_papers))
+        loaded_at_utc = ensure_str(manifest.get("loaded_at_utc"))
+
+        marker_entry_raw = marker_source_files.get(source_file, {})
+        marker_entry = marker_entry_raw if isinstance(marker_entry_raw, dict) else {}
+        if (
+            not force_rebuild_vectors
+            and marker_hit(
+                marker_entry=marker_entry,
+                loaded_count=loaded_count,
+                loaded_at_utc=loaded_at_utc,
+                embed_model=embed_model,
+                embed_base_url=base_url,
+                exclude_placeholder=exclude_placeholder,
+            )
+        ):
+            files_skipped_by_marker += 1
+            continue
+
+        rows_for_embedding: List[Tuple[VectorPaper, str]] = []
+        skipped_empty_in_file = 0
+        for paper in file_papers:
+            text = f"{paper.title}\n\n{paper.abstract}".strip()
+            if not text:
+                skipped_empty_in_file += 1
+                continue
+            rows_for_embedding.append((paper, text))
+
+        skipped_empty += skipped_empty_in_file
+        if not rows_for_embedding:
+            files_with_no_text += 1
+            marker_source_files[source_file] = {
+                "status": "done",
+                "loaded_count": loaded_count,
+                "loaded_at_utc": loaded_at_utc,
+                "embedded_count": 0,
+                "skipped_empty_text_count": skipped_empty_in_file,
+                "embed_model": embed_model,
+                "embed_base_url": base_url,
+                "exclude_placeholder": bool(exclude_placeholder),
+                "updated_at_utc": utc_now_iso(),
+            }
+            write_json(
+                marker_path,
                 {
-                    "paper_id": paper.paper_id,
-                    "title": paper.title,
-                    "venue": paper.venue,
-                    "year": int(paper.year),
-                    "track": paper.track,
-                    "presentation_level": paper.presentation_level,
-                    "record_status": paper.record_status,
-                }
-                for paper in batch_papers
-            ],
+                    "generated_at_utc": utc_now_iso(),
+                    "db_path": str(db_path),
+                    "collection_name": collection_name,
+                    "source_files": marker_source_files,
+                },
+            )
+            continue
+
+        if embed_client is None:
+            embed_client = make_embedding_client(base_url=embed_base_url, api_key=embed_api_key)
+
+        embedded_in_file = 0
+        for batch in chunked(rows_for_embedding, embed_batch_size):
+            batch = list(batch)
+            batch_papers = [item[0] for item in batch]
+            batch_texts = [item[1] for item in batch]
+            batch_vectors = embed_batch(embed_client, embed_model, batch_texts)
+
+            upsert_vector_batch(
+                collection,
+                ids=[paper.paper_id for paper in batch_papers],
+                documents=batch_texts,
+                embeddings=batch_vectors,
+                metadatas=[
+                    {
+                        "paper_id": paper.paper_id,
+                        "title": paper.title,
+                        "venue": paper.venue,
+                        "year": int(paper.year),
+                        "track": paper.track,
+                        "presentation_level": paper.presentation_level,
+                        "record_status": paper.record_status,
+                    }
+                    for paper in batch_papers
+                ],
+            )
+            embedded_count += len(batch)
+            embedded_in_file += len(batch)
+            LOGGER.info(
+                "Embedded %s papers from source file %s (%s/%s source files processed)",
+                embedded_in_file,
+                source_file,
+                files_embedded + 1,
+                files_total,
+            )
+            if embed_cooldown_seconds > 0:
+                time.sleep(embed_cooldown_seconds)
+
+        marker_source_files[source_file] = {
+            "status": "done",
+            "loaded_count": loaded_count,
+            "loaded_at_utc": loaded_at_utc,
+            "embedded_count": embedded_in_file,
+            "skipped_empty_text_count": skipped_empty_in_file,
+            "embed_model": embed_model,
+            "embed_base_url": base_url,
+            "exclude_placeholder": bool(exclude_placeholder),
+            "updated_at_utc": utc_now_iso(),
+        }
+        write_json(
+            marker_path,
+            {
+                "generated_at_utc": utc_now_iso(),
+                "db_path": str(db_path),
+                "collection_name": collection_name,
+                "source_files": marker_source_files,
+            },
         )
-        embedded_count += len(batch)
-        LOGGER.info("Embedded %s / %s papers", embedded_count, len(rows_for_embedding))
-        if embed_cooldown_seconds > 0:
-            time.sleep(embed_cooldown_seconds)
+        files_embedded += 1
 
     payload = {
         "generated_at_utc": utc_now_iso(),
         "db_path": str(db_path),
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
-        "embed_base_url": normalize_openai_base_url(embed_base_url),
+        "embed_base_url": base_url,
         "embed_model": embed_model,
         "embed_cooldown_seconds": embed_cooldown_seconds,
         "exclude_placeholder": exclude_placeholder,
         "max_papers": max_papers,
+        "force_rebuild_vectors": force_rebuild_vectors,
+        "vector_marker_path": str(marker_path),
         "summary": {
             "db_candidate_count": len(papers),
             "embedded_count": embedded_count,
             "skipped_empty_text_count": skipped_empty,
             "collection_count": int(collection.count()),
+            "source_file_count": files_total,
+            "source_files_embedded": files_embedded,
+            "source_files_skipped_by_marker": files_skipped_by_marker,
+            "source_files_no_text": files_with_no_text,
         },
     }
     return payload
@@ -635,6 +829,139 @@ def _titles_from_items(items: Sequence[VectorItem], limit: int = 18) -> List[str
     return titles
 
 
+def _build_topic_progress_seed(
+    *,
+    vectors_root: Path,
+    collection_name: str,
+    llm_base_url: str,
+    llm_model: str,
+    random_seed: int,
+) -> Dict[str, Any]:
+    """Build a new empty topic naming progress payload."""
+    return {
+        "version": 1,
+        "generated_at_utc": utc_now_iso(),
+        "updated_at_utc": utc_now_iso(),
+        "status": "in_progress",
+        "vectors_root": str(vectors_root),
+        "collection_name": collection_name,
+        "llm": {
+            "base_url": normalize_openai_base_url(llm_base_url),
+            "model": llm_model,
+        },
+        "random_seed": random_seed,
+        "summary": {
+            "resolved_topic_labels": 0,
+            "resolved_subtopic_labels": 0,
+        },
+        "topics": {},
+    }
+
+
+def _progress_label_tuple(payload: Any) -> Tuple[str, str, str] | None:
+    """Extract (name, description, slug) from checkpoint label payload."""
+    if not isinstance(payload, dict):
+        return None
+    name = ensure_str(payload.get("name"))
+    description = ensure_str(payload.get("description"))
+    slug = ensure_str(payload.get("slug") or slugify(name))
+    if not name or not description:
+        return None
+    return (name, description, slug)
+
+
+def _refresh_topic_progress_summary(progress_payload: Dict[str, Any]) -> None:
+    """Refresh progress label counters."""
+    topics = progress_payload.get("topics")
+    if not isinstance(topics, dict):
+        topics = {}
+        progress_payload["topics"] = topics
+
+    resolved_topics = 0
+    resolved_subtopics = 0
+    for topic_payload in topics.values():
+        if not isinstance(topic_payload, dict):
+            continue
+        if _progress_label_tuple(topic_payload.get("topic_label")) is not None:
+            resolved_topics += 1
+        subtopics = topic_payload.get("subtopics")
+        if not isinstance(subtopics, dict):
+            continue
+        for sub_payload in subtopics.values():
+            if _progress_label_tuple(sub_payload) is not None:
+                resolved_subtopics += 1
+
+    progress_payload["summary"] = {
+        "resolved_topic_labels": resolved_topics,
+        "resolved_subtopic_labels": resolved_subtopics,
+    }
+
+
+def _write_topic_progress(progress_path: Path, progress_payload: Dict[str, Any]) -> None:
+    """Write progress file with refreshed summary and timestamp."""
+    _refresh_topic_progress_summary(progress_payload)
+    progress_payload["updated_at_utc"] = utc_now_iso()
+    write_json(progress_path, progress_payload)
+
+
+def _load_or_init_topic_progress(
+    *,
+    progress_path: Path,
+    vectors_root: Path,
+    collection_name: str,
+    llm_base_url: str,
+    llm_model: str,
+    random_seed: int,
+) -> Dict[str, Any]:
+    """Load resume checkpoint for topic naming, or initialize a new one."""
+    seed = _build_topic_progress_seed(
+        vectors_root=vectors_root,
+        collection_name=collection_name,
+        llm_base_url=llm_base_url,
+        llm_model=llm_model,
+        random_seed=random_seed,
+    )
+    if not progress_path.exists():
+        return seed
+
+    try:
+        payload = load_json(progress_path)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("Failed to parse topic progress file %s (%s). Start fresh.", progress_path, exc)
+        return seed
+
+    expected = {
+        "vectors_root": str(vectors_root),
+        "collection_name": collection_name,
+        "llm_base_url": normalize_openai_base_url(llm_base_url),
+        "llm_model": llm_model,
+        "random_seed": int(random_seed),
+    }
+    actual = {
+        "vectors_root": ensure_str(payload.get("vectors_root")),
+        "collection_name": ensure_str(payload.get("collection_name")),
+        "llm_base_url": ensure_str((payload.get("llm") or {}).get("base_url")),
+        "llm_model": ensure_str((payload.get("llm") or {}).get("model")),
+        "random_seed": int(payload.get("random_seed") or -1),
+    }
+    if actual != expected:
+        LOGGER.warning(
+            "Topic progress metadata mismatch. Ignore previous checkpoint: expected=%s actual=%s",
+            expected,
+            actual,
+        )
+        return seed
+
+    topics = payload.get("topics")
+    if not isinstance(topics, dict):
+        payload["topics"] = {}
+    if not isinstance(payload.get("llm"), dict):
+        payload["llm"] = seed["llm"]
+    payload["status"] = "in_progress"
+    _refresh_topic_progress_summary(payload)
+    return payload
+
+
 def run_build_topics(
     *,
     vectors_root: Path,
@@ -653,7 +980,7 @@ def run_build_topics(
 
     embeddings = [item.embedding for item in items]
     total = len(embeddings)
-    primary_k = max(1, min(20, total))
+    primary_k = max(1, min(DEFAULT_PRIMARY_TOPIC_COUNT, total))
 
     primary_labels = _cluster_labels(
         embeddings,
@@ -665,25 +992,79 @@ def run_build_topics(
     for index, label in enumerate(primary_labels):
         by_primary.setdefault(int(label), []).append(index)
 
+    skip_topic_llm = ensure_str(os.getenv("JANUS_M3_SKIP_TOPIC_LLM")).lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    skip_subtopic_llm = ensure_str(os.getenv("JANUS_M3_SKIP_SUBTOPIC_LLM")).lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if skip_topic_llm or skip_subtopic_llm:
+        raise ValueError(
+            "Local naming fallback is disabled. Unset JANUS_M3_SKIP_TOPIC_LLM/JANUS_M3_SKIP_SUBTOPIC_LLM."
+        )
+
     llm_client = make_llm_client(base_url=llm_base_url, api_key=llm_api_key)
+    progress_path = index_root / DEFAULT_TOPICS_PROGRESS_FILE
+    progress_payload = _load_or_init_topic_progress(
+        progress_path=progress_path,
+        vectors_root=vectors_root,
+        collection_name=collection_name,
+        llm_base_url=llm_base_url,
+        llm_model=llm_model,
+        random_seed=random_seed,
+    )
+    progress_topics = progress_payload.get("topics")
+    if not isinstance(progress_topics, dict):
+        progress_topics = {}
+        progress_payload["topics"] = progress_topics
 
     topic_payloads: List[Dict[str, Any]] = []
     assignments: List[Dict[str, Any]] = []
 
     for topic_order, primary_label in enumerate(sorted(by_primary), start=1):
+        topic_id = f"t{topic_order:02d}"
         member_indexes = by_primary[primary_label]
         topic_items = [items[idx] for idx in member_indexes]
         topic_titles = _titles_from_items(topic_items)
-        topic_label = generate_topic_label(
-            client=llm_client,
-            model=llm_model,
-            level="topic",
-            sample_titles=topic_titles,
-        )
-        topic_name = ensure_str(topic_label["name"])
-        topic_desc = ensure_str(topic_label["description"])
-        topic_slug = slugify(topic_name)
-        topic_id = f"t{topic_order:02d}"
+
+        topic_progress = progress_topics.get(topic_id)
+        if not isinstance(topic_progress, dict):
+            topic_progress = {}
+        topic_progress["topic_id"] = topic_id
+        topic_progress["topic_size"] = len(member_indexes)
+        subtopic_progress = topic_progress.get("subtopics")
+        if not isinstance(subtopic_progress, dict):
+            subtopic_progress = {}
+            topic_progress["subtopics"] = subtopic_progress
+        topic_label_cached = _progress_label_tuple(topic_progress.get("topic_label"))
+        if topic_label_cached is None:
+            topic_label = generate_topic_label(
+                client=llm_client,
+                model=llm_model,
+                level="topic",
+                sample_titles=topic_titles,
+            )
+            topic_name = ensure_str(topic_label["name"])
+            topic_desc = ensure_str(topic_label["description"])
+            topic_slug = slugify(topic_name)
+            topic_progress["topic_label"] = {
+                "name": topic_name,
+                "description": topic_desc,
+                "slug": topic_slug,
+                "generated_at_utc": utc_now_iso(),
+            }
+            progress_topics[topic_id] = topic_progress
+            _write_topic_progress(progress_path, progress_payload)
+            LOGGER.info("Topic label checkpointed: %s", topic_id)
+        else:
+            topic_name, topic_desc, topic_slug = topic_label_cached
+            progress_topics[topic_id] = topic_progress
 
         subset_embeddings = [embeddings[idx] for idx in member_indexes]
         sub_k = min(_resolve_subcluster_count(len(member_indexes)), len(member_indexes))
@@ -699,21 +1080,39 @@ def run_build_topics(
 
         sub_payloads: List[Dict[str, Any]] = []
         sub_label_to_payload: Dict[int, Dict[str, Any]] = {}
+        subtopic_sizes = topic_progress.get("subtopic_sizes")
+        if not isinstance(subtopic_sizes, dict):
+            subtopic_sizes = {}
+            topic_progress["subtopic_sizes"] = subtopic_sizes
         for sub_order, sub_label in enumerate(sorted(by_sub), start=1):
             sub_indexes = by_sub[sub_label]
             sub_items = [items[idx] for idx in sub_indexes]
             sub_titles = _titles_from_items(sub_items)
-            sub_topic = generate_topic_label(
-                client=llm_client,
-                model=llm_model,
-                level="subtopic",
-                sample_titles=sub_titles,
-                parent_topic=topic_name,
-            )
-            sub_name = ensure_str(sub_topic["name"])
-            sub_desc = ensure_str(sub_topic["description"])
-            sub_slug = slugify(sub_name)
             sub_id = f"{topic_id}_s{sub_order:02d}"
+            subtopic_sizes[sub_id] = len(sub_indexes)
+            sub_cached = _progress_label_tuple(subtopic_progress.get(sub_id))
+            if sub_cached is None:
+                sub_topic = generate_topic_label(
+                    client=llm_client,
+                    model=llm_model,
+                    level="subtopic",
+                    sample_titles=sub_titles,
+                    parent_topic=topic_name,
+                )
+                sub_name = ensure_str(sub_topic["name"])
+                sub_desc = ensure_str(sub_topic["description"])
+                sub_slug = slugify(sub_name)
+                subtopic_progress[sub_id] = {
+                    "name": sub_name,
+                    "description": sub_desc,
+                    "slug": sub_slug,
+                    "generated_at_utc": utc_now_iso(),
+                }
+                progress_topics[topic_id] = topic_progress
+                _write_topic_progress(progress_path, progress_payload)
+                LOGGER.info("Subtopic label checkpointed: %s", sub_id)
+            else:
+                sub_name, sub_desc, sub_slug = sub_cached
             sub_payload = {
                 "subtopic_id": sub_id,
                 "subtopic_slug": sub_slug,
@@ -762,6 +1161,7 @@ def run_build_topics(
         "generated_at_utc": utc_now_iso(),
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
+        "progress_file": str(progress_path),
         "llm": {
             "base_url": normalize_openai_base_url(llm_base_url),
             "model": llm_model,
@@ -775,6 +1175,15 @@ def run_build_topics(
         "assignments": assignments,
     }
     write_json(topic_file, payload)
+    progress_payload["status"] = "completed"
+    progress_payload["completed_at_utc"] = utc_now_iso()
+    progress_payload["output"] = {
+        "topics_file": str(topic_file),
+        "paper_count": len(assignments),
+        "topic_count": len(topic_payloads),
+        "subtopic_count": sum(len(topic["subtopics"]) for topic in topic_payloads),
+    }
+    _write_topic_progress(progress_path, progress_payload)
     LOGGER.info("M3 topic assignments written: %s", topic_file)
     return payload
 
@@ -1272,6 +1681,7 @@ def run_pipeline(
     llm_base_url: str,
     llm_model: str,
     exclude_placeholder: bool,
+    force_rebuild_vectors: bool = False,
     max_papers: int | None = None,
     embed_api_key: str | None = None,
     llm_api_key: str | None = None,
@@ -1291,10 +1701,11 @@ def run_pipeline(
             embed_batch_size=embed_batch_size,
             embed_cooldown_seconds=embed_cooldown_seconds,
             exclude_placeholder=exclude_placeholder,
+            force_rebuild_vectors=force_rebuild_vectors,
             max_papers=max_papers,
             embed_api_key=embed_api_key,
         )
-        steps["build_topics"] = run_build_topics(
+        build_topics_payload = run_build_topics(
             vectors_root=vectors_root,
             collection_name=collection_name,
             index_root=index_root,
@@ -1302,6 +1713,12 @@ def run_pipeline(
             llm_model=llm_model,
             llm_api_key=llm_api_key,
         )
+        steps["build_topics"] = {
+            "generated_at_utc": build_topics_payload.get("generated_at_utc"),
+            "progress_file": build_topics_payload.get("progress_file"),
+            "llm": build_topics_payload.get("llm"),
+            "summary": build_topics_payload.get("summary"),
+        }
         steps["build_cache"] = run_build_cache(
             db_path=db_path,
             index_root=index_root,
@@ -1337,6 +1754,7 @@ def run_pipeline(
             "vectors_root": str(vectors_root),
             "collection_name": collection_name,
             "exclude_placeholder": exclude_placeholder,
+            "force_rebuild_vectors": force_rebuild_vectors,
             "max_papers": max_papers,
         },
         "steps": steps,
@@ -1423,6 +1841,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--embed-api-key",
         default=None,
         help="Embedding API key (optional, env fallback JANUS_EMBED_API_KEY / JANUS_LLM_API_KEY)",
+    )
+    common.add_argument(
+        "--force-rebuild-vectors",
+        action="store_true",
+        help="Force vector rebuild and ignore per-source-file vectorization marker.",
     )
     common.add_argument(
         "--max-papers",
@@ -1525,6 +1948,7 @@ def main() -> int:
                 embed_batch_size=args.embed_batch_size,
                 embed_cooldown_seconds=args.embed_cooldown_seconds,
                 exclude_placeholder=bool(args.exclude_placeholder),
+                force_rebuild_vectors=bool(args.force_rebuild_vectors),
                 max_papers=max_papers,
                 embed_api_key=args.embed_api_key,
             )
@@ -1540,7 +1964,20 @@ def main() -> int:
                 llm_model=args.llm_model,
                 llm_api_key=args.llm_api_key,
             )
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "generated_at_utc": payload.get("generated_at_utc"),
+                        "vectors_root": payload.get("vectors_root"),
+                        "collection_name": payload.get("collection_name"),
+                        "progress_file": payload.get("progress_file"),
+                        "llm": payload.get("llm"),
+                        "summary": payload.get("summary"),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return 0
 
         if args.command == "build-cache":
@@ -1588,6 +2025,7 @@ def main() -> int:
                 llm_base_url=args.llm_base_url,
                 llm_model=args.llm_model,
                 exclude_placeholder=bool(args.exclude_placeholder),
+                force_rebuild_vectors=bool(args.force_rebuild_vectors),
                 max_papers=max_papers,
                 embed_api_key=args.embed_api_key,
                 llm_api_key=args.llm_api_key,

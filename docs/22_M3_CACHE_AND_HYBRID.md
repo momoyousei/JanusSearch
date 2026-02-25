@@ -15,6 +15,7 @@ python3 -m tools.m3_pipeline run \
   --embed-base-url https://api.siliconflow.cn/v1/embeddings \
   --embed-model Qwen/Qwen3-Embedding-8B \
   --embed-batch-size 32 \
+  --force-rebuild-vectors \
   --exclude-placeholder
 
 # 分步执行
@@ -38,15 +39,27 @@ python3 -m tools.m3_pipeline validate
 - `JANUS_EMBED_BASE_URL`：默认 `https://api.siliconflow.cn/v1`
 - `JANUS_EMBED_API_KEY`：可选，embedding 端点需要时使用（默认回退 `JANUS_LLM_API_KEY`）
 
+注意：
+- `JANUS_M3_SKIP_TOPIC_LLM` / `JANUS_M3_SKIP_SUBTOPIC_LLM` 已不再支持；M3 命名阶段禁止本地回退，API 异常即失败。
+- 一级主题聚类目标数为 40（样本不足时退化到样本数）。
+
 ## 关键产物
 - `data/vectors/chroma/`：向量库目录
 - `index/m3_topic_assignments.json`：paper->topic/subtopic 分配
+- `index/m3_topic_assignments.progress.json`：`build-topics` 命名断点文件（可中断续跑）
 - `index/master_index.md`：L1 主索引
 - `venues/{venue}/{venue}_{year}.md`：L2 会议年页
 - `topics/_topic_index.md`, `topics/{topic}.md`：L3 主题页
 - `subtopics/{topic}/_overview.md`, `subtopics/{topic}/{subtopic}.md`：L4 子主题页
 - `index/m3_build_report.json`：构建报告
 - `index/m3_validate_report.json`：校验报告
+- `data/vectors/chroma/papers_v1_vectorized_sources.json`：source-file 级向量化标记（用于避免重复跑）
+
+## build-topics 断点续跑
+- `build-topics` 命名阶段为纯 LLM；禁止本地回退。
+- 命名过程会持续写入 `index/m3_topic_assignments.progress.json`。
+- 任务被中断后，直接重跑同一条 `build-topics` 命令即可自动续跑，已完成 topic/subtopic 不会重复请求 LLM。
+- 如果切换了向量集合、随机种子或 LLM 模型，旧 checkpoint 会被自动忽略并从头开始。
 
 ## `tools.search hybrid`
 ```bash
@@ -74,6 +87,7 @@ python3 -m tools.search hybrid \
 - `--embed-cooldown-seconds`：每批后休眠，降低持续满载
 - `--max-papers`：分段构建，避免单次长时间运行  
   示例：`python3 -m tools.m3_pipeline run ... --max-papers 3000`
+- `--force-rebuild-vectors`：忽略 source-file 标记并强制全量重建向量
 
 ## 验收最小集
 ```bash
