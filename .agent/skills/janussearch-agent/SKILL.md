@@ -114,7 +114,7 @@ Rules:
 
 - Always include evidence paths when files are produced.
 - Use absolute paths for report references, for example:
-  - `/Users/yangli/Workspace/JanusSearch/index/m4_eval_report.json`
+  - `/Users/yangli/Workspace/JanusSearch/artifacts/m4/eval_report.json`
 
 ## Example Routes (>=8)
 
@@ -158,7 +158,7 @@ Rules:
 - User: "执行 M4 正式验收并出报告"
 - Route: `tools.m4_validate run`
 - Command:
-  - `python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file index/m3_topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
+  - `python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file artifacts/m3/topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
 
 8. M4 status summary
 - User: "看最新 M4 状态"

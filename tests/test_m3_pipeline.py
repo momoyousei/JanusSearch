@@ -241,9 +241,9 @@ class TestM3Pipeline(unittest.TestCase):
         self.root = Path(self.temp_dir.name)
         self.input_root = self.root / "data" / "raw"
         self.db_path = self.root / "data" / "papers.db"
-        self.index_root = self.root / "index"
+        self.index_root = self.root / "artifacts"
         self.vectors_root = self.root / "data" / "vectors" / "chroma"
-        self.master_index_path = self.root / "index" / "master_index.md"
+        self.master_index_path = self.root / "artifacts" / "indexes" / "master_index.md"
         self.venues_root = self.root / "venues"
         self.topics_root = self.root / "topics"
         self.subtopics_root = self.root / "subtopics"

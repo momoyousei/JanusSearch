@@ -39,14 +39,14 @@ except ImportError:
 LOGGER = logging.getLogger("m3_pipeline")
 
 DEFAULT_DB_PATH = Path("data/papers.db")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 DEFAULT_VECTORS_ROOT = Path("data/vectors/chroma")
 DEFAULT_COLLECTION_NAME = "papers_v1"
-DEFAULT_TOPICS_FILE = "m3_topic_assignments.json"
-DEFAULT_TOPICS_PROGRESS_FILE = "m3_topic_assignments.progress.json"
-DEFAULT_BUILD_REPORT = "m3_build_report.json"
-DEFAULT_VALIDATE_REPORT = "m3_validate_report.json"
-DEFAULT_MASTER_INDEX = Path("index/master_index.md")
+DEFAULT_TOPICS_FILE = "topic_assignments.json"
+DEFAULT_TOPICS_PROGRESS_FILE = "topic_assignments.progress.json"
+DEFAULT_BUILD_REPORT = "build_report.json"
+DEFAULT_VALIDATE_REPORT = "validate_report.json"
+DEFAULT_MASTER_INDEX = Path("artifacts/indexes/master_index.md")
 DEFAULT_VENUES_ROOT = Path("venues")
 DEFAULT_TOPICS_ROOT = Path("topics")
 DEFAULT_SUBTOPICS_ROOT = Path("subtopics")
@@ -1010,7 +1010,9 @@ def run_build_topics(
         )
 
     llm_client = make_llm_client(base_url=llm_base_url, api_key=llm_api_key)
-    progress_path = index_root / DEFAULT_TOPICS_PROGRESS_FILE
+    m3_root = index_root / "m3"
+    m3_root.mkdir(parents=True, exist_ok=True)
+    progress_path = m3_root / DEFAULT_TOPICS_PROGRESS_FILE
     progress_payload = _load_or_init_topic_progress(
         progress_path=progress_path,
         vectors_root=vectors_root,
@@ -1156,7 +1158,7 @@ def run_build_topics(
                 }
             )
 
-    topic_file = index_root / DEFAULT_TOPICS_FILE
+    topic_file = m3_root / DEFAULT_TOPICS_FILE
     payload = {
         "generated_at_utc": utc_now_iso(),
         "vectors_root": str(vectors_root),
@@ -1260,7 +1262,7 @@ def run_build_cache(
     subtopics_root: Path,
 ) -> Dict[str, Any]:
     """Build L1-L4 markdown cache artifacts."""
-    assignment_path = index_root / DEFAULT_TOPICS_FILE
+    assignment_path = (index_root / "m3") / DEFAULT_TOPICS_FILE
     if not assignment_path.exists():
         raise FileNotFoundError(
             f"Missing topic assignments: {assignment_path}. Run `build-topics` first."
@@ -1575,8 +1577,9 @@ def run_validate(
     max_papers: int | None = None,
 ) -> Dict[str, Any]:
     """Validate M3 outputs: vectors, assignments, cache."""
-    assignment_path = index_root / DEFAULT_TOPICS_FILE
-    validate_report_path = index_root / DEFAULT_VALIDATE_REPORT
+    m3_root = index_root / "m3"
+    assignment_path = m3_root / DEFAULT_TOPICS_FILE
+    validate_report_path = m3_root / DEFAULT_VALIDATE_REPORT
     if not assignment_path.exists():
         raise FileNotFoundError(f"Missing topic assignment file: {assignment_path}")
 
@@ -1687,7 +1690,7 @@ def run_pipeline(
     llm_api_key: str | None = None,
 ) -> Dict[str, Any]:
     """Run full M3 sequence and persist build report."""
-    build_report_path = index_root / DEFAULT_BUILD_REPORT
+    build_report_path = (index_root / "m3") / DEFAULT_BUILD_REPORT
     steps: Dict[str, Any] = {}
     status = "success"
     error_message = None
@@ -1780,7 +1783,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     common.add_argument(
         "--index-root",
         default=str(DEFAULT_INDEX_ROOT),
-        help=f"Index/report root (default: {DEFAULT_INDEX_ROOT})",
+        help=f"Artifacts output root (default: {DEFAULT_INDEX_ROOT})",
     )
     common.add_argument(
         "--vectors-root",
@@ -1794,8 +1797,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     common.add_argument(
         "--master-index-path",
-        default=str(DEFAULT_MASTER_INDEX),
-        help=f"Master index markdown path (default: {DEFAULT_MASTER_INDEX})",
+        default=None,
+        help="Master index markdown path (default: <index-root>/indexes/master_index.md)",
     )
     common.add_argument(
         "--venues-root",
@@ -1931,7 +1934,11 @@ def main() -> int:
     index_root = Path(args.index_root)
     vectors_root = Path(args.vectors_root)
     collection_name = ensure_str(args.collection_name) or DEFAULT_COLLECTION_NAME
-    master_index_path = Path(args.master_index_path)
+    master_index_path = (
+        Path(args.master_index_path)
+        if ensure_str(args.master_index_path)
+        else index_root / "indexes" / "master_index.md"
+    )
     venues_root = Path(args.venues_root)
     topics_root = Path(args.topics_root)
     subtopics_root = Path(args.subtopics_root)

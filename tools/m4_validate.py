@@ -32,11 +32,11 @@ from tools.search import (
 
 LOGGER = logging.getLogger("m4_validate")
 
-DEFAULT_TOPICS_FILE = Path("index/m3_topic_assignments.json")
+DEFAULT_TOPICS_FILE = Path("artifacts/m3/topic_assignments.json")
 DEFAULT_FIXED_QUERY_FILE = Path("docs/fixtures/m4_fixed_queries.yaml")
-DEFAULT_OUTPUT_JSON = Path("index/m4_eval_report.json")
-DEFAULT_OUTPUT_MD = Path("index/m4_eval_report.md")
-DEFAULT_SAMPLED_DUMP = Path("index/m4_sampled_queries.json")
+DEFAULT_OUTPUT_JSON = Path("artifacts/m4/eval_report.json")
+DEFAULT_OUTPUT_MD = Path("artifacts/m4/eval_report.md")
+DEFAULT_SAMPLED_DUMP = Path("artifacts/m4/sampled_queries.json")
 
 DEFAULT_SAMPLE_TOPICS = 20
 DEFAULT_SAMPLE_PER_TOPIC = 2

@@ -133,7 +133,7 @@ class TestSearchCLI(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
         self.input_root = self.root / "data" / "raw"
-        self.index_root = self.root / "index"
+        self.index_root = self.root / "artifacts"
         self.db_path = self.root / "data" / "papers.db"
         (self.input_root / "iclr").mkdir(parents=True, exist_ok=True)
         payload = build_payload()

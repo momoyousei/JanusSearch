@@ -53,7 +53,7 @@ python3 -m tools.m4_validate run \
   --db-path data/papers.db \
   --vectors-root data/vectors/chroma \
   --collection-name papers_v1 \
-  --topics-file index/m3_topic_assignments.json \
+  --topics-file artifacts/m3/topic_assignments.json \
   --fixed-query-file docs/fixtures/m4_fixed_queries.yaml \
   --embed-base-url https://api.siliconflow.cn/v1/embeddings \
   --embed-model Qwen/Qwen3-Embedding-8B
@@ -66,7 +66,13 @@ python3 -m tools.m4_validate status
 - 规范化事实源：`data/raw/{venue}/{year}.json`
 - 数据库：`data/papers.db`
 - 向量库：`data/vectors/chroma`
-- 报告：`index/*.json`, `index/*.md`
+- 报告与产物：`artifacts/`
+- M1 报告：`artifacts/m1/`
+- M2 报告：`artifacts/m2/`
+- M3 报告与索引：`artifacts/m3/` + `artifacts/indexes/`
+- M4 报告：`artifacts/m4/`
+- 采集报告：`artifacts/collections/`
+- 检索/临时导出：`artifacts/queries/`
 
 ## 文档入口
 - 架构与范围：`docs/10_CORE_ARCHITECTURE.md`

@@ -20,7 +20,7 @@ LOGGER = logging.getLogger("m2_db")
 
 DEFAULT_INPUT_ROOT = Path("data/raw")
 DEFAULT_DB_PATH = Path("data/papers.db")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 
 
 @dataclass
@@ -506,8 +506,9 @@ def load_one_file(
 def run_load(input_root: Path, db_path: Path, index_root: Path) -> Dict[str, Any]:
     """Run full rebuild load from canonical files."""
     files = find_source_files(input_root)
-    index_root.mkdir(parents=True, exist_ok=True)
-    report_path = index_root / "m2_load_report.json"
+    m2_root = index_root / "m2"
+    m2_root.mkdir(parents=True, exist_ok=True)
+    report_path = m2_root / "load_report.json"
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     if db_path.exists():
@@ -662,8 +663,9 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
     files = find_source_files(input_root)
     if not db_path.exists():
         raise FileNotFoundError(f"Database does not exist: {db_path}")
-    index_root.mkdir(parents=True, exist_ok=True)
-    report_path = index_root / "m2_validate_report.json"
+    m2_root = index_root / "m2"
+    m2_root.mkdir(parents=True, exist_ok=True)
+    report_path = m2_root / "validate_report.json"
 
     expected_paper_count = 0
     expected_file_count = len(files)
@@ -859,8 +861,9 @@ def run_reindex_fts(db_path: Path, index_root: Path) -> Dict[str, Any]:
     """Rebuild FTS index for existing SQLite DB."""
     if not db_path.exists():
         raise FileNotFoundError(f"Database does not exist: {db_path}")
-    index_root.mkdir(parents=True, exist_ok=True)
-    report_path = index_root / "m2_fts_report.json"
+    m2_root = index_root / "m2"
+    m2_root.mkdir(parents=True, exist_ok=True)
+    report_path = m2_root / "fts_report.json"
 
     conn = connect_db(db_path)
     try:
@@ -902,7 +905,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--index-root",
         default=str(DEFAULT_INDEX_ROOT),
-        help=f"Report output root (default: {DEFAULT_INDEX_ROOT})",
+        help=f"Artifacts/report root (default: {DEFAULT_INDEX_ROOT})",
     )
     parser.add_argument(
         "--log-level",

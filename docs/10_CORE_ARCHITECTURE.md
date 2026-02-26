@@ -23,7 +23,7 @@ JanusSearch 是本地 AI 顶会论文归档与检索系统，要求：
 3. 检索运行层
 - SQLite：`data/papers.db`
 - 向量：`data/vectors/chroma`
-- 缓存：`index/master_index.md`, `venues/`, `topics/`, `subtopics/`
+- 缓存：`artifacts/indexes/master_index.md`, `venues/`, `topics/`, `subtopics/`
 
 ## 里程碑
 1. M1 数据采集与规范化

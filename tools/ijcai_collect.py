@@ -34,7 +34,7 @@ S2_BASE = "https://api.semanticscholar.org/graph/v1"
 S2_FIELDS = "paperId,title,abstract,authors,citationCount,url,externalIds"
 
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 DEFAULT_HEADERS = {
     "User-Agent": "JanusSearch/1.0 (mailto:janus@example.com)",
     "Accept": "application/json,text/html,application/xml;q=0.9,*/*;q=0.8",
@@ -1130,7 +1130,8 @@ def main() -> int:
     years = parse_years(args.years)
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    collections_root = index_root / "collections"
+    collections_root.mkdir(parents=True, exist_ok=True)
 
     dblp_year_tags = resolve_dblp_year_tags(
         years=years,
@@ -1176,7 +1177,7 @@ def main() -> int:
         "total_missing_abstract": total_missing_abstract,
         "items": summary,
     }
-    report_path = index_root / "ijcai_collection_report.json"
+    report_path = collections_root / "ijcai_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total official unique papers: %s", total_official_unique)

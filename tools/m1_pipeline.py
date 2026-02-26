@@ -30,7 +30,7 @@ LOGGER = logging.getLogger("m1_pipeline")
 DEFAULT_INPUT_GLOB = "archives/root_json/*-*.json"
 DEFAULT_CANONICAL_ROOT = Path("data/raw")
 DEFAULT_BACKUP_ROOT = Path("backups/raw")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 DEFAULT_AUTHORS_THRESHOLD = 90.0
 DEFAULT_ABSTRACT_THRESHOLD = 85.0
 PRESENTATION_LEVELS = ("poster", "oral", "bestpaper")
@@ -1144,7 +1144,7 @@ def normalize_payload(
 
 
 def render_stats_markdown(items: Sequence[Dict[str, Any]], summary: Dict[str, Any]) -> str:
-    """Create markdown summary for index/stats.md."""
+    """Create markdown summary for M1 validation run."""
     lines: List[str] = [
         "# M1 Quality Stats",
         "",
@@ -2128,7 +2128,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--index-root",
         default=str(DEFAULT_INDEX_ROOT),
-        help=f"Index/report root (default: {DEFAULT_INDEX_ROOT})",
+        help=f"Artifacts/report root (default: {DEFAULT_INDEX_ROOT})",
     )
     parser.add_argument(
         "--log-level",
@@ -2246,13 +2246,14 @@ def main() -> int:
     canonical_root = Path(args.canonical_root)
     backup_root = Path(args.backup_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    m1_root = index_root / "m1"
+    m1_root.mkdir(parents=True, exist_ok=True)
 
-    inventory_report = index_root / "m1_inventory.json"
-    normalize_report = index_root / "m1_normalize_report.json"
-    backfill_report = index_root / "m1_backfill_report.json"
-    validate_report = index_root / "m1_quality_report.json"
-    stats_md = index_root / "stats.md"
+    inventory_report = m1_root / "inventory.json"
+    normalize_report = m1_root / "normalize_report.json"
+    backfill_report = m1_root / "backfill_report.json"
+    validate_report = m1_root / "quality_report.json"
+    stats_md = m1_root / "stats.md"
 
     if args.command == "inventory":
         run_inventory(args.input_glob, inventory_report)

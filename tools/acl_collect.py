@@ -26,7 +26,7 @@ OPENALEX_WORKS_URL = "https://api.openalex.org/works"
 S2_PAPER_SEARCH_URL = "https://api.semanticscholar.org/graph/v1/paper/search"
 
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 
 ABS_BLOCK_RE = re.compile(
     r'<div class="card bg-light mb-2 mb-lg-3 collapse abstract-collapse" '
@@ -774,7 +774,8 @@ def main() -> int:
     years = parse_years(args.years)
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    collections_root = index_root / "collections"
+    collections_root.mkdir(parents=True, exist_ok=True)
 
     summary: List[Dict[str, Any]] = []
     for year in years:
@@ -800,7 +801,7 @@ def main() -> int:
         "total_missing_abstract": sum(int(item["missing_abstract_count"]) for item in summary),
         "items": summary,
     }
-    report_path = index_root / "acl_collection_report.json"
+    report_path = collections_root / "acl_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total collected papers: %s", total)

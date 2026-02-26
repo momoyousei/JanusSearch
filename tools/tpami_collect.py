@@ -29,7 +29,7 @@ OPENALEX_WORKS_URL = "https://api.openalex.org/works"
 CROSSREF_WORKS_URL = "https://api.crossref.org/works/"
 
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 
 TPAMI_VOLUME_YEAR_OFFSET = 1978
 
@@ -823,7 +823,8 @@ def main() -> int:
     years = parse_years(args.years)
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    collections_root = index_root / "collections"
+    collections_root.mkdir(parents=True, exist_ok=True)
 
     year_volume_map = resolve_tpami_volumes(
         years=years,
@@ -862,7 +863,7 @@ def main() -> int:
         "official_vs_collected_aligned": total_official_unique == total_collected,
         "items": summary,
     }
-    report_path = index_root / "tpami_collection_report.json"
+    report_path = collections_root / "tpami_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total official unique papers: %s", total_official_unique)

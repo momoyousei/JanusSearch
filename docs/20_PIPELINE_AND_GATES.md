@@ -97,9 +97,10 @@ python3 -m tools.m3_pipeline run \
 - `JANUS_EMBED_BASE_URL`, `JANUS_EMBED_API_KEY`
 
 关键产物：
-- `index/m3_topic_assignments.json`
-- `index/m3_build_report.json`
-- `index/m3_validate_report.json`
+- `artifacts/m3/topic_assignments.json`
+- `artifacts/m3/build_report.json`
+- `artifacts/m3/validate_report.json`
+- `artifacts/indexes/master_index.md`
 - `data/vectors/chroma/`
 
 ## M4：端到端验收（云端硬门禁）
@@ -110,7 +111,7 @@ python3 -m tools.m4_validate run \
   --db-path data/papers.db \
   --vectors-root data/vectors/chroma \
   --collection-name papers_v1 \
-  --topics-file index/m3_topic_assignments.json \
+  --topics-file artifacts/m3/topic_assignments.json \
   --fixed-query-file docs/fixtures/m4_fixed_queries.yaml \
   --embed-base-url https://api.siliconflow.cn/v1/embeddings \
   --embed-model Qwen/Qwen3-Embedding-8B \
@@ -126,14 +127,14 @@ M4 总门禁：
 - `overall_pass = online_gate_pass AND fixed_suite_pass AND sampled_suite_pass`
 
 ## 批次报告清单
-- `index/m1_quality_report.json`
-- `index/m1_backfill_report.json`
-- `index/m2_load_report.json`
-- `index/m2_validate_report.json`
-- `index/m3_build_report.json`
-- `index/m3_validate_report.json`
-- `index/m4_eval_report.json`
-- `index/m4_eval_report.md`
+- `artifacts/m1/quality_report.json`
+- `artifacts/m1/backfill_report.json`
+- `artifacts/m2/load_report.json`
+- `artifacts/m2/validate_report.json`
+- `artifacts/m3/build_report.json`
+- `artifacts/m3/validate_report.json`
+- `artifacts/m4/eval_report.json`
+- `artifacts/m4/eval_report.md`
 
 ## 验证基准
 - 端到端主题基准：`Continual Learning > Replay Methods`

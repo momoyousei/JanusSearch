@@ -27,7 +27,7 @@ ARCHIVE_URL = f"{AAAI_BASE_URL}/index.php/AAAI/issue/archive"
 OPENREVIEW_BASE_URL = "https://openreview.net"
 OPENREVIEW_API2_URL = "https://api2.openreview.net"
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 
 ISSUE_LINK_RE = re.compile(
     r'<a class="title" href="(?P<url>[^"]+/issue/view/\d+)">\s*(?P<title>[^<]+?)\s*</a>',
@@ -1037,7 +1037,8 @@ def main() -> int:
     years = parse_years(args.years)
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    collections_root = index_root / "collections"
+    collections_root.mkdir(parents=True, exist_ok=True)
 
     all_issues = iter_archive_pages(
         timeout=args.timeout,
@@ -1132,7 +1133,7 @@ def main() -> int:
         "official_vs_collected_aligned": total_collected == total_official_unique,
         "items": summary,
     }
-    report_path = index_root / "aaai_collection_report.json"
+    report_path = collections_root / "aaai_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total official unique papers: %s", total_official_unique)

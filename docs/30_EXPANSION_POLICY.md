@@ -12,7 +12,7 @@
 ## 单批次标准流程
 1. 采集到历史输入层
 ```bash
-python3 -m tools.<venue>_collect --years <RANGE> --output-root archives/root_json --index-root index
+python3 -m tools.<venue>_collect --years <RANGE> --output-root archives/root_json
 ```
 
 2. M1 子集处理

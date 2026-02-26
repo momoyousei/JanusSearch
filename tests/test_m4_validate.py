@@ -87,14 +87,14 @@ class TestM4Validate(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
         self.input_root = self.root / "data" / "raw"
-        self.index_root = self.root / "index"
+        self.index_root = self.root / "artifacts"
         self.db_path = self.root / "data" / "papers.db"
         self.vectors_root = self.root / "data" / "vectors" / "chroma"
-        self.topics_file = self.index_root / "m3_topic_assignments.json"
+        self.topics_file = self.index_root / "m3" / "topic_assignments.json"
         self.fixed_query_file = self.root / "docs" / "fixtures" / "m4_fixed_queries.yaml"
-        self.output_json = self.index_root / "m4_eval_report.json"
-        self.output_md = self.index_root / "m4_eval_report.md"
-        self.sampled_dump = self.index_root / "m4_sampled_queries.json"
+        self.output_json = self.index_root / "m4" / "eval_report.json"
+        self.output_md = self.index_root / "m4" / "eval_report.md"
+        self.sampled_dump = self.index_root / "m4" / "sampled_queries.json"
 
         (self.input_root / "iclr").mkdir(parents=True, exist_ok=True)
         (self.input_root / "icml").mkdir(parents=True, exist_ok=True)
@@ -102,6 +102,7 @@ class TestM4Validate(unittest.TestCase):
         self.vectors_root.mkdir(parents=True, exist_ok=True)
         self.fixed_query_file.parent.mkdir(parents=True, exist_ok=True)
         self.index_root.mkdir(parents=True, exist_ok=True)
+        self.topics_file.parent.mkdir(parents=True, exist_ok=True)
 
         iclr_payload = build_payload(
             "ICLR",
@@ -390,7 +391,7 @@ class TestM4Validate(unittest.TestCase):
 
     def test_status_missing_report(self) -> None:
         with self.assertRaises(FileNotFoundError):
-            run_status(self.root / "index" / "does_not_exist.json")
+            run_status(self.root / "artifacts" / "m4" / "does_not_exist.json")
 
     def test_cli_accepts_subcommand_first_arguments(self) -> None:
         parser = build_arg_parser()

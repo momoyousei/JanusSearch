@@ -60,7 +60,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - M1：`python3 -m tools.m1_pipeline <inventory|normalize|backfill|validate|run>`
 - M2：`python3 -m tools.m2_db run`
 - M3：`python3 -m tools.m3_pipeline run --db-path data/papers.db --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --exclude-placeholder`
-- M4：`python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file index/m3_topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
+- M4：`python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file artifacts/m3/topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
 - M4 状态：`python3 -m tools.m4_validate status`
 
 ## 验收口径
@@ -88,7 +88,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 流程：
 1. 采集到历史输入层
 ```bash
-python3 -m tools.<venue>_collect --years <YYYY-YYYY> --output-root archives/root_json --index-root index
+python3 -m tools.<venue>_collect --years <YYYY-YYYY> --output-root archives/root_json
 ```
 
 2. M1 子集处理
@@ -128,8 +128,8 @@ python3 -m tools.m4_validate status
 4. 人工补录（仅小规模残缺）
 
 每轮后必须检查：
-- `index/m1_backfill_report.json`
-- `index/m1_quality_report.json`
+- `artifacts/m1/backfill_report.json`
+- `artifacts/m1/quality_report.json`
 
 ### SOP 3：版本回归（发布前）
 流程：
@@ -140,9 +140,9 @@ python3 -m tools.m4_validate status
 5. `python3 -m tools.m4_validate status`
 
 关键报告：
-- `index/m2_validate_report.json`
-- `index/m3_validate_report.json`
-- `index/m4_eval_report.json`
+- `artifacts/m2/validate_report.json`
+- `artifacts/m3/validate_report.json`
+- `artifacts/m4/eval_report.json`
 
 ### SOP 4：失败批次冻结与恢复
 冻结条件：

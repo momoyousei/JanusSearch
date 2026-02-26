@@ -24,7 +24,7 @@ CVF_BASE_URL = "https://openaccess.thecvf.com"
 ECVA_BASE_URL = "https://www.ecva.net"
 ECVA_PAPERS_URL = f"{ECVA_BASE_URL}/papers.php"
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
-DEFAULT_INDEX_ROOT = Path("index")
+DEFAULT_INDEX_ROOT = Path("artifacts")
 VENUE_SETTINGS: Dict[str, Dict[str, str]] = {
     "CVPR": {
         "display_name": "IEEE/CVF Conference on Computer Vision and Pattern Recognition",
@@ -584,7 +584,8 @@ def main() -> int:
         raise ValueError(f"Unsupported venue: {venue}")
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
-    index_root.mkdir(parents=True, exist_ok=True)
+    collections_root = index_root / "collections"
+    collections_root.mkdir(parents=True, exist_ok=True)
 
     summary: List[Dict[str, Any]] = []
     for year in years:
@@ -611,7 +612,7 @@ def main() -> int:
         "total_collected": total,
         "items": summary,
     }
-    report_path = index_root / f"{venue.lower()}_collection_report.json"
+    report_path = collections_root / f"{venue.lower()}_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total collected papers: %s", total)
