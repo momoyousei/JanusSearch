@@ -17,7 +17,7 @@ Use this skill when the user asks for:
 
 Core script:
 
-- `paper-search/scripts/fetch_conference_papers.py`
+- `.agent/skills/paper-search/scripts/fetch_conference_papers.py`
 
 ## Input and output contract
 
@@ -115,17 +115,17 @@ NeurIPS uses official tracks first, then fallback heuristics only if unmatched.
 ## Commands
 
 ```bash
-python3 paper-search/scripts/fetch_conference_papers.py CVPR-26 \
+python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py CVPR-26 \
   --output archives/root_json/CVPR-26.json \
   --api-key "$OPENALEX_API_KEY"
 
-python3 paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
+python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
   --output archives/root_json/NeurIPS-25.json \
   --provider openreview \
   --reconcile-url https://neurips.cc/virtual/2025/papers.html \
   --reconcile-include-missing
 
-python3 paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
+python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py NeurIPS-25 \
   --output archives/root_json/NeurIPS-25.json \
   --provider auto \
   --api-key "$OPENALEX_API_KEY" \
@@ -136,7 +136,7 @@ Batch rerun NeurIPS 2021-2025:
 
 ```bash
 for y in 21 22 23 24 25; do
-  python3 paper-search/scripts/fetch_conference_papers.py "NeurIPS-$y" \
+  python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py "NeurIPS-$y" \
     --output "archives/root_json/NeurIPS-$y.json" \
     --provider openreview \
     --reconcile-url "https://neurips.cc/virtual/20${y}/papers.html" \
@@ -147,7 +147,7 @@ done
 Use `--source-id` to force a specific OpenAlex source when venue name matching is ambiguous:
 
 ```bash
-python3 paper-search/scripts/fetch_conference_papers.py CVPR-26 \
+python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py CVPR-26 \
   --source-id https://openalex.org/S4306400393 \
   --source-name "IEEE/CVF Conference on Computer Vision and Pattern Recognition" \
   --api-key "$OPENALEX_API_KEY" \

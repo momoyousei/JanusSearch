@@ -15,7 +15,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - `docs/`：少量核心规范文档（架构、流程门禁、扩充策略、历史复盘）
 
 ## 采集专用 Skill
-- `paper-search/SKILL.md`：仅用于会议年份采集与导出 JSON 的专用流程。
+- `.agent/skills/paper-search/SKILL.md`：仅用于会议年份采集与导出 JSON 的专用流程。
 - 非采集类任务默认按本文件路由执行。
 
 ## 当前阶段

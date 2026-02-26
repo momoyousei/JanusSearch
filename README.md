@@ -2,7 +2,7 @@
 
 JanusSearch 是本地 AI 顶会论文归档与智能检索系统，覆盖从采集、规范化、入库到向量检索与端到端验收的完整 CLI 流程。
 
-如果你是AI、LLM、Agent、Bot，请阅读AGENTS.md
+这个文档是面向人类用户的，如果你是AI、LLM、Agent、Bot，请阅读AGENTS.md
 
 ## 当前状态
 - M1→M4 主链路已打通并完成基础端到端验证
