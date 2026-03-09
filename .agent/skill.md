@@ -1,1 +1,0 @@
-skills/janussearch-agent/SKILL.md

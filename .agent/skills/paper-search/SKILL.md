@@ -1,13 +1,13 @@
 ---
 name: paper-search
-description: Search and export paper metadata for a venue-year target into one JSON file. Use when a user asks for all papers from conferences like AAAI/CVPR/NeurIPS, and needs title, authors, institutions, abstract, keywords, presentation level, and track annotations with reconciliation.
+description: 针对指定会议-年份目标，抓取并导出论文元数据到单个 JSON 文件。当用户需要抓取 AAAI/CVPR/NeurIPS 等会议某一年的全部论文，并要求包含题目、作者、机构、摘要、关键词、展示级别、track 标注以及对账补齐时使用。
 ---
 
-# Paper Search
+# 论文采集与导出（Paper Search）
 
-## When to use
+## 适用场景
 
-Use this skill when the user asks for:
+当用户提出以下需求时使用本 skill：
 
 - "抓取某个会议某一年的全部论文"
 - "导出成 JSON，包含题目、作者、机构、摘要、关键词"
@@ -15,104 +15,104 @@ Use this skill when the user asks for:
 - "给每篇论文标注 track（main/conference、datasets、position、journal 等）"
 - "批量跑多个年份（例如 NeurIPS-21 到 NeurIPS-25）"
 
-Core script:
+核心脚本：
 
 - `.agent/skills/paper-search/scripts/fetch_conference_papers.py`
 
-## Input and output contract
+## 输入/输出约定
 
-Input:
+输入：
 
-- Required target token: `VENUE-YY` or `VENUE-YYYY`
-- Example: `AAAI-26`, `CVPR-2025`, `NeurIPS-25`
+- 必填目标 token：`VENUE-YY` 或 `VENUE-YYYY`
+- 示例：`AAAI-26`、`CVPR-2025`、`NeurIPS-25`
 
-Output:
+输出：
 
-- One JSON file (do not split by track)
-- Recommended path: `archives/root_json/{VENUE}-{YY}.json`
-- Per-paper fields include:
+- 单个 JSON 文件（不要按 track 拆分）
+- 推荐路径：`archives/root_json/{VENUE}-{YY}.json`
+- 单篇论文字段包含：
   - `paper_title`
   - `authors`
   - `institutions`
   - `abstract`
   - `keywords`
-  - `presentation_level` (`poster` / `oral` / `bestpaper`)
-  - `track` (normalized slug)
-  - `track_display_name` (human-readable)
-  - `track_group` (`main` or `other`)
+  - `presentation_level`（`poster` / `oral` / `bestpaper`）
+  - `track`（规范化 slug）
+  - `track_display_name`（面向人类）
+  - `track_group`（`main` 或 `other`）
 
-Top-level fields include:
+顶层字段包含：
 
 - `query`, `source`, `generated_at_utc`, `paper_count`
 - `track_counts`, `track_group_counts`
 - `papers`
-- Optional `reconciliation` (when `--reconcile-url` used)
-- Optional `official_tracks` (NeurIPS official mapping metadata)
+- 可选 `reconciliation`（当使用 `--reconcile-url`）
+- 可选 `official_tracks`（NeurIPS 官方 track 映射元数据）
 
-## End-to-end pipeline
+## 端到端流程
 
-1. Parse target
-- Parse `VENUE-YY` into `venue_code + year` (for example `NeurIPS-25 -> NEURIPS + 2025`).
-- Validate year range and token format.
+1. 解析目标
+- 将 `VENUE-YY` 解析为 `venue_code + year`（例如 `NeurIPS-25 -> NEURIPS + 2025`）。
+- 校验年份范围与 token 格式。
 
-2. Load presentation overrides (optional)
-- If `--overrides` is provided, read title-level overrides to set `presentation_level`.
+2. 读取展示级别覆盖（可选）
+- 若提供 `--overrides`，读取基于标题的 overrides 用于设置 `presentation_level`。
 
-3. Preload official NeurIPS track index (NeurIPS only)
-- Fetch `https://neurips.cc/static/virtual/data/neurips-{year}-orals-posters.json`.
-- Build title -> track mapping from official `sourceurl`.
-- Track examples:
+3. 预加载 NeurIPS 官方 track 索引（仅 NeurIPS）
+- 抓取 `https://neurips.cc/static/virtual/data/neurips-{year}-orals-posters.json`。
+- 根据官方 `sourceurl` 构建 title -> track 映射。
+- track 示例：
   - `conference`
   - `datasets_and_benchmarks_track`
   - `position_paper_track`
-  - journal tracks (`journal_track_jmlr`, `journal_track_tmlr`, `journal_track_annals_of_statistics`, etc.)
+  - 期刊 track（`journal_track_jmlr`、`journal_track_tmlr`、`journal_track_annals_of_statistics` 等）
 
-4. Fetch provider data
-- `provider=openalex`: OpenAlex only.
-- `provider=openreview`: OpenReview only (accepted-paper logic).
-- `provider=auto`: OpenAlex first, fallback/switch to OpenReview when count is low.
+4. 获取 provider 数据
+- `provider=openalex`：仅 OpenAlex。
+- `provider=openreview`：仅 OpenReview（按 accepted-paper 逻辑）。
+- `provider=auto`：优先 OpenAlex；当数量异常偏低时 fallback/switch 到 OpenReview。
 
-5. Normalize provider records
-- Normalize authors/institutions and deduplicate while preserving order.
-- Rebuild abstract from OpenAlex `abstract_inverted_index`.
-- Extract keywords from `keywords`, fallback to ranked concepts.
-- Normalize track fields via unified setter:
+5. 规范化 provider 记录
+- 规范化 authors/institutions，并在保序前提下去重。
+- 从 OpenAlex 的 `abstract_inverted_index` 重建摘要。
+- 从 `keywords` 提取关键词；缺失时回退到 ranked concepts。
+- 通过统一 setter 规范化 track 字段：
   - `track`
   - `track_display_name`
   - `track_group`
 
-6. Reconcile against external checklist (optional)
-- With `--reconcile-url`, parse external paper list (typically NeurIPS virtual `papers.html`).
-- Noise cleaning:
-  - remove navigation and non-paper anchors
-  - filter non-paper categories like `session` / `town-hall`
-- Compare normalized titles:
+6. 与外部清单对账（可选）
+- 使用 `--reconcile-url` 解析外部论文列表（通常为 NeurIPS virtual 的 `papers.html`）。
+- 噪声清理：
+  - 移除导航与非论文锚点
+  - 过滤 `session` / `town-hall` 等非论文分类
+- 对比规范化后的标题：
   - `matched`
   - `missing_in_provider`
   - `extra_in_provider`
-- With `--reconcile-include-missing`, append placeholders for missing titles.
+- 使用 `--reconcile-include-missing` 时，为缺失标题追加 placeholder 记录。
 
-7. Apply official NeurIPS track mapping (if loaded)
-- Match by normalized title and overwrite provider/default track with official track.
-- Attach `official_track_source_url` per matched paper.
-- If official catalog has `conference`, remap residual legacy `main` -> `conference`.
+7. 应用 NeurIPS 官方 track 映射（若已加载）
+- 按规范化标题匹配，并用官方 track 覆盖 provider/默认 track。
+- 为命中的论文附加 `official_track_source_url`。
+- 若官方目录含 `conference`，将残留旧 `main` 重映射为 `conference`。
 
-8. Finalize and export
-- Sort papers by normalized title.
-- Build `track_counts` and `track_group_counts`.
-- Write single JSON output.
+8. 收尾并导出
+- 按规范化标题排序。
+- 生成 `track_counts` 与 `track_group_counts`。
+- 写出单文件 JSON。
 
-## Track naming rules
+## Track 命名规则
 
-NeurIPS uses official tracks first, then fallback heuristics only if unmatched.
+NeurIPS：优先使用官方 track；仅在未命中时启用兜底启发式。
 
-- `track` is the machine-readable identifier (slug).
-- `track_display_name` is for humans.
-- `track_group` is coarse classification:
-  - `main`: conference/main body
-  - `other`: datasets, position, journal, challenge, workshop-like tracks
+- `track`：机器可读标识（slug）
+- `track_display_name`：面向人类展示
+- `track_group`：粗粒度分类：
+  - `main`：conference/main body（主会/主轨）
+  - `other`：datasets、position、journal、challenge、workshop-like tracks（非主轨）
 
-## Commands
+## 命令示例
 
 ```bash
 python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py CVPR-26 \
@@ -132,7 +132,7 @@ python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py NeurIPS-25
   --no-progress
 ```
 
-Batch rerun NeurIPS 2021-2025:
+批量重跑 NeurIPS 2021-2025：
 
 ```bash
 for y in 21 22 23 24 25; do
@@ -144,7 +144,7 @@ for y in 21 22 23 24 25; do
 done
 ```
 
-Use `--source-id` to force a specific OpenAlex source when venue name matching is ambiguous:
+当会议名称匹配存在歧义时，使用 `--source-id` 强制指定 OpenAlex source：
 
 ```bash
 python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py CVPR-26 \
@@ -154,37 +154,37 @@ python3 .agent/skills/paper-search/scripts/fetch_conference_papers.py CVPR-26 \
   --output archives/root_json/cvpr26.json
 ```
 
-After collection, continue with:
+采集完成后，继续执行：
 - `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' normalize`
 - `python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' validate`
 - `python3 -m tools.m2_db run`
 
-## Data quality details
+## 数据质量说明
 
-- OpenReview acceptance counts can be lower than official acceptance announcements.
-- Reconciliation can still show `missing` after cleanup when sources differ in inclusion policy.
-- Official NeurIPS track index may include items not returned by OpenReview.
-- External reconciliation parser is heuristic and may require future category cleanup as website structure changes.
+- OpenReview 的接收数量可能低于官方接收公告。
+- 当来源的收录口径不同，即使做过清理，对账仍可能出现 `missing`。
+- NeurIPS 官方 track 索引可能包含 OpenReview 未返回的条目。
+- 外部对账解析器是启发式实现；网站结构变化时可能需要新增分类清理规则。
 
-## Operational rules
+## 运行规则
 
-- Treat `paper_title`, `authors`, and `abstract` as primary fields from OpenAlex metadata.
-- De-duplicate institutions while preserving order of first appearance.
-- Derive keywords from OpenAlex `keywords`; fallback to top concepts when needed.
-- When OpenAlex count is unexpectedly low for supported venues, use OpenReview fallback (`--provider auto`).
-- Use `--provider openreview` to force OpenReview accepted-paper retrieval for venues with known OpenReview IDs.
-- Use `--reconcile-url` for external checklist reconciliation.
-- Add `--reconcile-include-missing` to append missing titles as placeholder records.
-- Default `presentation_level` to `poster`; override to `oral` or `bestpaper` through a JSON overrides file.
-- Keep unresolved fields as empty values instead of fabricating content.
+- 将 `paper_title`、`authors`、`abstract` 视为 OpenAlex 元数据的主字段来源。
+- 机构（institutions）去重时保持首次出现顺序不变。
+- 优先从 OpenAlex 的 `keywords` 获取关键词；必要时回退到 top concepts。
+- 当支持的会议在 OpenAlex 返回数量异常偏低时，使用 OpenReview 兜底（`--provider auto`）。
+- 对已知 OpenReview ID 的会议，可用 `--provider openreview` 强制走 accepted-paper 拉取。
+- 使用 `--reconcile-url` 与外部清单对账。
+- 使用 `--reconcile-include-missing` 将缺失标题追加为 placeholder 记录。
+- `presentation_level` 默认 `poster`；可用 JSON overrides 覆盖为 `oral` 或 `bestpaper`。
+- 未解析字段保持为空值，不要臆造内容。
 
-## Resources
+## 资源
 
 ### scripts/
 
-- `scripts/fetch_conference_papers.py`: Fetch venue-year papers and export normalized JSON.
+- `scripts/fetch_conference_papers.py`：抓取指定会议-年份论文并导出规范化 JSON。
 
 ### references/
 
-- `references/presentation_overrides_template.json`: Template for manual oral/bestpaper overrides.
-- `references/presentation_overrides.json`: Optional manual overrides data.
+- `references/presentation_overrides_template.json`：手工 oral/bestpaper 覆盖模板。
+- `references/presentation_overrides.json`：可选的手工覆盖数据。
