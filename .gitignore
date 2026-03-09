@@ -1,0 +1,55 @@
+# macOS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+
+# Python cache / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.pytype/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local environments
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+.envrc
+.uv-cache/
+
+# Logs / local backups
+*.log
+*.out
+*.err
+backups/
+
+# Local Codex config
+.codex/
+
+# JanusSearch source-of-truth policy
+# Keep: data/raw/
+# Ignore: replay snapshots, derived runtime stores, caches, reports
+archives/root_json/
+data/papers.db
+data/papers.db-*
+data/vectors/
+artifacts/
+topics/
+subtopics/
+venues/
