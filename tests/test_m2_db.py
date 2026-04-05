@@ -44,6 +44,13 @@ def build_sample_payload(venue: str = "ICLR", year: int = 2024) -> dict:
                 "citation_count": 7,
                 "source_provider": "openreview",
                 "source_ids": {"openreview_id": "OR-123", "doi": "10.1000/test"},
+                "field_provenance": {
+                    "abstract": "official",
+                    "authors": "official",
+                    "url": "official",
+                    "track_group": "official",
+                    "presentation_level": "official",
+                },
                 "keywords": ["continual learning", "replay"],
                 "track": "conference",
                 "track_display_name": "Conference",
@@ -110,10 +117,23 @@ class TestM2DB(unittest.TestCase):
             author_count = conn.execute("SELECT COUNT(*) FROM paper_authors").fetchone()[0]
             keyword_count = conn.execute("SELECT COUNT(*) FROM paper_keywords").fetchone()[0]
             source_id_count = conn.execute("SELECT COUNT(*) FROM paper_source_ids").fetchone()[0]
+            field_provenance_json = conn.execute(
+                "SELECT field_provenance_json FROM papers WHERE paper_id = 'S2-test-paper-1'"
+            ).fetchone()[0]
             self.assertEqual(paper_count, 1)
             self.assertEqual(author_count, 2)
             self.assertEqual(keyword_count, 2)
             self.assertEqual(source_id_count, 2)
+            self.assertEqual(
+                json.loads(field_provenance_json),
+                {
+                    "abstract": "official",
+                    "authors": "official",
+                    "presentation_level": "official",
+                    "track_group": "official",
+                    "url": "official",
+                },
+            )
         finally:
             conn.close()
 

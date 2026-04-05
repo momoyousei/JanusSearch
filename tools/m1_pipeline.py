@@ -34,6 +34,38 @@ DEFAULT_INDEX_ROOT = Path("artifacts")
 DEFAULT_AUTHORS_THRESHOLD = 90.0
 DEFAULT_ABSTRACT_THRESHOLD = 85.0
 PRESENTATION_LEVELS = ("poster", "oral", "bestpaper")
+FIELD_PROVENANCE_FIELDS = (
+    "abstract",
+    "authors",
+    "url",
+    "track_group",
+    "presentation_level",
+)
+FIELD_PROVENANCE_VALUES = {
+    "official",
+    "venue_special",
+    "s2",
+    "arxiv",
+    "papers_cool",
+    "manual",
+}
+DERIVED_QUALITY_FLAGS = {
+    "missing_title",
+    "missing_authors",
+    "missing_abstract",
+    "missing_keywords",
+    "missing_institutions",
+    "placeholder_external_only",
+}
+PAPERS_COOL_BASE = "https://papers.cool"
+PAPERS_COOL_SUPPORTED_VENUES = {"ACL", "AAAI"}
+PAPERS_COOL_ALLOWED_DOMAINS = {
+    "ACL": {"aclanthology.org"},
+    "AAAI": {"ojs.aaai.org"},
+}
+PAPERS_COOL_DEFAULT_POLICY = "full_fields"
+PAPERS_COOL_POLICY_CHOICES = (PAPERS_COOL_DEFAULT_POLICY,)
+PAPERS_COOL_FALLBACK_FLAG = "aggregator_fallback_papers_cool"
 
 S2_BASE = "https://api.semanticscholar.org/graph/v1"
 S2_FIELDS = "paperId,title,abstract,authors,citationCount,url,externalIds"
@@ -45,6 +77,7 @@ _ARXIV_LAST_REQUEST_AT = 0.0
 _NEURIPS_OFFICIAL_STATS_CACHE: Dict[str, Dict[str, Any]] = {}
 _PMLR_INDEX_CACHE: Dict[str, Dict[str, str]] = {}
 _PMLR_ABSTRACT_CACHE: Dict[str, Optional[str]] = {}
+_PAPERS_COOL_VENUE_CACHE: Dict[str, Dict[str, Dict[str, Any]]] = {}
 _ICML_PMLR_VOLUMES: Dict[int, str] = {
     2021: "v139",
 }
@@ -260,6 +293,75 @@ def normalize_presentation_level(value: Any) -> str:
     return "poster"
 
 
+def map_source_provider_to_provenance(source_provider: Any) -> str:
+    """Map provider-specific labels into the compact provenance taxonomy."""
+    provider = normalize_slug(source_provider)
+    if provider in {
+        "acl_anthology",
+        "aaai_ojs",
+        "openreview",
+        "official",
+    }:
+        return "official"
+    if provider in {"semantic_scholar", "semantic_scholar_api", "s2"}:
+        return "s2"
+    if provider == "arxiv":
+        return "arxiv"
+    if provider == "manual":
+        return "manual"
+    if provider == "papers_cool":
+        return "papers_cool"
+    return "venue_special"
+
+
+def field_has_value(record: Dict[str, Any], field: str) -> bool:
+    """Check whether one provenance-tracked field is meaningfully present."""
+    if field == "authors":
+        return bool(to_string_list(record.get(field)))
+    return not is_missing_text(record.get(field))
+
+
+def normalize_field_provenance(record: Dict[str, Any]) -> Dict[str, str]:
+    """Normalize and backfill field-level provenance."""
+    existing = record.get("field_provenance")
+    normalized: Dict[str, str] = {}
+    if isinstance(existing, dict):
+        for key, value in existing.items():
+            field = ensure_str(key)
+            provenance = normalize_slug(value)
+            if field in FIELD_PROVENANCE_FIELDS and provenance in FIELD_PROVENANCE_VALUES:
+                normalized[field] = provenance
+
+    default_provenance = map_source_provider_to_provenance(record.get("source_provider"))
+    for field in FIELD_PROVENANCE_FIELDS:
+        if field not in normalized and field_has_value(record, field):
+            normalized[field] = default_provenance
+    return normalized
+
+
+def set_field_provenance(record: Dict[str, Any], fields: Sequence[str], provenance: str) -> None:
+    """Assign provenance to populated fields."""
+    normalized_provenance = normalize_slug(provenance)
+    if normalized_provenance not in FIELD_PROVENANCE_VALUES:
+        raise ValueError(f"Unsupported field provenance: {provenance}")
+    field_provenance = normalize_field_provenance(record)
+    for field in fields:
+        if field in FIELD_PROVENANCE_FIELDS and field_has_value(record, field):
+            field_provenance[field] = normalized_provenance
+    record["field_provenance"] = field_provenance
+
+
+def normalize_quality_flags(record: Dict[str, Any]) -> List[str]:
+    """Merge derived quality flags with stable custom markers."""
+    existing = [
+        ensure_str(item)
+        for item in to_string_list(record.get("quality_flags"))
+        if ensure_str(item)
+    ]
+    custom_flags = [item for item in existing if item not in DERIVED_QUALITY_FLAGS]
+    return unique_preserve_order([*quality_flags_for(record), *custom_flags])
+
+
 def canonicalize_doi(value: Any) -> Optional[str]:
     """Convert DOI variants into canonical bare DOI string."""
     doi = ensure_str(value)
@@ -407,6 +509,9 @@ def merge_record_group(group: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     merged.setdefault("source_ids", {})
     if not isinstance(merged["source_ids"], dict):
         merged["source_ids"] = {}
+    merged.setdefault("field_provenance", {})
+    if not isinstance(merged["field_provenance"], dict):
+        merged["field_provenance"] = {}
 
     for current in ordered[1:]:
         for list_key in ("authors", "institutions", "keywords", "quality_flags"):
@@ -443,6 +548,12 @@ def merge_record_group(group: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             for source_key, source_value in incoming_source_ids.items():
                 if source_key not in merged["source_ids"] and source_value:
                     merged["source_ids"][source_key] = source_value
+
+        incoming_field_provenance = current.get("field_provenance", {})
+        if isinstance(incoming_field_provenance, dict):
+            for field, provenance in incoming_field_provenance.items():
+                if field not in merged["field_provenance"] and provenance:
+                    merged["field_provenance"][field] = provenance
 
     return merged
 
@@ -507,6 +618,7 @@ def transform_record(raw: Dict[str, Any], context: FileContext) -> Dict[str, Any
     if record.get("semantic_scholar_paper_id"):
         source_ids.setdefault("semantic_scholar_paper_id", record["semantic_scholar_paper_id"])
     record["source_ids"] = source_ids
+    record["field_provenance"] = normalize_field_provenance(record)
 
     record["paper_id"] = ensure_str(record.get("paper_id")) or build_paper_id(
         record=record,
@@ -523,7 +635,7 @@ def transform_record(raw: Dict[str, Any], context: FileContext) -> Dict[str, Any
     else:
         record["record_status"] = "resolved"
 
-    record["quality_flags"] = quality_flags_for(record)
+    record["quality_flags"] = normalize_quality_flags(record)
     return record
 
 
@@ -923,7 +1035,7 @@ def apply_neurips_official_catalog(
                 existing["url"] = official_url
                 changed = True
             if changed:
-                existing["quality_flags"] = quality_flags_for(existing)
+                existing["quality_flags"] = normalize_quality_flags(existing)
                 updated_records += 1
             continue
 
@@ -957,7 +1069,7 @@ def apply_neurips_official_catalog(
         placeholder["paper_id"] = build_paper_id(
             record=placeholder, venue=context.venue, year=context.year
         )
-        placeholder["quality_flags"] = quality_flags_for(placeholder)
+        placeholder["quality_flags"] = normalize_quality_flags(placeholder)
         records.append(placeholder)
         by_title[title_key] = placeholder
         added_placeholders += 1
@@ -998,6 +1110,7 @@ def build_canonical_payload(
                 "citation_count": record.get("citation_count"),
                 "source_provider": record.get("source_provider"),
                 "source_ids": record.get("source_ids", {}),
+                "field_provenance": record.get("field_provenance", {}),
                 "keywords": record.get("keywords", []),
                 "track": record.get("track"),
                 "track_display_name": record.get("track_display_name"),
@@ -1314,6 +1427,284 @@ def fetch_text_with_retry(
     return None
 
 
+def build_papers_cool_venue_url(venue: str, year: int) -> str:
+    """Build venue landing page URL for papers.cool."""
+    return f"{PAPERS_COOL_BASE}/venue/{ensure_str(venue).upper()}.{int(year)}"
+
+
+def strip_html_text(text: str) -> str:
+    """Remove HTML tags and collapse whitespace."""
+    plain = html_lib.unescape(re.sub(r"<[^>]+>", " ", ensure_str(text)))
+    return re.sub(r"\s+", " ", plain).strip()
+
+
+def parse_papers_cool_venue_html(html_text: str, venue: str) -> Dict[str, Dict[str, Any]]:
+    """Parse one papers.cool venue page into normalized title index."""
+    entries: Dict[str, Dict[str, Any]] = {}
+    blocks = re.findall(
+        r'(<div id="[^"]+" class="panel paper"[^>]*>.*?<hr id="fold-[^"]+"[^>]*></hr>\s*</div>)',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for block in blocks:
+        title_match = re.search(
+            r'<a id="title-[^"]+" class="title-link[^"]*" href="([^"]+)"[^>]*>(.*?)</a>',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        official_match = re.search(
+            r'<h2 class="title">\s*<a href="([^"]+)" target="_blank" title="[^"]+">',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not title_match or not official_match:
+            continue
+
+        title = strip_html_text(title_match.group(2))
+        title_key = normalize_title(title)
+        official_url = ensure_str(official_match.group(1))
+        if not title_key or not official_url:
+            continue
+
+        page_url = ensure_str(title_match.group(1))
+        if page_url.startswith("/"):
+            page_url = f"{PAPERS_COOL_BASE}{page_url}"
+
+        pdf_match = re.search(
+            r'<a id="pdf-[^"]+"[^>]* data="([^"]+)"',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        authors_match = re.search(
+            r'<p id="authors-[^"]+" class="metainfo authors[^"]*">.*?</p>',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        summary_match = re.search(
+            r'<p id="summary-[^"]+" class="summary[^"]*">(.*?)</p>',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        subject_match = re.search(
+            r'<p id="subjects-[^"]+" class="metainfo subjects">.*?<a[^>]*>(.*?)</a>',
+            block,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+
+        authors: List[str] = []
+        if authors_match:
+            authors = unique_preserve_order(
+                strip_html_text(name)
+                for name in re.findall(
+                    r'<a class="author[^"]*"[^>]*>(.*?)</a>',
+                    authors_match.group(0),
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
+            )
+
+        entries[title_key] = {
+            "venue": ensure_str(venue).upper(),
+            "title": title,
+            "title_key": title_key,
+            "page_url": page_url,
+            "official_url": official_url,
+            "pdf_url": ensure_str(pdf_match.group(1)) if pdf_match else "",
+            "authors": authors,
+            "abstract": strip_html_text(summary_match.group(1)) if summary_match else "",
+            "subject": strip_html_text(subject_match.group(1)) if subject_match else "",
+        }
+    return entries
+
+
+def load_papers_cool_venue_index(
+    *, venue: str, year: int, timeout: float, retries: int
+) -> Dict[str, Dict[str, Any]]:
+    """Fetch and cache one papers.cool venue page."""
+    venue_key = f"{ensure_str(venue).upper()}-{int(year)}"
+    cached = _PAPERS_COOL_VENUE_CACHE.get(venue_key)
+    if cached is not None:
+        return cached
+
+    html_text = fetch_text_with_retry(
+        build_papers_cool_venue_url(venue=venue, year=year),
+        timeout=timeout,
+        retries=retries,
+    )
+    if not html_text:
+        _PAPERS_COOL_VENUE_CACHE[venue_key] = {}
+        return {}
+
+    parsed = parse_papers_cool_venue_html(html_text=html_text, venue=venue)
+    _PAPERS_COOL_VENUE_CACHE[venue_key] = parsed
+    return parsed
+
+
+def resolve_papers_cool_entry_by_title(
+    *, venue: str, year: int, title: str, timeout: float, retries: int
+) -> Optional[Dict[str, Any]]:
+    """Resolve one papers.cool paper by strict title match."""
+    venue_code = ensure_str(venue).upper()
+    if venue_code not in PAPERS_COOL_SUPPORTED_VENUES:
+        return None
+
+    title_key = normalize_title(title)
+    if not title_key:
+        return None
+
+    entries = load_papers_cool_venue_index(
+        venue=venue_code,
+        year=year,
+        timeout=timeout,
+        retries=retries,
+    )
+    if not entries:
+        return None
+    if title_key in entries:
+        return entries[title_key]
+
+    best_entry: Optional[Dict[str, Any]] = None
+    best_ratio = 0.0
+    for candidate_key, entry in entries.items():
+        ratio = SequenceMatcher(None, title_key, candidate_key).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_entry = entry
+    if best_ratio >= 0.997:
+        return best_entry
+    return None
+
+
+def papers_cool_subject_mapping(
+    *, venue: str, subject: str
+) -> Optional[Tuple[str, str]]:
+    """Map papers.cool Subject text to stable track_group/presentation_level."""
+    venue_code = ensure_str(venue).upper()
+    normalized = ensure_str(subject).lower()
+    if not normalized:
+        return None
+    if venue_code == "ACL":
+        if "findings" in normalized:
+            return ("other", "poster")
+        if normalized.startswith("acl."):
+            return ("main", "poster")
+        return None
+    if venue_code == "AAAI" and normalized.startswith("aaai."):
+        return ("main", "poster")
+    return None
+
+
+def is_allowed_papers_cool_official_url(venue: str, url: str) -> bool:
+    """Validate that the resolved official URL stays within the venue allowlist."""
+    allowed = PAPERS_COOL_ALLOWED_DOMAINS.get(ensure_str(venue).upper(), set())
+    hostname = (urlparse(ensure_str(url)).hostname or "").lower()
+    if not hostname or not allowed:
+        return False
+    return any(hostname == domain or hostname.endswith(f".{domain}") for domain in allowed)
+
+
+def backfill_from_papers_cool(
+    *,
+    record: Dict[str, Any],
+    venue: str,
+    year: int,
+    timeout: float,
+    retries: int,
+    policy: str,
+) -> Dict[str, Any]:
+    """Backfill missing fields from papers.cool without changing primary provider."""
+    result = {
+        "matched": False,
+        "updated": False,
+        "updated_fields": [],
+        "rejected_reason": "",
+    }
+    if normalize_slug(policy) != PAPERS_COOL_DEFAULT_POLICY:
+        result["rejected_reason"] = "unsupported_policy"
+        return result
+
+    venue_code = ensure_str(venue).upper()
+    if venue_code not in PAPERS_COOL_SUPPORTED_VENUES:
+        result["rejected_reason"] = "unsupported_venue"
+        return result
+
+    title = ensure_str(record.get("paper_title") or record.get("title"))
+    if not title:
+        result["rejected_reason"] = "missing_title"
+        return result
+
+    entry = resolve_papers_cool_entry_by_title(
+        venue=venue_code,
+        year=year,
+        title=title,
+        timeout=timeout,
+        retries=retries,
+    )
+    if not entry:
+        result["rejected_reason"] = "no_match"
+        return result
+
+    official_url = ensure_str(entry.get("official_url"))
+    if not is_allowed_papers_cool_official_url(venue_code, official_url):
+        result["rejected_reason"] = "invalid_official_url"
+        return result
+
+    result["matched"] = True
+    updated_fields: List[str] = []
+    if is_missing_text(record.get("url")) and official_url:
+        record["url"] = official_url
+        updated_fields.append("url")
+
+    abstract = ensure_str(entry.get("abstract"))
+    if is_missing_text(record.get("abstract")) and abstract:
+        record["abstract"] = abstract
+        updated_fields.append("abstract")
+
+    authors = unique_preserve_order(entry.get("authors", []))
+    if not to_string_list(record.get("authors")) and authors:
+        record["authors"] = authors
+        updated_fields.append("authors")
+
+    subject_mapping = papers_cool_subject_mapping(
+        venue=venue_code,
+        subject=ensure_str(entry.get("subject")),
+    )
+    if subject_mapping:
+        track_group, presentation_level = subject_mapping
+        if not ensure_str(record.get("track")) and ensure_str(record.get("track_group")) in {"", "other"}:
+            record["track_group"] = track_group
+            updated_fields.append("track_group")
+        if not ensure_str(record.get("track")) and ensure_str(record.get("presentation_level")) in {"", "poster"}:
+            record["presentation_level"] = presentation_level
+            updated_fields.append("presentation_level")
+
+    if updated_fields:
+        source_ids = record.get("source_ids")
+        if not isinstance(source_ids, dict):
+            source_ids = {}
+        source_ids["papers_cool_page_url"] = ensure_str(entry.get("page_url"))
+        source_ids["papers_cool_official_url"] = official_url
+        if ensure_str(entry.get("pdf_url")):
+            source_ids["papers_cool_pdf_url"] = ensure_str(entry.get("pdf_url"))
+        if ensure_str(entry.get("subject")):
+            source_ids["papers_cool_subject"] = ensure_str(entry.get("subject"))
+        record["source_ids"] = source_ids
+        set_field_provenance(record, updated_fields, "papers_cool")
+        quality_flags = [
+            ensure_str(item)
+            for item in to_string_list(record.get("quality_flags"))
+            if ensure_str(item)
+        ]
+        if PAPERS_COOL_FALLBACK_FLAG not in quality_flags:
+            quality_flags.append(PAPERS_COOL_FALLBACK_FLAG)
+        record["quality_flags"] = quality_flags
+        result["updated"] = True
+        result["updated_fields"] = updated_fields
+        return result
+
+    result["rejected_reason"] = "no_missing_fields_updated"
+    return result
+
+
 def resolve_icml_pmlr_volume(year: int) -> Optional[str]:
     """Resolve ICML year to PMLR volume slug."""
     return _ICML_PMLR_VOLUMES.get(year)
@@ -1449,6 +1840,7 @@ def backfill_from_pmlr(
         source_ids = {}
     source_ids.setdefault("pmlr_abs_url", abs_url)
     record["source_ids"] = source_ids
+    set_field_provenance(record, ["abstract"], "venue_special")
     return True
 
 
@@ -1623,6 +2015,7 @@ def apply_s2_data(record: Dict[str, Any], payload: Dict[str, Any]) -> bool:
     abstract = ensure_str(payload.get("abstract"))
     if is_missing_text(record.get("abstract")) and abstract:
         record["abstract"] = abstract
+        set_field_provenance(record, ["abstract"], "s2")
         changed = True
 
     authors = payload.get("authors")
@@ -1635,6 +2028,7 @@ def apply_s2_data(record: Dict[str, Any], payload: Dict[str, Any]) -> bool:
                     extracted.append(name)
         if extracted and not to_string_list(record.get("authors")):
             record["authors"] = unique_preserve_order(extracted)
+            set_field_provenance(record, ["authors"], "s2")
             changed = True
 
     citation = payload.get("citationCount")
@@ -1646,6 +2040,7 @@ def apply_s2_data(record: Dict[str, Any], payload: Dict[str, Any]) -> bool:
     url = ensure_str(payload.get("url"))
     if url and is_missing_text(record.get("url")):
         record["url"] = url
+        set_field_provenance(record, ["url"], "s2")
         changed = True
 
     paper_id = ensure_str(payload.get("paperId"))
@@ -1682,6 +2077,8 @@ def backfill_records(
     retries: int,
     max_records: int,
     enable_arxiv_title: bool,
+    enable_papers_cool: bool,
+    papers_cool_policy: str,
 ) -> Dict[str, Any]:
     """Backfill missing abstracts for resolved records."""
     candidates = [
@@ -1701,6 +2098,9 @@ def backfill_records(
         "s2_title_hits": 0,
         "arxiv_hits": 0,
         "arxiv_title_hits": 0,
+        "papers_cool_hits": 0,
+        "papers_cool_rejected": 0,
+        "papers_cool_fields_filled": 0,
         "failed_records": 0,
     }
 
@@ -1750,6 +2150,7 @@ def backfill_records(
                 )
                 if arxiv_abstract:
                     record["abstract"] = arxiv_abstract
+                    set_field_provenance(record, ["abstract"], "arxiv")
                     updated = True
                     stats["arxiv_hits"] += 1
 
@@ -1761,12 +2162,33 @@ def backfill_records(
             )
             if arxiv_title_abstract:
                 record["abstract"] = arxiv_title_abstract
+                set_field_provenance(record, ["abstract"], "arxiv")
                 updated = True
                 stats["arxiv_title_hits"] += 1
 
+        if enable_papers_cool and (
+            is_missing_text(record.get("abstract"))
+            or is_missing_text(record.get("url"))
+            or not to_string_list(record.get("authors"))
+        ):
+            papers_cool_result = backfill_from_papers_cool(
+                record=record,
+                venue=venue,
+                year=year,
+                timeout=timeout,
+                retries=retries,
+                policy=papers_cool_policy,
+            )
+            if papers_cool_result["updated"]:
+                updated = True
+                stats["papers_cool_hits"] += 1
+                stats["papers_cool_fields_filled"] += len(papers_cool_result["updated_fields"])
+            elif papers_cool_result["rejected_reason"]:
+                stats["papers_cool_rejected"] += 1
+
         if updated:
             record["record_status"] = "repaired"
-            record["quality_flags"] = quality_flags_for(record)
+            record["quality_flags"] = normalize_quality_flags(record)
             stats["updated_records"] += 1
         else:
             stats["failed_records"] += 1
@@ -1893,8 +2315,10 @@ def run_backfill(
     max_records_per_file: int,
     min_interval: float,
     enable_arxiv_title: bool,
+    enable_papers_cool: bool,
+    papers_cool_policy: str,
 ) -> Dict[str, Any]:
-    """Run PMLR + Semantic Scholar + arXiv backfill for missing abstracts."""
+    """Run conference-special + API + fallback backfill for missing fields."""
     files = find_input_files(input_glob)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     api_key = ensure_str(os.environ.get("SEMANTIC_SCHOLAR_API_KEY")) or None
@@ -1912,6 +2336,9 @@ def run_backfill(
         "updated_records": 0,
         "candidates": 0,
         "failed_records": 0,
+        "papers_cool_hits": 0,
+        "papers_cool_rejected": 0,
+        "papers_cool_fields_filled": 0,
     }
     file_items: List[Dict[str, Any]] = []
 
@@ -1932,6 +2359,8 @@ def run_backfill(
             retries=retries,
             max_records=max_records_per_file,
             enable_arxiv_title=enable_arxiv_title,
+            enable_papers_cool=enable_papers_cool,
+            papers_cool_policy=papers_cool_policy,
         )
 
         # Re-run normalization phase to ensure status and metrics are coherent.
@@ -1966,13 +2395,17 @@ def run_backfill(
         summary["updated_records"] += stats["updated_records"]
         summary["candidates"] += stats["candidates"]
         summary["failed_records"] += stats["failed_records"]
+        summary["papers_cool_hits"] += stats["papers_cool_hits"]
+        summary["papers_cool_rejected"] += stats["papers_cool_rejected"]
+        summary["papers_cool_fields_filled"] += stats["papers_cool_fields_filled"]
 
         LOGGER.info(
-            "Backfill %s: candidates=%s updated=%s failed=%s",
+            "Backfill %s: candidates=%s updated=%s failed=%s papers_cool_hits=%s",
             file_path.name,
             stats["candidates"],
             stats["updated_records"],
             stats["failed_records"],
+            stats["papers_cool_hits"],
         )
 
     report = {"summary": summary, "files": file_items}
@@ -2173,6 +2606,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable arXiv title-based fallback search (off by default).",
     )
+    backfill.add_argument(
+        "--enable-papers-cool",
+        action="store_true",
+        help="Enable papers.cool fallback for ACL/AAAI missing fields (off by default).",
+    )
+    backfill.add_argument(
+        "--papers-cool-policy",
+        default=PAPERS_COOL_DEFAULT_POLICY,
+        choices=PAPERS_COOL_POLICY_CHOICES,
+        help=f"papers.cool fallback policy (default: {PAPERS_COOL_DEFAULT_POLICY}).",
+    )
 
     validate = subparsers.add_parser("validate", help="Run validation gates")
     validate.add_argument(
@@ -2224,6 +2668,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--enable-arxiv-title",
         action="store_true",
         help="Enable arXiv title-based fallback search (off by default).",
+    )
+    run.add_argument(
+        "--enable-papers-cool",
+        action="store_true",
+        help="Enable papers.cool fallback for ACL/AAAI missing fields (off by default).",
+    )
+    run.add_argument(
+        "--papers-cool-policy",
+        default=PAPERS_COOL_DEFAULT_POLICY,
+        choices=PAPERS_COOL_POLICY_CHOICES,
+        help=f"papers.cool fallback policy (default: {PAPERS_COOL_DEFAULT_POLICY}).",
     )
     run.add_argument(
         "--skip-official-alignment",
@@ -2281,6 +2736,8 @@ def main() -> int:
             max_records_per_file=args.max_records_per_file,
             min_interval=args.min_interval,
             enable_arxiv_title=args.enable_arxiv_title,
+            enable_papers_cool=args.enable_papers_cool,
+            papers_cool_policy=args.papers_cool_policy,
         )
         return 0
 
@@ -2315,6 +2772,8 @@ def main() -> int:
             max_records_per_file=args.max_records_per_file,
             min_interval=args.min_interval,
             enable_arxiv_title=args.enable_arxiv_title,
+            enable_papers_cool=args.enable_papers_cool,
+            papers_cool_policy=args.papers_cool_policy,
         )
         _report, all_pass = run_validate(
             input_glob=args.input_glob,

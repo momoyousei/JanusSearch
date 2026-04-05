@@ -43,7 +43,7 @@ JanusSearch 是本地 AI 顶会论文归档与检索系统，要求：
   - `query`, `source`, `generated_at_utc`, `paper_count`, `papers`, `reconciliation`(可选), `official_tracks`(可选), `m1`
 - canonical（`data/raw/{venue}/{year}.json`）关键字段：
   - 顶层：`venue`, `year`, `collected_at`, `source`, `count`, `metrics`, `papers`
-  - 记录：`paper_id`, `title`, `authors`, `abstract`, `doi`, `url`, `source_ids`, `track`, `track_group`, `presentation_level`, `record_status`, `quality_flags`
+  - 记录：`paper_id`, `title`, `authors`, `abstract`, `doi`, `url`, `source_ids`, `field_provenance`, `track`, `track_group`, `presentation_level`, `record_status`, `quality_flags`
 - 状态语义：`resolved`, `repaired`, `placeholder`
 
 ## 关键约束

@@ -41,6 +41,8 @@ python3 -m tools.m1_pipeline --input-glob 'archives/root_json/CVPR-2*.json' vali
 - 禁止 DOI-only
 - DOI 未命中必须进入标题检索链路（OpenAlex/S2/arXiv title）
 - 标题命中必须做相似度阈值约束后写回
+- `papers.cool` 仅可作为 ACL/AAAI 的可选最后兜底补源，默认关闭；不得替代官方事实源
+- `papers.cool` 写回仅允许补缺失字段，且必须记录 `field_provenance` 与 `source_ids`
 
 ### 会议特化补源优先
 - ICML：PMLR（已落地 2021 -> v139）

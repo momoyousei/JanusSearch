@@ -70,6 +70,11 @@ def ensure_dict(value: Any) -> Dict[str, Any]:
     return {}
 
 
+def dumps_json(value: Any) -> str:
+    """Serialize compact JSON for persisted metadata fields."""
+    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
     """Write JSON payload with UTF-8 encoding."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -134,6 +139,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
             url TEXT,
             citation_count INTEGER,
             source_provider TEXT NOT NULL,
+            field_provenance_json TEXT NOT NULL DEFAULT '{}',
             track TEXT NOT NULL,
             track_display_name TEXT NOT NULL,
             track_group TEXT NOT NULL,
@@ -320,6 +326,7 @@ def _paper_row(
         ensure_str(record.get("url")) or None,
         citation_count,
         ensure_str(record.get("source_provider")),
+        dumps_json(ensure_dict(record.get("field_provenance"))),
         ensure_str(record.get("track")),
         ensure_str(record.get("track_display_name")),
         ensure_str(record.get("track_group")),
@@ -435,9 +442,9 @@ def load_one_file(
             """
             INSERT INTO papers (
                 paper_id, title, venue, year, abstract, doi, url, citation_count,
-                source_provider, track, track_display_name, track_group,
+                source_provider, field_provenance_json, track, track_display_name, track_group,
                 presentation_level, record_status, collected_at, source_file, ingested_at_utc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             paper_rows,
         )

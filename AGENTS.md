@@ -15,6 +15,7 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - `docs/`：少量核心规范文档（架构、流程门禁、扩充策略、历史复盘）
 
 ## 采集专用 Skill
+- 项目内 skill 根目录：`.agent/skills/`
 - `.agent/skills/paper-search/SKILL.md`：仅用于会议年份采集与导出 JSON 的专用流程。
 - 非采集类任务默认按本文件路由执行。
 
@@ -31,6 +32,14 @@ JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
 - 不使用 Docker
 - 不使用 Web 框架（Flask/FastAPI/Django）
 - 全部为 CLI（`argparse`）
+
+## 执行环境（强约束）
+- 禁止直接使用系统 `python3` 执行项目命令；系统解释器可能是 `Python 3.9`，不满足本项目 `Python 3.11+` 要求，且看不到 `.venv` 中依赖。
+- 默认使用以下两种方式之一执行：
+  - `UV_CACHE_DIR=.uv-cache uv run <command>`
+  - `./.venv/bin/python -m <module> ...`
+- 在当前 Codex 沙箱内，`uv` 默认全局缓存目录可能无权限访问；若使用 `uv run`，必须显式设置 `UV_CACHE_DIR=.uv-cache`。
+- 仅当任务与项目虚拟环境无关时，才可使用系统命令。
 
 ## 代码与安全规范
 - Python 文件头：
