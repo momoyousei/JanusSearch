@@ -15,12 +15,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 from urllib.error import HTTPError, URLError
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin
 from urllib.request import Request, urlopen
 
 LOGGER = logging.getLogger("cvpr_collect")
 
 CVF_BASE_URL = "https://openaccess.thecvf.com"
+CVPR_VIRTUAL_BASE_URL = "https://cvpr.thecvf.com"
+CVPR_VIRTUAL_JSON_URL_TEMPLATE = (
+    f"{CVPR_VIRTUAL_BASE_URL}/static/virtual/data/cvpr-{{year}}-orals-posters.json"
+)
+CVPR_VIRTUAL_PAPERS_URL_TEMPLATE = (
+    f"{CVPR_VIRTUAL_BASE_URL}/virtual/{{year}}/papers.html?day=all"
+)
 ECVA_BASE_URL = "https://www.ecva.net"
 ECVA_PAPERS_URL = f"{ECVA_BASE_URL}/papers.php"
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
@@ -50,6 +57,7 @@ PAPER_BLOCK_RE = re.compile(
 TAG_RE = re.compile(r"<[^>]+>")
 ABSTRACT_RE = re.compile(r'<div id="abstract">\s*(.*?)\s*</div>', re.S)
 DOI_RE = re.compile(r"(10\.\d{4,9}/[-._;()/:A-Za-z0-9]+)")
+PRESENTATION_LEVEL_RANK = {"poster": 0, "oral": 1, "bestpaper": 2}
 
 
 def utc_now_iso() -> str:
@@ -339,6 +347,228 @@ def parse_papers(page_html: str, venue: str, year: int, collected_at: str) -> Li
     return papers
 
 
+def normalize_title_key(value: str) -> str:
+    """Normalize a title for deduplication."""
+    normalized = re.sub(r"[^a-z0-9]+", " ", ensure_str(value).lower())
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def dedupe_strings(items: Sequence[str]) -> List[str]:
+    """Deduplicate non-empty strings while preserving order."""
+    seen: set[str] = set()
+    result: List[str] = []
+    for item in items:
+        normalized = normalize_spaces(item)
+        if not normalized:
+            continue
+        key = normalized.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(normalized)
+    return result
+
+
+def cvpr_virtual_abs_url(value: str) -> str:
+    """Return absolute CVPR virtual URL."""
+    raw = ensure_str(value)
+    if not raw:
+        return ""
+    return urljoin(CVPR_VIRTUAL_BASE_URL, raw)
+
+
+def normalize_virtual_presentation_level(value: str) -> str:
+    """Map CVPR virtual decision text to project presentation levels."""
+    text = ensure_str(value).lower()
+    if "best" in text and "paper" in text:
+        return "bestpaper"
+    if "oral" in text or "spotlight" in text:
+        return "oral"
+    return "poster"
+
+
+def build_virtual_quality_flags(
+    authors: Sequence[str],
+    abstract: str,
+    institutions: Sequence[str],
+    keywords: Sequence[str],
+) -> List[str]:
+    """Build quality flags for one CVPR virtual record."""
+    flags: List[str] = []
+    if not authors:
+        flags.append("missing_authors")
+    if not normalize_spaces(abstract):
+        flags.append("missing_abstract")
+    if not institutions:
+        flags.append("missing_institutions")
+    if not keywords:
+        flags.append("missing_keywords")
+    return flags
+
+
+def parse_virtual_author_fields(authors_raw: Any) -> Tuple[List[str], List[str]]:
+    """Parse author and institution fields from CVPR virtual JSON."""
+    if not isinstance(authors_raw, list):
+        return [], []
+    authors: List[str] = []
+    institutions: List[str] = []
+    for author in authors_raw:
+        if not isinstance(author, dict):
+            continue
+        name = normalize_spaces(ensure_str(author.get("fullname")))
+        institution = normalize_spaces(ensure_str(author.get("institution")))
+        if name:
+            authors.append(name)
+        if institution:
+            institutions.append(institution)
+    return dedupe_strings(authors), dedupe_strings(institutions)
+
+
+def build_cvpr_virtual_record(
+    item: Dict[str, Any],
+    year: int,
+    collected_at: str,
+) -> Dict[str, Any]:
+    """Build one root_json paper record from CVPR virtual JSON."""
+    title = normalize_spaces(ensure_str(item.get("name")))
+    authors, institutions = parse_virtual_author_fields(item.get("authors"))
+    abstract = normalize_spaces(ensure_str(item.get("abstract")))
+    keywords_raw = item.get("keywords")
+    keywords = (
+        dedupe_strings([ensure_str(value) for value in keywords_raw])
+        if isinstance(keywords_raw, list)
+        else []
+    )
+    decision = normalize_spaces(ensure_str(item.get("decision")))
+    presentation_level = normalize_virtual_presentation_level(decision)
+
+    virtual_url = cvpr_virtual_abs_url(ensure_str(item.get("virtualsite_url")))
+    paper_url = cvpr_virtual_abs_url(ensure_str(item.get("paper_url")))
+    paper_pdf_url = cvpr_virtual_abs_url(ensure_str(item.get("paper_pdf_url")))
+    sourceurl = normalize_spaces(ensure_str(item.get("sourceurl")))
+
+    source_ids: Dict[str, str] = {}
+    for key in ("id", "uid", "sourceid"):
+        value = ensure_str(item.get(key))
+        if value:
+            source_ids[f"cvpr_virtual_{key}"] = value
+    if virtual_url:
+        source_ids["cvpr_virtualsite_url"] = virtual_url
+    if sourceurl:
+        source_ids["cvpr_sourceurl"] = sourceurl
+    if decision:
+        source_ids["cvpr_decision"] = decision
+    eventtype = normalize_spaces(ensure_str(item.get("eventtype") or item.get("event_type")))
+    if eventtype:
+        source_ids["cvpr_eventtype"] = eventtype
+    if paper_url:
+        source_ids["cvpr_paper_url"] = paper_url
+    if paper_pdf_url:
+        source_ids["cvpr_paper_pdf_url"] = paper_pdf_url
+
+    quality_flags = build_virtual_quality_flags(
+        authors=authors,
+        abstract=abstract,
+        institutions=institutions,
+        keywords=keywords,
+    )
+    record_status = (
+        "placeholder"
+        if "missing_authors" in quality_flags or "missing_abstract" in quality_flags
+        else "resolved"
+    )
+
+    return {
+        "paper_title": title,
+        "authors": authors,
+        "institutions": institutions,
+        "abstract": abstract,
+        "keywords": keywords,
+        "presentation_level": presentation_level,
+        "openalex_id": None,
+        "doi": None,
+        "track": "conference",
+        "track_display_name": "Conference",
+        "track_group": "main",
+        "title": title,
+        "url": virtual_url or None,
+        "external_url": paper_pdf_url or paper_url or None,
+        "citation_count": None,
+        "venue": "CVPR",
+        "year": year,
+        "source_provider": "cvpr_virtual",
+        "collected_at": collected_at,
+        "source_ids": source_ids,
+        "record_status": record_status,
+        "quality_flags": quality_flags,
+    }
+
+
+def cvpr_virtual_record_score(record: Dict[str, Any]) -> Tuple[int, int, int]:
+    """Rank duplicate CVPR virtual records by presentation and completeness."""
+    level = normalize_spaces(ensure_str(record.get("presentation_level"))) or "poster"
+    source_ids = record.get("source_ids")
+    eventtype = ""
+    if isinstance(source_ids, dict):
+        eventtype = normalize_spaces(ensure_str(source_ids.get("cvpr_eventtype"))).lower()
+    is_oral_event = 1 if eventtype == "oral" else 0
+    completeness = 0
+    if record.get("abstract"):
+        completeness += 1
+    if record.get("authors"):
+        completeness += 1
+    if record.get("institutions"):
+        completeness += 1
+    return (PRESENTATION_LEVEL_RANK.get(level, 0), is_oral_event, completeness)
+
+
+def parse_cvpr_virtual_records(
+    payload: Dict[str, Any],
+    year: int,
+    collected_at: str,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Parse and title-deduplicate CVPR virtual JSON records."""
+    results = payload.get("results")
+    if not isinstance(results, list):
+        raise RuntimeError("CVPR virtual payload has no results list")
+
+    raw_decision_counts: Dict[str, int] = {}
+    raw_eventtype_counts: Dict[str, int] = {}
+    by_title: Dict[str, Dict[str, Any]] = {}
+    duplicate_title_entry_count = 0
+
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        decision = normalize_spaces(ensure_str(item.get("decision"))) or "unknown"
+        raw_decision_counts[decision] = raw_decision_counts.get(decision, 0) + 1
+        eventtype = normalize_spaces(ensure_str(item.get("eventtype") or item.get("event_type")))
+        eventtype = eventtype or "unknown"
+        raw_eventtype_counts[eventtype] = raw_eventtype_counts.get(eventtype, 0) + 1
+
+        record = build_cvpr_virtual_record(item=item, year=year, collected_at=collected_at)
+        title_key = normalize_title_key(ensure_str(record.get("paper_title")))
+        if not title_key:
+            continue
+        existing = by_title.get(title_key)
+        if existing is not None:
+            duplicate_title_entry_count += 1
+            if cvpr_virtual_record_score(record) > cvpr_virtual_record_score(existing):
+                by_title[title_key] = record
+            continue
+        by_title[title_key] = record
+
+    papers = list(by_title.values())
+    papers.sort(key=lambda item: normalize_title_key(ensure_str(item.get("paper_title"))))
+    return papers, {
+        "raw_result_count": len(results),
+        "deduplicated_title_count": len(papers),
+        "duplicate_title_entry_count": duplicate_title_entry_count,
+        "raw_decision_counts": raw_decision_counts,
+        "raw_eventtype_counts": raw_eventtype_counts,
+    }
+
+
 def _fetch_paper_abstract(
     url: str,
     timeout: float,
@@ -450,6 +680,143 @@ def build_payload(
     }
 
 
+def count_field(items: Sequence[Dict[str, Any]], key: str, default: str) -> Dict[str, int]:
+    """Count categorical field values."""
+    counts: Dict[str, int] = {}
+    for item in items:
+        value = normalize_spaces(ensure_str(item.get(key))) or default
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def build_cvpr_virtual_payload(
+    year: int,
+    papers: Sequence[Dict[str, Any]],
+    collected_at: str,
+    data_url: str,
+    stats: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build root_json payload for CVPR virtual data."""
+    year_short = year % 100
+    count = len(papers)
+    track_counts = count_field(papers, key="track", default="conference")
+    track_group_counts = count_field(papers, key="track_group", default="main")
+    presentation_level_counts = count_field(
+        papers,
+        key="presentation_level",
+        default="poster",
+    )
+    return {
+        "query": {
+            "target": f"CVPR-{year_short:02d}",
+            "venue_code": "CVPR",
+            "year": year,
+            "provider": "cvpr_virtual",
+            "api_key_used": False,
+            "work_filter_strategy": f"official_virtual_json:cvpr-{year}-orals-posters",
+            "source_year_count_estimate": count,
+            "raw_result_count": stats.get("raw_result_count"),
+            "duplicate_title_entry_count": stats.get("duplicate_title_entry_count"),
+        },
+        "source": {
+            "provider": "cvpr_virtual",
+            "openalex_source_id": None,
+            "openreview_venue_id": f"thecvf.com/CVPR/{year}/Conference",
+            "display_name": VENUE_SETTINGS["CVPR"]["display_name"],
+            "source_type": "conference",
+            "official_url": CVPR_VIRTUAL_PAPERS_URL_TEMPLATE.format(year=year),
+            "data_url": data_url,
+        },
+        "generated_at_utc": collected_at,
+        "paper_count": count,
+        "track_counts": track_counts,
+        "track_group_counts": track_group_counts,
+        "presentation_level_counts": presentation_level_counts,
+        "official_tracks": {
+            "source_url": data_url,
+            "paper_count_official": count,
+            "results_count": stats.get("raw_result_count"),
+            "track_catalog": [
+                {
+                    "track": "conference",
+                    "track_display_name": "Conference",
+                    "track_group": "main",
+                    "paper_count": count,
+                }
+            ],
+            "duplicate_title_entry_count": stats.get("duplicate_title_entry_count"),
+            "raw_decision_counts": stats.get("raw_decision_counts", {}),
+            "raw_eventtype_counts": stats.get("raw_eventtype_counts", {}),
+        },
+        "papers": list(papers),
+    }
+
+
+def collect_cvpr_virtual_year(
+    year: int,
+    output_root: Path,
+    timeout: float,
+    retries: int,
+    min_interval: float,
+) -> Dict[str, Any]:
+    """Collect one CVPR year from the official virtual JSON."""
+    data_url = CVPR_VIRTUAL_JSON_URL_TEMPLATE.format(year=year)
+    LOGGER.info("Collecting CVPR %s from virtual JSON: %s", year, data_url)
+    collected_at = utc_now_iso()
+    payload_text = fetch_text(
+        url=data_url,
+        timeout=timeout,
+        retries=retries,
+        min_interval=min_interval,
+    )
+    try:
+        source_payload = json.loads(payload_text)
+    except json.JSONDecodeError as err:
+        raise RuntimeError(f"Invalid CVPR virtual JSON from {data_url}: {err}") from err
+    if not isinstance(source_payload, dict):
+        raise RuntimeError(f"Unexpected CVPR virtual payload type: {type(source_payload)}")
+
+    papers, stats = parse_cvpr_virtual_records(
+        payload=source_payload,
+        year=year,
+        collected_at=collected_at,
+    )
+    payload = build_cvpr_virtual_payload(
+        year=year,
+        papers=papers,
+        collected_at=collected_at,
+        data_url=data_url,
+        stats=stats,
+    )
+
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / f"CVPR-{year % 100:02d}.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    LOGGER.info(
+        "CVPR %s virtual collected: raw=%s unique=%s duplicate_entries=%s",
+        year,
+        stats.get("raw_result_count"),
+        len(papers),
+        stats.get("duplicate_title_entry_count"),
+    )
+
+    return {
+        "venue": "CVPR",
+        "year": year,
+        "official_url": CVPR_VIRTUAL_PAPERS_URL_TEMPLATE.format(year=year),
+        "data_url": data_url,
+        "official_paper_count": len(papers),
+        "collected_paper_count": len(papers),
+        "raw_result_count": stats.get("raw_result_count"),
+        "duplicate_title_entry_count": stats.get("duplicate_title_entry_count"),
+        "abstract_filled_count": sum(1 for paper in papers if paper.get("abstract")),
+        "abstract_missing_count": sum(1 for paper in papers if not paper.get("abstract")),
+        "output_file": str(output_path),
+        "generated_at_utc": collected_at,
+        "provider": "cvpr_virtual",
+    }
+
+
 def collect_one_year(
     venue: str,
     year: int,
@@ -460,19 +827,50 @@ def collect_one_year(
     fetch_abstracts: bool,
     workers: int,
     eccv_index_file: str | None,
+    source_mode: str,
 ) -> Dict[str, Any]:
     """Collect one year and write output JSON."""
+    if venue == "CVPR" and source_mode == "virtual":
+        return collect_cvpr_virtual_year(
+            year=year,
+            output_root=output_root,
+            timeout=timeout,
+            retries=retries,
+            min_interval=min_interval,
+        )
+
     if venue == "ECCV":
         list_url = ECVA_PAPERS_URL
     else:
         list_url = f"{CVF_BASE_URL}/{venue}{year}?day=all"
     LOGGER.info("Collecting %s %s from %s", venue, year, list_url)
     collected_at = utc_now_iso()
-    if venue == "ECCV" and ensure_str(eccv_index_file):
-        page_html = Path(ensure_str(eccv_index_file)).read_text(encoding="utf-8", errors="ignore")
-    else:
-        page_html = fetch_text(url=list_url, timeout=timeout, retries=retries, min_interval=min_interval)
+    try:
+        if venue == "ECCV" and ensure_str(eccv_index_file):
+            page_html = Path(ensure_str(eccv_index_file)).read_text(encoding="utf-8", errors="ignore")
+        else:
+            page_html = fetch_text(url=list_url, timeout=timeout, retries=retries, min_interval=min_interval)
+    except Exception:
+        if venue == "CVPR" and source_mode == "auto":
+            LOGGER.warning("OpenAccess collection failed for CVPR %s; falling back to virtual JSON", year)
+            return collect_cvpr_virtual_year(
+                year=year,
+                output_root=output_root,
+                timeout=timeout,
+                retries=retries,
+                min_interval=min_interval,
+            )
+        raise
     papers = parse_papers(page_html=page_html, venue=venue, year=year, collected_at=collected_at)
+    if venue == "CVPR" and source_mode == "auto" and not papers:
+        LOGGER.warning("OpenAccess returned 0 papers for CVPR %s; falling back to virtual JSON", year)
+        return collect_cvpr_virtual_year(
+            year=year,
+            output_root=output_root,
+            timeout=timeout,
+            retries=retries,
+            min_interval=min_interval,
+        )
     abstract_success = 0
     abstract_failed = 0
     if fetch_abstracts:
@@ -508,6 +906,7 @@ def collect_one_year(
         "abstract_missing_count": abstract_failed,
         "output_file": str(output_path),
         "generated_at_utc": collected_at,
+        "provider": provider,
     }
 
 
@@ -555,6 +954,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only collect list page metadata, do not fetch detail-page abstracts",
     )
     parser.add_argument(
+        "--source",
+        default="auto",
+        choices=("auto", "openaccess", "virtual"),
+        help=(
+            "Collection source. auto uses CVF/ECVA first and falls back to "
+            "CVPR virtual JSON when OpenAccess is not published."
+        ),
+    )
+    parser.add_argument(
         "--eccv-index-file",
         default="",
         help="Optional local ECVA papers.php snapshot path for ECCV collection",
@@ -582,6 +990,8 @@ def main() -> int:
     venue = ensure_str(args.venue).upper()
     if venue not in VENUE_SETTINGS:
         raise ValueError(f"Unsupported venue: {venue}")
+    if args.source == "virtual" and venue != "CVPR":
+        raise ValueError("--source virtual is only supported for CVPR")
     output_root = Path(args.output_root)
     index_root = Path(args.index_root)
     collections_root = index_root / "collections"
@@ -600,13 +1010,21 @@ def main() -> int:
                 fetch_abstracts=not args.no_fetch_abstracts,
                 workers=args.workers,
                 eccv_index_file=ensure_str(args.eccv_index_file) or None,
+                source_mode=args.source,
             )
         )
 
     total = sum(int(item["collected_paper_count"]) for item in summary)
+    providers = sorted(
+        {
+            ensure_str(item.get("provider")) or venue_provider(venue)
+            for item in summary
+        }
+    )
     report = {
         "generated_at_utc": utc_now_iso(),
-        "provider": venue_provider(venue),
+        "provider": providers[0] if len(providers) == 1 else "mixed",
+        "providers": providers,
         "venue": venue,
         "years": years,
         "total_collected": total,

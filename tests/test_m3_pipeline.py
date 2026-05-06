@@ -58,24 +58,29 @@ class FakeCollection:
 
     def get(
         self,
+        ids: List[str] | None = None,
         include: List[str] | None = None,
         limit: int | None = None,
         offset: int | None = None,
     ) -> Dict[str, Any]:
         _ = include
-        ids = list(self.rows.keys())
+        row_ids = [item for item in (ids or list(self.rows.keys())) if item in self.rows]
         start = int(offset or 0)
-        end = start + int(limit) if limit is not None else len(ids)
-        ids = ids[start:end]
+        end = start + int(limit) if limit is not None else len(row_ids)
+        row_ids = row_ids[start:end]
         return {
-            "ids": ids,
-            "documents": [self.rows[item]["document"] for item in ids],
-            "embeddings": [self.rows[item]["embedding"] for item in ids],
-            "metadatas": [self.rows[item]["metadata"] for item in ids],
+            "ids": row_ids,
+            "documents": [self.rows[item]["document"] for item in row_ids],
+            "embeddings": [self.rows[item]["embedding"] for item in row_ids],
+            "metadatas": [self.rows[item]["metadata"] for item in row_ids],
         }
 
     def count(self) -> int:
         return len(self.rows)
+
+    def delete(self, *, ids: List[str]) -> None:
+        for paper_id in ids:
+            self.rows.pop(paper_id, None)
 
     def query(
         self,
@@ -258,6 +263,7 @@ class TestM3Pipeline(unittest.TestCase):
 
         self.registry: Dict[str, FakeCollection] = {}
         self.label_counter = {"topic": 0, "subtopic": 0}
+        self.raw_path = self.input_root / "iclr" / "2024.json"
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -267,7 +273,12 @@ class TestM3Pipeline(unittest.TestCase):
         def fake_make_chroma_client(_vectors_root: Path) -> FakeChromaClient:
             return FakeChromaClient(self.registry)
 
-        def fake_embed_batch(_client: Any, _model: str, texts: List[str]) -> List[List[float]]:
+        def fake_embed_batch(
+            _client: Any,
+            _model: str,
+            texts: List[str],
+            _timeout_seconds: float,
+        ) -> List[List[float]]:
             return [_vectorize(text) for text in texts]
 
         def fake_make_embedding_client(base_url: str, api_key: str | None = None) -> object:
@@ -319,6 +330,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -343,6 +355,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -377,6 +390,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -388,6 +402,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -399,6 +414,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -414,6 +430,98 @@ class TestM3Pipeline(unittest.TestCase):
         self.assertEqual(third["summary"]["embedded_count"], 3)
         self.assertTrue(third["force_rebuild_vectors"])
 
+    def test_build_vectors_embeds_only_missing_or_changed_papers(self) -> None:
+        patches = self._patch_m3()
+        for item in patches:
+            item.start()
+        try:
+            first = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+
+            payload = json.loads(self.raw_path.read_text(encoding="utf-8"))
+            payload["papers"][1]["abstract"] = (
+                "An updated replay buffer strategy for stable continual adaptation."
+            )
+            new_paper = dict(payload["papers"][0])
+            new_paper.update(
+                {
+                    "paper_id": "M3-P5",
+                    "title": "Prototype Replay for Continual Learning",
+                    "abstract": "Prototype replay reduces memory use in continual learning.",
+                    "url": "https://example.org/m3-p5",
+                    "source_ids": {"openreview_id": "OR-M3-P5"},
+                }
+            )
+            payload["papers"].append(new_paper)
+            payload["count"] = len(payload["papers"])
+            payload["metrics"]["total"] = len(payload["papers"])
+            payload["metrics"]["resolved_total"] = 4
+            self.raw_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+
+            second = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+
+            payload["papers"] = [
+                paper for paper in payload["papers"] if paper["paper_id"] != "M3-P3"
+            ]
+            payload["count"] = len(payload["papers"])
+            payload["metrics"]["total"] = len(payload["papers"])
+            payload["metrics"]["resolved_total"] = 3
+            self.raw_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+
+            third = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+
+        self.assertEqual(first["summary"]["embedded_count"], 3)
+        self.assertEqual(second["summary"]["embedded_count"], 2)
+        self.assertEqual(second["summary"]["embedded_missing_count"], 1)
+        self.assertEqual(second["summary"]["reembedded_changed_count"], 1)
+        self.assertEqual(second["summary"]["skipped_existing_verified_count"], 2)
+        self.assertEqual(third["summary"]["embedded_count"], 0)
+        self.assertEqual(third["summary"]["deleted_stale_vector_count"], 1)
+        self.assertEqual(third["summary"]["collection_count"], 3)
+
     def test_build_cache_generates_l1_l4(self) -> None:
         patches = self._patch_m3()
         for item in patches:
@@ -426,6 +534,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,
@@ -492,6 +601,7 @@ class TestM3Pipeline(unittest.TestCase):
                 embed_base_url="http://127.0.0.1:1234/v1",
                 embed_model="text-embedding-qwen3-embedding-8b",
                 embed_batch_size=32,
+                embed_timeout_seconds=60.0,
                 embed_cooldown_seconds=0.0,
                 exclude_placeholder=True,
                 embed_api_key=None,

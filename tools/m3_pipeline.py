@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -54,6 +55,10 @@ DEFAULT_SUBTOPICS_ROOT = Path("subtopics")
 DEFAULT_EMBED_BASE_URL = "https://api.siliconflow.cn/v1"
 DEFAULT_EMBED_MODEL = "Qwen/Qwen3-Embedding-8B"
 DEFAULT_EMBED_BATCH_SIZE = 128
+DEFAULT_EMBED_TIMEOUT_SECONDS = 60.0
+VECTOR_METADATA_SCHEMA_VERSION = 2
+VECTOR_ID_LOOKUP_CHUNK_SIZE = 1000
+VECTOR_STALE_SCAN_CHUNK_SIZE = 5000
 
 DEFAULT_LLM_BASE_URL = "https://api.siliconflow.cn/v1"
 DEFAULT_LLM_MODEL = "Qwen/Qwen3-8B"
@@ -293,6 +298,108 @@ def marker_hit(
     )
 
 
+def marker_config_matches(
+    *,
+    marker_entry: Dict[str, Any],
+    embed_model: str,
+    embed_base_url: str,
+    exclude_placeholder: bool,
+) -> bool:
+    """Check whether a marker entry was produced with the current vector config."""
+    return (
+        ensure_str(marker_entry.get("status")) == "done"
+        and ensure_str(marker_entry.get("embed_model")) == ensure_str(embed_model)
+        and ensure_str(marker_entry.get("embed_base_url")) == ensure_str(embed_base_url)
+        and bool(marker_entry.get("exclude_placeholder")) == bool(exclude_placeholder)
+    )
+
+
+def vector_document_text(paper: VectorPaper) -> str:
+    """Return the exact text sent to the embedding endpoint."""
+    return f"{paper.title}\n\n{paper.abstract}".strip()
+
+
+def vector_text_hash(text: str) -> str:
+    """Return a stable hash for embedding input text."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def vector_metadata_has_fingerprint(metadata: Dict[str, Any]) -> bool:
+    """Check whether existing vector metadata can be verified per paper."""
+    return any(
+        key in metadata
+        for key in (
+            "embedding_text_sha256",
+            "embed_model",
+            "embed_base_url",
+            "vector_schema_version",
+        )
+    )
+
+
+def existing_vector_matches(
+    *,
+    metadata: Dict[str, Any],
+    text_hash: str,
+    embed_model: str,
+    embed_base_url: str,
+    exclude_placeholder: bool,
+) -> bool:
+    """Check whether an existing vector is current for one paper."""
+    return (
+        ensure_str(metadata.get("embedding_text_sha256")) == ensure_str(text_hash)
+        and ensure_str(metadata.get("embed_model")) == ensure_str(embed_model)
+        and ensure_str(metadata.get("embed_base_url")) == ensure_str(embed_base_url)
+        and bool(metadata.get("exclude_placeholder")) == bool(exclude_placeholder)
+    )
+
+
+def get_existing_vector_metadatas(
+    collection: Any,
+    paper_ids: Sequence[str],
+) -> Dict[str, Dict[str, Any]]:
+    """Return existing vector metadata keyed by paper_id for requested IDs."""
+    result: Dict[str, Dict[str, Any]] = {}
+    unique_ids = sorted({ensure_str(item) for item in paper_ids if ensure_str(item)})
+    for chunk in chunked(unique_ids, VECTOR_ID_LOOKUP_CHUNK_SIZE):
+        payload = collection.get(ids=list(chunk), include=["metadatas"])
+        found_ids = payload.get("ids", []) or []
+        metadatas = payload.get("metadatas", []) or []
+        for index, paper_id in enumerate(found_ids):
+            metadata = metadatas[index] if index < len(metadatas) else {}
+            if not isinstance(metadata, dict):
+                metadata = {}
+            result[ensure_str(paper_id)] = metadata
+    return result
+
+
+def iter_collection_ids(collection: Any) -> Iterator[str]:
+    """Yield all IDs currently stored in a vector collection."""
+    count = int(collection.count())
+    if count <= 0:
+        return
+    for offset in range(0, count, VECTOR_STALE_SCAN_CHUNK_SIZE):
+        payload = collection.get(
+            include=["metadatas"],
+            limit=VECTOR_STALE_SCAN_CHUNK_SIZE,
+            offset=offset,
+        )
+        for paper_id in payload.get("ids", []) or []:
+            value = ensure_str(paper_id)
+            if value:
+                yield value
+
+
+def delete_vector_ids(collection: Any, ids: Sequence[str]) -> None:
+    """Delete stale vector IDs in chunks when the collection supports deletion."""
+    if not ids:
+        return
+    if not hasattr(collection, "delete"):
+        raise RuntimeError("Vector collection does not support deleting stale IDs.")
+    for chunk in chunked(list(ids), VECTOR_ID_LOOKUP_CHUNK_SIZE):
+        collection.delete(ids=list(chunk))
+
+
 def upsert_vector_batch(
     collection: Any,
     *,
@@ -408,9 +515,18 @@ def load_chroma_collection(vectors_root: Path, collection_name: str) -> Any:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=1, max=16), reraise=True)
-def embed_batch(client: Any, model: str, texts: Sequence[str]) -> List[List[float]]:
+def embed_batch(
+    client: Any,
+    model: str,
+    texts: Sequence[str],
+    timeout_seconds: float,
+) -> List[List[float]]:
     """Embedding API call with retry."""
-    response = client.embeddings.create(model=model, input=list(texts))
+    response = client.embeddings.create(
+        model=model,
+        input=list(texts),
+        timeout=timeout_seconds,
+    )
     vectors = [list(item.embedding) for item in response.data]
     if len(vectors) != len(texts):
         raise RuntimeError(
@@ -514,6 +630,7 @@ def run_build_vectors(
     embed_base_url: str,
     embed_model: str,
     embed_batch_size: int,
+    embed_timeout_seconds: float,
     embed_cooldown_seconds: float,
     exclude_placeholder: bool,
     max_papers: int | None = None,
@@ -523,6 +640,8 @@ def run_build_vectors(
     """Build Chroma vectors from SQLite papers."""
     if embed_batch_size <= 0:
         raise ValueError("--embed-batch-size must be > 0")
+    if embed_timeout_seconds <= 0:
+        raise ValueError("--embed-timeout-seconds must be > 0")
     if embed_cooldown_seconds < 0:
         raise ValueError("--embed-cooldown-seconds must be >= 0")
 
@@ -558,6 +677,15 @@ def run_build_vectors(
             )
             marker_source_files = {}
 
+    stale_vector_count = 0
+    if not force_rebuild_vectors and max_papers is None:
+        expected_ids = {paper.paper_id for paper in papers if paper.paper_id}
+        stale_ids = sorted(set(iter_collection_ids(collection)) - expected_ids)
+        if stale_ids:
+            delete_vector_ids(collection, stale_ids)
+            stale_vector_count = len(stale_ids)
+            LOGGER.info("Deleted %s stale vectors not present in current DB candidates", stale_vector_count)
+
     papers_by_source: Dict[str, List[VectorPaper]] = {}
     for paper in papers:
         source_file = paper.source_file or "__unknown__"
@@ -569,9 +697,16 @@ def run_build_vectors(
     files_total = len(papers_by_source)
     files_embedded = 0
     files_skipped_by_marker = 0
+    files_skipped_existing = 0
     files_with_no_text = 0
+    skipped_existing = 0
+    skipped_existing_verified = 0
+    skipped_existing_legacy = 0
+    reembedded_changed = 0
+    embedded_missing = 0
+    reembedded_unverified = 0
 
-    for source_file in sorted(papers_by_source):
+    for source_index, source_file in enumerate(sorted(papers_by_source), start=1):
         file_papers = papers_by_source[source_file]
         manifest = source_manifest.get(source_file, {})
         loaded_count = int(manifest.get("loaded_count") or len(file_papers))
@@ -579,7 +714,7 @@ def run_build_vectors(
 
         marker_entry_raw = marker_source_files.get(source_file, {})
         marker_entry = marker_entry_raw if isinstance(marker_entry_raw, dict) else {}
-        if (
+        has_marker_hit = (
             not force_rebuild_vectors
             and marker_hit(
                 marker_entry=marker_entry,
@@ -589,27 +724,115 @@ def run_build_vectors(
                 embed_base_url=base_url,
                 exclude_placeholder=exclude_placeholder,
             )
-        ):
-            files_skipped_by_marker += 1
-            continue
+        )
+        has_marker_config_match = (
+            not force_rebuild_vectors
+            and marker_config_matches(
+                marker_entry=marker_entry,
+                embed_model=embed_model,
+                embed_base_url=base_url,
+                exclude_placeholder=exclude_placeholder,
+            )
+        )
 
-        rows_for_embedding: List[Tuple[VectorPaper, str]] = []
+        candidate_rows: List[Tuple[VectorPaper, str, str]] = []
         skipped_empty_in_file = 0
         for paper in file_papers:
-            text = f"{paper.title}\n\n{paper.abstract}".strip()
+            text = vector_document_text(paper)
             if not text:
                 skipped_empty_in_file += 1
                 continue
-            rows_for_embedding.append((paper, text))
+            candidate_rows.append((paper, text, vector_text_hash(text)))
 
         skipped_empty += skipped_empty_in_file
-        if not rows_for_embedding:
+        if not candidate_rows:
             files_with_no_text += 1
             marker_source_files[source_file] = {
                 "status": "done",
                 "loaded_count": loaded_count,
                 "loaded_at_utc": loaded_at_utc,
                 "embedded_count": 0,
+                "candidate_count": 0,
+                "existing_vector_count": 0,
+                "skipped_empty_text_count": skipped_empty_in_file,
+                "embed_model": embed_model,
+                "embed_base_url": base_url,
+                "exclude_placeholder": bool(exclude_placeholder),
+                "updated_at_utc": utc_now_iso(),
+            }
+            write_json(
+                marker_path,
+                {
+                    "generated_at_utc": utc_now_iso(),
+                    "db_path": str(db_path),
+                    "collection_name": collection_name,
+                    "source_files": marker_source_files,
+                },
+            )
+            continue
+
+        existing_metadatas = get_existing_vector_metadatas(
+            collection,
+            [paper.paper_id for paper, _text, _hash in candidate_rows],
+        )
+        if has_marker_hit and len(existing_metadatas) == len(candidate_rows):
+            files_skipped_by_marker += 1
+            continue
+
+        rows_for_embedding: List[Tuple[VectorPaper, str, str]] = []
+        existing_in_file = 0
+        skipped_verified_in_file = 0
+        skipped_legacy_in_file = 0
+        reembedded_changed_in_file = 0
+        embedded_missing_in_file = 0
+        reembedded_unverified_in_file = 0
+        for paper, text, text_hash in candidate_rows:
+            metadata = existing_metadatas.get(paper.paper_id)
+            if metadata is None:
+                embedded_missing_in_file += 1
+                rows_for_embedding.append((paper, text, text_hash))
+                continue
+
+            existing_in_file += 1
+            if existing_vector_matches(
+                metadata=metadata,
+                text_hash=text_hash,
+                embed_model=embed_model,
+                embed_base_url=base_url,
+                exclude_placeholder=exclude_placeholder,
+            ):
+                skipped_verified_in_file += 1
+                continue
+            if vector_metadata_has_fingerprint(metadata):
+                reembedded_changed_in_file += 1
+                rows_for_embedding.append((paper, text, text_hash))
+                continue
+            if has_marker_config_match:
+                skipped_legacy_in_file += 1
+                continue
+
+            reembedded_unverified_in_file += 1
+            rows_for_embedding.append((paper, text, text_hash))
+
+        skipped_existing += skipped_verified_in_file + skipped_legacy_in_file
+        skipped_existing_verified += skipped_verified_in_file
+        skipped_existing_legacy += skipped_legacy_in_file
+        reembedded_changed += reembedded_changed_in_file
+        embedded_missing += embedded_missing_in_file
+        reembedded_unverified += reembedded_unverified_in_file
+
+        if not rows_for_embedding:
+            files_skipped_existing += 1
+            marker_source_files[source_file] = {
+                "status": "done",
+                "loaded_count": loaded_count,
+                "loaded_at_utc": loaded_at_utc,
+                "embedded_count": 0,
+                "candidate_count": len(candidate_rows),
+                "existing_vector_count": existing_in_file,
+                "skipped_existing_vector_count": skipped_verified_in_file + skipped_legacy_in_file,
+                "skipped_existing_verified_count": skipped_verified_in_file,
+                "skipped_existing_legacy_count": skipped_legacy_in_file,
                 "skipped_empty_text_count": skipped_empty_in_file,
                 "embed_model": embed_model,
                 "embed_base_url": base_url,
@@ -635,7 +858,13 @@ def run_build_vectors(
             batch = list(batch)
             batch_papers = [item[0] for item in batch]
             batch_texts = [item[1] for item in batch]
-            batch_vectors = embed_batch(embed_client, embed_model, batch_texts)
+            batch_text_hashes = [item[2] for item in batch]
+            batch_vectors = embed_batch(
+                embed_client,
+                embed_model,
+                batch_texts,
+                embed_timeout_seconds,
+            )
 
             upsert_vector_batch(
                 collection,
@@ -651,17 +880,23 @@ def run_build_vectors(
                         "track": paper.track,
                         "presentation_level": paper.presentation_level,
                         "record_status": paper.record_status,
+                        "embedding_text_sha256": batch_text_hashes[index],
+                        "embed_model": embed_model,
+                        "embed_base_url": base_url,
+                        "exclude_placeholder": bool(exclude_placeholder),
+                        "vector_schema_version": VECTOR_METADATA_SCHEMA_VERSION,
                     }
-                    for paper in batch_papers
+                    for index, paper in enumerate(batch_papers)
                 ],
             )
             embedded_count += len(batch)
             embedded_in_file += len(batch)
             LOGGER.info(
-                "Embedded %s papers from source file %s (%s/%s source files processed)",
+                "Embedded %s/%s pending papers from source file %s (%s/%s source files processed)",
                 embedded_in_file,
+                len(rows_for_embedding),
                 source_file,
-                files_embedded + 1,
+                source_index,
                 files_total,
             )
             if embed_cooldown_seconds > 0:
@@ -672,6 +907,14 @@ def run_build_vectors(
             "loaded_count": loaded_count,
             "loaded_at_utc": loaded_at_utc,
             "embedded_count": embedded_in_file,
+            "candidate_count": len(candidate_rows),
+            "existing_vector_count": existing_in_file,
+            "skipped_existing_vector_count": skipped_verified_in_file + skipped_legacy_in_file,
+            "skipped_existing_verified_count": skipped_verified_in_file,
+            "skipped_existing_legacy_count": skipped_legacy_in_file,
+            "embedded_missing_count": embedded_missing_in_file,
+            "reembedded_changed_count": reembedded_changed_in_file,
+            "reembedded_unverified_existing_count": reembedded_unverified_in_file,
             "skipped_empty_text_count": skipped_empty_in_file,
             "embed_model": embed_model,
             "embed_base_url": base_url,
@@ -696,6 +939,7 @@ def run_build_vectors(
         "collection_name": collection_name,
         "embed_base_url": base_url,
         "embed_model": embed_model,
+        "embed_timeout_seconds": embed_timeout_seconds,
         "embed_cooldown_seconds": embed_cooldown_seconds,
         "exclude_placeholder": exclude_placeholder,
         "max_papers": max_papers,
@@ -709,7 +953,15 @@ def run_build_vectors(
             "source_file_count": files_total,
             "source_files_embedded": files_embedded,
             "source_files_skipped_by_marker": files_skipped_by_marker,
+            "source_files_skipped_existing": files_skipped_existing,
             "source_files_no_text": files_with_no_text,
+            "skipped_existing_vector_count": skipped_existing,
+            "skipped_existing_verified_count": skipped_existing_verified,
+            "skipped_existing_legacy_count": skipped_existing_legacy,
+            "embedded_missing_count": embedded_missing,
+            "reembedded_changed_count": reembedded_changed,
+            "reembedded_unverified_existing_count": reembedded_unverified,
+            "deleted_stale_vector_count": stale_vector_count,
         },
     }
     return payload
@@ -1680,6 +1932,7 @@ def run_pipeline(
     embed_base_url: str,
     embed_model: str,
     embed_batch_size: int,
+    embed_timeout_seconds: float,
     embed_cooldown_seconds: float,
     llm_base_url: str,
     llm_model: str,
@@ -1702,6 +1955,7 @@ def run_pipeline(
             embed_base_url=embed_base_url,
             embed_model=embed_model,
             embed_batch_size=embed_batch_size,
+            embed_timeout_seconds=embed_timeout_seconds,
             embed_cooldown_seconds=embed_cooldown_seconds,
             exclude_placeholder=exclude_placeholder,
             force_rebuild_vectors=force_rebuild_vectors,
@@ -1835,6 +2089,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"Embedding batch size (default: {DEFAULT_EMBED_BATCH_SIZE})",
     )
     common.add_argument(
+        "--embed-timeout-seconds",
+        type=float,
+        default=DEFAULT_EMBED_TIMEOUT_SECONDS,
+        help=f"Embedding request timeout seconds (default: {DEFAULT_EMBED_TIMEOUT_SECONDS:g})",
+    )
+    common.add_argument(
         "--embed-cooldown-seconds",
         type=float,
         default=0.0,
@@ -1953,6 +2213,7 @@ def main() -> int:
                 embed_base_url=args.embed_base_url,
                 embed_model=args.embed_model,
                 embed_batch_size=args.embed_batch_size,
+                embed_timeout_seconds=args.embed_timeout_seconds,
                 embed_cooldown_seconds=args.embed_cooldown_seconds,
                 exclude_placeholder=bool(args.exclude_placeholder),
                 force_rebuild_vectors=bool(args.force_rebuild_vectors),
@@ -2028,6 +2289,7 @@ def main() -> int:
                 embed_base_url=args.embed_base_url,
                 embed_model=args.embed_model,
                 embed_batch_size=args.embed_batch_size,
+                embed_timeout_seconds=args.embed_timeout_seconds,
                 embed_cooldown_seconds=args.embed_cooldown_seconds,
                 llm_base_url=args.llm_base_url,
                 llm_model=args.llm_model,

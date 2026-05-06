@@ -93,6 +93,12 @@ python3 -m tools.m3_pipeline run \
 
 分步：`build-vectors`, `build-topics`, `build-cache`, `validate`
 
+向量增量策略：
+- `build-vectors` 默认按 `paper_id` 查询 Chroma，只对缺失、文本 hash/模型配置可确认变更、或无法验证且缺少同配置 marker 的旧向量调用 embedding API。
+- 每个新写入向量会记录 `embedding_text_sha256`、`embed_model`、`embed_base_url`、`vector_schema_version` 等 metadata，后续可逐论文判断是否需要重算。
+- source-file marker 仍作为快速跳过路径，但会先确认该 source 下的目标 IDs 均存在；非 `--max-papers` 全量构建会删除当前 DB 候选集中不存在的 stale vectors。
+- 只有需要强制刷新全部向量时才使用 `--force-rebuild-vectors`。
+
 关键环境变量：
 - `JANUS_LLM_API_KEY`（必需，用于 topic/subtopic 命名）
 - `JANUS_LLM_BASE_URL`, `JANUS_LLM_MODEL`

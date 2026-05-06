@@ -26,6 +26,12 @@ description: 针对指定会议-年份目标，抓取并导出论文元数据到
 - 必填目标 token：`VENUE-YY` 或 `VENUE-YYYY`
 - 示例：`AAAI-26`、`CVPR-2025`、`NeurIPS-25`
 
+环境变量：
+
+- 在 JanusSearch 项目中，默认先读取项目根目录 `.codex/.env`，再执行依赖 API key 的采集、回填、M3 或 M4 命令。
+- 读取方式必须避免打印密钥明文；推荐命令前缀：`set -a; source .codex/.env; set +a; ...`
+- `.codex/.env` 中的 `JANUS_EMBED_API_KEY`、`JANUS_LLM_API_KEY` 可供 M3/M4 使用；若命令需要 OpenAlex/S2 key，也优先从同一文件读取对应环境变量。
+
 输出：
 
 - 单个 JSON 文件（不要按 track 拆分）
