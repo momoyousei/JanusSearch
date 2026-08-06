@@ -1,61 +1,70 @@
-# 核心架构与范围（Core Architecture）
+# 核心架构与能力边界
 
-## 目标
-JanusSearch 是本地 AI 顶会论文归档与检索系统，要求：
-- 数据可追溯：保留历史输入、规范化事实源、运行报告
-- 质量可量化：覆盖率、去重、官方口径对齐可自动验证
-- 流程可复现：固定 CLI、固定输出路径、固定门禁
+## 系统目标
 
-## 范围
-- 目标会议（16）：CVPR, ICCV, ECCV, NeurIPS, ICML, ICLR, AAAI, IJCAI, ACL, EMNLP, NAACL, KDD, WWW, ACM MM, CoRL, WACV
-- 当前阶段：M1→M4 主链路已贯通，进入会议/年份扩充阶段
-- 当前冻结基线：早期 21 个会议年份文件（ICLR/ICML/NeurIPS/CVPR）已完成端到端验证
+JanusSearch 是本地论文归档与检索系统，要求数据可追溯、状态可诊断、写入可恢复、查询可复现。M1～M4 是历史实施阶段，不再作为软件架构边界。
 
-## 分层与事实源
-1. 历史输入层
-- 路径：`archives/root_json/{VENUE}-{YY}.json`
-- 作用：采集快照与回放，不是下游事实源
+## 能力模型
 
-2. 规范化事实层（唯一事实源）
-- 路径：`data/raw/{venue}/{year}.json`
-- 作用：M2/M3/M4 的统一输入
+```text
+collectors -> corpus -> catalog -> projections -> evaluate
+                          |             |
+                          +-- search ---+
+                                 |
+                               doctor
+```
 
-3. 检索运行层
-- SQLite：`data/papers.db`
-- 向量：`data/vectors/chroma`
-- 缓存：`artifacts/indexes/master_index.md`, `venues/`, `topics/`, `subtopics/`
+| 能力 | 职责 | 主入口 |
+|---|---|---|
+| `corpus` | 采集计划、快照、规范化、补源、门禁、发布 | `tools.corpus` |
+| `catalog` | SQLite 原子构建、校验、FTS 和统计 | `tools.catalog` |
+| `projections` | Chroma 向量、主题和 Markdown 缓存 | `tools.projections` |
+| `search` | FTS/hybrid 查询、详情、导出和显式 PDF 下载 | `tools.search` |
+| `evaluate` | 默认离线回归、显式在线回归、新鲜度状态 | `tools.evaluate` |
+| `doctor` | query/corpus/ops 三类只读诊断 | `tools.doctor` |
 
-## 里程碑
-1. M1 数据采集与规范化
-- 目标：规范化、去重、回填、质量门禁
+## 代码分层
 
-2. M2 数据入库与 SQL/FTS 检索
-- 目标：将 `data/raw` 入库 SQLite，并提供可复现查询面
+| 层 | 路径 | 允许职责 |
+|---|---|---|
+| 领域层 | `janussearch/domain/` | 退出码、状态和稳定业务语义 |
+| 应用层 | `janussearch/application/` | 能力工作流、门禁和发布编排 |
+| 采集层 | `janussearch/collectors/` | 采集器注册表和通用采集实现 |
+| 基础设施层 | `janussearch/infrastructure/` | 指纹、运行清单和持久化辅助 |
+| CLI 适配层 | `tools/` | `argparse`、日志、输入输出和兼容入口 |
 
-3. M3 缓存与混合检索
-- 目标：向量构建、主题/子主题分配、L1-L4 缓存、hybrid 检索
+旧 `tools.m1_pipeline`～`tools.m4_validate` 暂时承载已验证实现，新能力入口通过应用层调用它们。它们是迁移兼容面，不是新的架构边界；新增工作不得继续扩展 M 编号。
 
-4. M4 Agent 端到端验收
-- 目标：在线门禁 + 固定查询 + 抽样查询的可量化回归
+## 数据事实源
 
-## 数据契约（摘要）
-- 根输入（`archives/root_json/*-*.json`）关键字段：
-  - `query`, `source`, `generated_at_utc`, `paper_count`, `papers`, `reconciliation`(可选), `official_tracks`(可选), `m1`
-- canonical（`data/raw/{venue}/{year}.json`）关键字段：
-  - 顶层：`venue`, `year`, `collected_at`, `source`, `count`, `metrics`, `papers`
-  - 记录：`paper_id`, `title`, `authors`, `abstract`, `doi`, `url`, `source_ids`, `field_provenance`, `track`, `track_group`, `presentation_level`, `record_status`, `quality_flags`
-- 状态语义：`resolved`, `repaired`, `placeholder`
+1. 采集快照/历史输入：`archives/root_json/` 与 `artifacts/runs/<run_id>/collected/`
+2. 唯一规范化事实源：`data/raw/{venue}/{year}.json`
+3. 可重建查询目录：`data/papers.db`
+4. 可重建派生投影：`data/vectors/chroma/`、`artifacts/m3/`、`artifacts/indexes/`、`venues/`、`topics/`、`subtopics/`
+5. 运行证据：`artifacts/runs/<run_id>/manifest.json`
 
-## 关键约束
-- Python 3.11+
-- macOS + Unix CLI
-- 包管理：`uv`
-- 数据库：SQLite3
-- 向量库：ChromaDB
-- 禁止 Docker 与 Web 框架（Flask/FastAPI/Django）
-- 全流程 CLI（`argparse`）
+下游只能读取 `data/raw`，不得直接把 `archives/root_json` 当作事实源。
 
-## 关联入口
-- 执行与门禁：`docs/20_PIPELINE_AND_GATES.md`
-- 扩充策略：`docs/30_EXPANSION_POLICY.md`
-- 历史决策与复盘：`docs/90_HISTORY.md`
+## 数据契约
+
+Canonical 顶层字段包括 `venue`、`year`、`collected_at`、`source`、`count`、`metrics`、`papers`。记录保留 `paper_id`、`title`、`authors`、`abstract`、`doi`、`url`、`source_ids`、`field_provenance`、`track`、`track_group`、`presentation_level`、`record_status` 和 `quality_flags`。
+
+现有 canonical JSON、SQLite schema 与 Chroma collection 保持兼容；本次能力化重构不触发数据重写。
+
+## 一致性与恢复模型
+
+- Corpus：先写隔离 staging，验证通过后按 canonical 相对路径发布；staging 失败不得改变事实源。
+- SQLite：构建临时数据库，成功后原子替换；失败保留旧库。
+- Chroma：原位增量，按 `paper_id`、文本 hash、模型配置和 schema metadata 判断重算；可重跑恢复，不宣称原子替换。
+- Cache/topic：原位可重建，使用进度文件、输入指纹和验证报告判断状态。
+- Evaluation：报告记录输入指纹；数据库、向量、主题或查询 fixture 变化后，旧 PASS 必须判定为 stale。
+
+## 运行契约
+
+每次有状态的能力操作写入 `artifacts/runs/<run_id>/manifest.json`，至少包含 scope、Git revision、脱敏配置与指纹、步骤、状态、指标、问题和产物。
+
+统一退出码：
+
+- `0`：成功，允许 warning-only 状态；
+- `1`：操作失败或硬门禁失败；
+- `2`：参数或配置用法错误。

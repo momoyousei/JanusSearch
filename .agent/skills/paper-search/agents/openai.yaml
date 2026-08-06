@@ -1,4 +1,0 @@
-interface:
-  display_name: "Paper Search"
-  short_description: "Fetch top venue papers into structured JSON"
-  default_prompt: "Use $paper-search to fetch all papers for CVPR-26 into a JSON file."

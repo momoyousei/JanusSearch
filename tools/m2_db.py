@@ -108,6 +108,15 @@ def find_source_files(input_root: Path) -> List[Path]:
     return files
 
 
+def canonical_source_file_key(file_path: Path, input_root: Path) -> str:
+    """Return a reproducible source identity independent of invocation path style."""
+    try:
+        relative = file_path.resolve().relative_to(input_root.resolve())
+    except ValueError as exc:
+        raise ValueError(f"Source file is outside input root: {file_path}") from exc
+    return str(Path("data/raw") / relative)
+
+
 def load_payload(path: Path) -> Dict[str, Any]:
     """Load one canonical file."""
     with path.open("r", encoding="utf-8") as handle:
@@ -425,7 +434,10 @@ def _assert_required_record_fields(record: Dict[str, Any], source_file: Path) ->
 
 
 def load_one_file(
-    conn: sqlite3.Connection, file_path: Path, ingested_at: str
+    conn: sqlite3.Connection,
+    file_path: Path,
+    ingested_at: str,
+    source_file_key: str | None = None,
 ) -> FileLoadStats:
     """Load one canonical JSON file into SQLite."""
     started = time.perf_counter()
@@ -460,7 +472,7 @@ def load_one_file(
     quality_flag_rows: List[Tuple[str, int, str]] = []
     source_id_rows: List[Tuple[str, str, str]] = []
 
-    source_file_str = str(file_path)
+    source_file_str = source_file_key or str(file_path)
     for record in papers:
         if not isinstance(record, dict):
             raise ValueError(f"{file_path}: papers item must be object")
@@ -593,7 +605,12 @@ def run_load(input_root: Path, db_path: Path, index_root: Path) -> Dict[str, Any
         insert_run_start(conn, run_id=run_id, input_root=input_root, db_path=db_path)
 
         for file_path in files:
-            stats = load_one_file(conn=conn, file_path=file_path, ingested_at=ingested_at)
+            stats = load_one_file(
+                conn=conn,
+                file_path=file_path,
+                ingested_at=ingested_at,
+                source_file_key=canonical_source_file_key(file_path, input_root),
+            )
             file_stats.append(stats)
             LOGGER.info(
                 "Loaded %s (%s %s): papers=%s authors=%s keywords=%s",
@@ -771,7 +788,7 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
         if not isinstance(papers, list):
             raise ValueError(f"{file_path}: papers must be list")
         expected_paper_count += len(papers)
-        expected_source_file_manifest[str(file_path)] = {
+        expected_source_file_manifest[canonical_source_file_key(file_path, input_root)] = {
             "declared_count": int(payload.get("count")),
             "loaded_count": len(papers),
         }
@@ -1055,6 +1072,9 @@ def main() -> int:
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format="%(asctime)s %(levelname)s %(message)s",
+    )
+    LOGGER.warning(
+        "Legacy entrypoint tools.m2_db is retained for compatibility; prefer tools.catalog."
     )
 
     input_root = Path(args.input_root)

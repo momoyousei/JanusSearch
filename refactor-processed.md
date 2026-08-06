@@ -1,6 +1,6 @@
 # JanusSearch 审查问题修复进度
 
-更新时间：2026-08-06
+更新时间：2026-08-07
 
 ## 范围约束
 
@@ -35,8 +35,40 @@
 | 2026-08-06 | 已完成 | 最终回归与运行面验证 | 全量单元测试 61/61 通过；M2 最终版本全量重建成功且 `all_pass=true`；M3 validate 全部 6 项通过（含 Chroma 完整性）；FTS 检索冒烟返回 220 条。`git diff --check` 与 16 个变更 Python 文件 AST 解析通过。 |
 | 2026-08-06 | 已记录 | 范围外既有门禁状态 | M1 validate 对 85 文件完成扫描，但 NeurIPS 2021–2025 共 5 个文件的既有官方数量对齐失败，且沙箱阻止在线刷新；本次迁移已证明所有非 provenance 字段不变。M4 仅检查既有状态报告（2026-05-06 PASS），未使用凭据重跑在线套件。 |
 
-## 剩余风险
+## 截至 2026-08-06 的剩余风险（历史记录）
 
 - canonical provenance 产生 81 个数据文件、759,672 行新增差异；自动逐字段核对已确认非 provenance 值不变，但人工审阅成本仍较高。
 - M1 当前仍有 NeurIPS 2021–2025 五个既有数量对齐失败；它不属于上一轮审查列出的修复项，本次未扩大范围去重采集数据。
 - M4 新相关性语义已有离线正反回归测试，但未调用外部 embedding 服务重跑在线套件；当前 `status` 指向 2026-05-06 的旧 PASS 报告。
+
+## 2026-08-07 能力化架构重构
+
+详细的设计决策、逐项 TODO、验证证据和剩余风险记录在 [`architecture-refactor-progress.md`](architecture-refactor-progress.md)。本节保留总进度，防止后续任务丢失上下文。
+
+| 项目 | 状态 | 结果 |
+|---|---|---|
+| M1～M4 主抽象替换 | 已完成 | 主流程改为 `corpus → catalog → projections → evaluate`，查询独立为 `search`，诊断统一为 `doctor` |
+| 正式代码分层 | 已完成 | 新增 `janussearch/domain`、`application`、`collectors`、`infrastructure` |
+| Skill 重构 | 已完成 | 原两个 Skill 替换为 `janussearch`、`janus-query`、`janus-corpus`、`janus-ops` 四个职责单一 Skill |
+| 兼容迁移 | 已完成 | M1～M4 模块保留并提示新入口；旧采集器脚本路径保留薄 shim |
+| 数据安全 | 已完成 | staging 失败不发布 canonical；SQLite 失败保留旧库；评估状态检查配置指纹和新鲜度 |
+| 最终验证 | 已完成 | 78/78 测试、四个 Skill 校验、三组前向复核、compileall 与 diff 检查通过 |
+| GitHub 100 MB 检查 | 已完成 | Git 历史和当前非忽略候选文件均无超限文件；4 个本地超限运行数据文件全部被忽略 |
+
+### 本轮 TODO
+
+- [x] 建立能力优先的软件架构并保留兼容入口。
+- [x] 把通用采集器生产代码移出 Skill，建立 17 个 venue 的注册表。
+- [x] 建立运行 manifest、配置指纹、统一退出码和 doctor。
+- [x] 将官方数量、track、presentation 对齐改为默认警告、显式严格失败。
+- [x] 建立四个新 Skill，并删除两个旧 Skill 的可发现元数据。
+- [x] 补充复杂查询的确定性候选并集与必需维度交集导出。
+- [x] 更新 README、AGENTS 和核心规范文档。
+- [x] 完成故障安全、兼容性、Skill、真实数据只读门禁和全量回归验证。
+
+### 仍需外部条件的验证
+
+- [ ] 在有网络且用户明确提供执行条件时，运行一次真实会议采集 smoke。
+- [ ] 在不暴露凭据的前提下，显式运行 online evaluation；默认离线评估已经通过。
+
+按用户范围要求，工作区明文 API 凭据问题仍排除在修改范围外；本轮未读取、修改或删除 `.codex/.env`。

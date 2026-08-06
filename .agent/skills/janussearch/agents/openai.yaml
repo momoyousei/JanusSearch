@@ -1,0 +1,6 @@
+interface:
+  display_name: "JanusSearch Router"
+  short_description: "Route explicit JanusSearch workflows"
+  default_prompt: "Use $janussearch to route this explicit JanusSearch task to the correct capability workflow."
+policy:
+  allow_implicit_invocation: false

@@ -314,8 +314,10 @@ def _sanitize_tsv_value(value: Any) -> str:
     return text.replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 
-def _load_keyword_groups(keywords_json: Path) -> List[Dict[str, Any]]:
-    """Load keyword groups from a JSON file."""
+def _load_keyword_definition(
+    keywords_json: Path,
+) -> Tuple[List[Dict[str, Any]], List[str], List[str]]:
+    """Load keyword groups plus optional grouped-query audit settings."""
     if not keywords_json.exists():
         raise FileNotFoundError(f"keywords_json does not exist: {keywords_json}")
     payload = json.loads(keywords_json.read_text(encoding="utf-8"))
@@ -336,7 +338,40 @@ def _load_keyword_groups(keywords_json: Path) -> List[Dict[str, Any]]:
         normalized.append({"label": label, "aliases": aliases})
     if not normalized:
         raise ValueError("No valid keyword groups found in keywords_json.")
-    return normalized
+
+    candidate_queries_raw = payload.get("candidate_queries", [])
+    if candidate_queries_raw is None:
+        candidate_queries_raw = []
+    if not isinstance(candidate_queries_raw, list):
+        raise ValueError("Invalid keywords_json schema: `candidate_queries` must be a list.")
+    candidate_queries = list(
+        dict.fromkeys(ensure_str(value) for value in candidate_queries_raw if ensure_str(value))
+    )
+
+    required_labels_raw = payload.get("required_labels", [])
+    if required_labels_raw is None:
+        required_labels_raw = []
+    if not isinstance(required_labels_raw, list):
+        raise ValueError("Invalid keywords_json schema: `required_labels` must be a list.")
+    required_labels = list(
+        dict.fromkeys(ensure_str(value) for value in required_labels_raw if ensure_str(value))
+    )
+    if bool(candidate_queries) != bool(required_labels):
+        raise ValueError(
+            "Invalid keywords_json schema: `candidate_queries` and `required_labels` "
+            "must either both be non-empty or both be omitted."
+        )
+    known_labels = {ensure_str(group.get("label")) for group in normalized}
+    unknown_labels = [label for label in required_labels if label not in known_labels]
+    if unknown_labels:
+        raise ValueError(f"required_labels not found in keywords groups: {unknown_labels}")
+    return normalized, candidate_queries, required_labels
+
+
+def _load_keyword_groups(keywords_json: Path) -> List[Dict[str, Any]]:
+    """Load keyword groups while preserving the historical helper contract."""
+    groups, _candidate_queries, _required_labels = _load_keyword_definition(keywords_json)
+    return groups
 
 
 def _match_topic_label(
@@ -368,6 +403,38 @@ def _match_topic_label(
             if alias_text.casefold() in text:
                 return label, alias_text
     return "Other", ""
+
+
+def _matches_required_labels(
+    *,
+    title: str,
+    abstract: str,
+    keywords: Sequence[str],
+    keyword_groups: Sequence[Dict[str, Any]],
+    required_labels: Sequence[str],
+) -> bool:
+    """Require at least one deterministic alias hit from every requested label."""
+    if not required_labels:
+        return True
+    text = " ".join(
+        [
+            ensure_str(title),
+            ensure_str(abstract),
+            " ".join(ensure_str(item) for item in keywords if ensure_str(item)),
+        ]
+    ).casefold()
+    by_label = {
+        ensure_str(group.get("label")): [
+            ensure_str(alias).casefold()
+            for alias in group.get("aliases", [])
+            if ensure_str(alias)
+        ]
+        for group in keyword_groups
+    }
+    return all(
+        any(alias in text for alias in by_label.get(label, []))
+        for label in required_labels
+    )
 
 
 def _load_janus_topic_map(
@@ -1018,43 +1085,54 @@ def run_export(
     if export_limit < 0:
         raise ValueError("`--max-export` must be >= 0.")
 
-    keyword_groups = _load_keyword_groups(keywords_json)
+    keyword_groups, candidate_queries, required_labels = _load_keyword_definition(keywords_json)
+    if normalized_mode == "hybrid" and candidate_queries:
+        raise ValueError("keywords_json candidate_queries are supported only with --mode search")
 
     paper_ids: List[str] = []
     total = 0
+    candidate_total = 0
 
     if normalized_mode == "search":
         page_size = 200
-        offset = 0
-        while True:
-            page = run_search(
-                db_path=db_path,
-                query=query,
-                venues=venues,
-                year_from=year_from,
-                year_to=year_to,
-                track=track,
-                presentation_level=presentation_level,
-                include_placeholder=include_placeholder,
-                order=order,
-                top_k=page_size,
-                offset=offset,
-            )
-            total = int(page.get("total", 0))
-            if not page.get("results"):
-                break
-            for item in page["results"]:
-                pid = ensure_str(item.get("paper_id"))
-                if not pid:
-                    continue
-                paper_ids.append(pid)
-                if export_limit and len(paper_ids) >= export_limit:
+        seen_paper_ids: set[str] = set()
+        retrieval_queries = candidate_queries or [query]
+        for retrieval_query in retrieval_queries:
+            offset = 0
+            while True:
+                page = run_search(
+                    db_path=db_path,
+                    query=retrieval_query,
+                    venues=venues,
+                    year_from=year_from,
+                    year_to=year_to,
+                    track=track,
+                    presentation_level=presentation_level,
+                    include_placeholder=include_placeholder,
+                    order=order,
+                    top_k=page_size,
+                    offset=offset,
+                )
+                if not candidate_queries:
+                    total = int(page.get("total", 0))
+                if not page.get("results"):
                     break
-            if export_limit and len(paper_ids) >= export_limit:
+                for item in page["results"]:
+                    pid = ensure_str(item.get("paper_id"))
+                    if not pid or pid in seen_paper_ids:
+                        continue
+                    seen_paper_ids.add(pid)
+                    paper_ids.append(pid)
+                    if not candidate_queries and export_limit and len(paper_ids) >= export_limit:
+                        break
+                if not candidate_queries and export_limit and len(paper_ids) >= export_limit:
+                    break
+                offset += page_size
+                if offset >= int(page.get("total", 0)):
+                    break
+            if not candidate_queries and export_limit and len(paper_ids) >= export_limit:
                 break
-            offset += page_size
-            if offset >= total:
-                break
+        candidate_total = len(paper_ids)
 
     else:
         # Hybrid candidate set size is bounded by recall depths; export all by default.
@@ -1086,7 +1164,6 @@ def run_export(
                 paper_ids.append(pid)
 
     paper_ids = [pid for pid in paper_ids if pid]
-    janus_topic_map = _load_janus_topic_map(topics_json=topics_json, paper_ids=paper_ids)
 
     conn = connect_db(db_path)
     try:
@@ -1126,6 +1203,27 @@ def run_export(
         source_ids_map = _fetch_source_ids(conn, paper_ids)
     finally:
         conn.close()
+
+    if candidate_queries:
+        paper_ids = [
+            paper_id
+            for paper_id in paper_ids
+            if paper_id in papers_map
+            and _matches_required_labels(
+                title=ensure_str(papers_map[paper_id]["title"]),
+                abstract=ensure_str(papers_map[paper_id]["abstract"]),
+                keywords=keywords_map.get(paper_id, []),
+                keyword_groups=keyword_groups,
+                required_labels=required_labels,
+            )
+        ]
+        total = len(paper_ids)
+        if export_limit:
+            paper_ids = paper_ids[:export_limit]
+    else:
+        candidate_total = total
+
+    janus_topic_map = _load_janus_topic_map(topics_json=topics_json, paper_ids=paper_ids)
 
     out_tsv.parent.mkdir(parents=True, exist_ok=True)
     exported = 0
@@ -1203,6 +1301,9 @@ def run_export(
         "exported": exported,
         "truncated": truncated,
         "max_export": export_limit,
+        "candidate_queries": candidate_queries,
+        "required_labels": required_labels,
+        "candidate_total": candidate_total,
         "out_tsv": str(out_tsv.resolve()),
         "keywords_json": str(keywords_json.resolve()),
         "topics_json": str(Path(resolved_topics_json).resolve()) if resolved_topics_json else "",
@@ -1372,11 +1473,15 @@ def _load_vector_collection(vectors_root: Path, collection_name: str) -> Any:
     """Load Chroma collection used by hybrid search."""
     try:
         import chromadb
+        from chromadb.config import Settings
     except ImportError as exc:
         raise RuntimeError("Missing dependency `chromadb`. Install with: uv add chromadb") from exc
     if not vectors_root.exists():
         raise FileNotFoundError(f"Vector root does not exist: {vectors_root}")
-    client = chromadb.PersistentClient(path=str(vectors_root))
+    client = chromadb.PersistentClient(
+        path=str(vectors_root),
+        settings=Settings(anonymized_telemetry=False),
+    )
     return client.get_or_create_collection(name=collection_name)
 
 

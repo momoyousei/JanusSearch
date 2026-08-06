@@ -1,6 +1,7 @@
 # 历史冻结与复盘（History）
 
 ## 时间线
+- 2026-08-07：M1～M4 降级为兼容入口，系统改用能力化架构与四个职责单一 Skill
 - 2026-02-19：M1 初步冻结
 - 2026-02-22：ICML-2021 专项修复
 - 2026-02-22：CVPR 2021-2025 采集与补齐复盘
@@ -11,6 +12,13 @@
 - 2026-05-07：ICML 2026 官方 virtual JSON 采集入库
 
 ## 关键结论
+0. 能力化架构重构（2026-08-07）
+- 主架构调整为 corpus/catalog/projections/search/evaluate/doctor，M1～M4 仅保留历史与 CLI 兼容语义。
+- 建立 `janussearch/` 正式包、run manifest、输入指纹与采集器注册表。
+- 官方 paper/track/presentation 对齐改为默认 warning，显式 strict 时仍为硬门禁；字段质量与重复检查继续硬失败。
+- 评估改为离线默认、在线显式，status 必须拒绝无指纹或输入已变化的历史 PASS。
+- 原两个复合 Skill 替换为显式 router、query、corpus、ops 四个 Skill；生产采集逻辑移出 Skill 目录。
+
 1. M1 初冻（2026-02-19）
 - 主流程可复现，可进入 M2
 - 当时仅 `ICML-21` 摘要覆盖率未过 85%

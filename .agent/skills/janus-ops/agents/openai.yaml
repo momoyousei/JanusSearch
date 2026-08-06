@@ -1,0 +1,4 @@
+interface:
+  display_name: "Janus Operations"
+  short_description: "Diagnose and maintain JanusSearch"
+  default_prompt: "Use $janus-ops to diagnose and validate JanusSearch operational state."

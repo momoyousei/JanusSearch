@@ -1,148 +1,117 @@
-# 全流程执行与门禁（M1-M4）
+# 能力流程与质量门禁
 
-## 总原则
-- 先标准化，再回填，再验证，不跳步骤
-- 先保证官方口径对齐，再追求摘要覆盖率
-- 每轮操作必须产出报告，不做“无证据更新”
-- 新增数据以下游事实源 `data/raw` 为准
+所有项目命令从仓库根目录用 `./.venv/bin/python -m ...` 执行。
 
-## M1：采集后处理（inventory -> normalize -> backfill -> validate）
-入口：`python3 -m tools.m1_pipeline`
+## 1. Corpus：采集到事实源
 
-### 常用命令
 ```bash
-python3 -m tools.m1_pipeline inventory
-python3 -m tools.m1_pipeline normalize
-python3 -m tools.m1_pipeline backfill --min-interval 3.0 --retries 3 --timeout 30
-python3 -m tools.m1_pipeline validate
+./.venv/bin/python -m tools.corpus plan --venue ACL --years 2021-2025
+./.venv/bin/python -m tools.corpus collect --venue ACL --years 2021-2025
+./.venv/bin/python -m tools.corpus prepare \
+  --input-glob 'artifacts/runs/<run_id>/collected/*.json' \
+  --staging-root 'artifacts/runs/<run_id>/staging'
+./.venv/bin/python -m tools.corpus validate \
+  --input-glob 'artifacts/runs/<run_id>/staging/*/*.json'
+./.venv/bin/python -m tools.corpus publish \
+  --staging-root 'artifacts/runs/<run_id>/staging'
 ```
 
-子集执行示例：
-```bash
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/CVPR-2*.json' normalize
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/CVPR-2*.json' backfill --max-records-per-file 0 --enable-arxiv-title
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/CVPR-2*.json' validate
-```
+需要补齐缺失字段时，在 `prepare` 中显式加入 `--enrich --enable-arxiv-title`。采集、补源和发布均不得臆造字段或手工篡改统计。
 
-### M1 质量门禁（默认）
+### 硬门禁
+
 - `duplicate_title_count == 0`
 - `resolved_authors_coverage >= 90.0`
 - `resolved_abstract_coverage >= 85.0`
+- JSON/schema/staging 操作有效
 
-### 官方口径对齐门禁
-- 维度：`paper_count`, `track_counts`, `presentation_level_counts`
-- 三态：
-  - `true`：有基线且对齐
-  - `false`：有基线但不对齐（失败）
-  - `null`：暂无基线（不计失败，但属于能力缺口）
-- 基线优先级：`official_tracks` > `reconciliation`
+### 默认警告
 
-### 回填强规则
-- 禁止 DOI-only
-- DOI 未命中必须进入标题检索链路（OpenAlex/S2/arXiv title）
-- 标题命中必须做相似度阈值约束后写回
-- `papers.cool` 仅可作为 ACL/AAAI 的可选最后兜底补源，默认关闭；不得替代官方事实源
-- `papers.cool` 写回仅允许补缺失字段，且必须记录 `field_provenance` 与 `source_ids`
+`paper_count`、`track_counts`、`presentation_level_counts` 与官方口径不一致时记录 warning，默认不导致退出码 1。只有显式 `--strict-official-alignment` 才把这些项目升级为硬失败。
 
-### 会议特化补源优先
-- ICML：PMLR（已落地 2021 -> v139）
-- CVPR：CVF 详情页摘要优先，404 时可有限启用 Wayback
-- ACL：Anthology event + 详情页摘要，DOI 后必须追加标题检索
-- AAAI：OJS Technical Tracks 为主，未发布年份可用 OpenReview fallback 并显式标注来源
+### 补源顺序
 
-## M2：SQLite 入库与校验
-入口：`python3 -m tools.m2_db`
+1. 会议专用源：CVF/PMLR/ACL Anthology/OpenReview/官方 virtual JSON；
+2. OpenAlex DOI 与 Semantic Scholar DOI；
+3. OpenAlex/Semantic Scholar/arXiv 标题检索，并执行标题相似度约束；
+4. 小规模人工补录，必须记录来源和时间。
+
+禁止 DOI-only。`papers.cool` 只作为 ACL/AAAI 的显式最后兜底，且必须保留 `field_provenance`。
+
+## 2. Catalog：SQLite 与 FTS
 
 ```bash
-python3 -m tools.m2_db load
-python3 -m tools.m2_db validate
-python3 -m tools.m2_db run
-python3 -m tools.m2_db reindex-fts
-python3 -m tools.m2_db stats
+./.venv/bin/python -m tools.catalog build
+./.venv/bin/python -m tools.catalog validate
+./.venv/bin/python -m tools.catalog reindex-fts
+./.venv/bin/python -m tools.catalog stats
 ```
 
-规则：
-- 仅从 `data/raw` 入库，不读 `archives/root_json`
-- `load` 后自动重建 FTS（`papers_fts`）
-- 保留 `record_status` 全量入库（包含 placeholder）
+`build` 只读取 `data/raw`，在临时路径构建并校验后原子发布。失败不得覆盖当前 `data/papers.db`。
 
-## M2 检索 CLI（SQL + FTS）
-入口：`python3 -m tools.search`
+## 3. Search：离线优先查询
 
 ```bash
-python3 -m tools.search search --query "continual learning replay"
-python3 -m tools.search hybrid --query "continual learning replay" --top-k 20
-python3 -m tools.search get --paper-id <PAPER_ID>
-python3 -m tools.search stats
+./.venv/bin/python -m tools.doctor --profile query
+./.venv/bin/python -m tools.search search --query "continual learning replay" --top-k 20
+./.venv/bin/python -m tools.search hybrid --query "continual learning replay" --top-k 20
+./.venv/bin/python -m tools.search get --paper-id <PAPER_ID>
+./.venv/bin/python -m tools.search stats
 ```
 
-默认行为：
-- `search` 走 `title + abstract` FTS BM25
-- 默认排除 `record_status=placeholder`
+默认先用 FTS。Hybrid 只在用户明确要求语义检索，或 FTS 低召回且向量健康时使用。Hybrid 失败必须先报告错误，再明确降级为 FTS。PDF 下载只在用户显式要求时执行。
 
-## M3：向量、主题缓存、混合检索
-入口：`python3 -m tools.m3_pipeline`
+复杂多概念交集可在 `keywords.json` 中提供 `candidate_queries` 与 `required_labels`：export 按相同过滤条件执行窄查询并集，再对 title+abstract+keywords 做每个必选标签的确定性 alias 过滤。简单查询不需要这两个字段。
+
+## 4. Projections：向量、主题与缓存
 
 ```bash
-python3 -m tools.m3_pipeline run \
-  --db-path data/papers.db \
-  --embed-base-url https://api.siliconflow.cn/v1/embeddings \
-  --embed-model Qwen/Qwen3-Embedding-8B \
-  --exclude-placeholder
+./.venv/bin/python -m tools.projections build-vectors
+./.venv/bin/python -m tools.projections build-topics
+./.venv/bin/python -m tools.projections build-cache
+./.venv/bin/python -m tools.projections validate
+./.venv/bin/python -m tools.projections run
 ```
 
-分步：`build-vectors`, `build-topics`, `build-cache`, `validate`
+向量保持 `paper_id` 级增量：缺失、文本 hash 变化、模型配置变化或无法验证的 legacy metadata 才重算。全量非抽样构建可以删除当前 DB 候选集中不存在的 stale vectors。只有明确要求时使用 `--force-rebuild-vectors`。
 
-向量增量策略：
-- `build-vectors` 默认按 `paper_id` 查询 Chroma，只对缺失、文本 hash/模型配置可确认变更、或无法验证且缺少同配置 marker 的旧向量调用 embedding API。
-- 每个新写入向量会记录 `embedding_text_sha256`、`embed_model`、`embed_base_url`、`vector_schema_version` 等 metadata，后续可逐论文判断是否需要重算。
-- source-file marker 仍作为快速跳过路径，但会先确认该 source 下的目标 IDs 均存在；非 `--max-papers` 全量构建会删除当前 DB 候选集中不存在的 stale vectors。
-- 只有需要强制刷新全部向量时才使用 `--force-rebuild-vectors`。
+需要 embedding/LLM 的命令从环境变量读取凭据，不得写入参数记录或报告明文。
 
-关键环境变量：
-- `JANUS_LLM_API_KEY`（必需，用于 topic/subtopic 命名）
-- `JANUS_LLM_BASE_URL`, `JANUS_LLM_MODEL`
-- `JANUS_EMBED_BASE_URL`, `JANUS_EMBED_API_KEY`
-
-关键产物：
-- `artifacts/m3/topic_assignments.json`
-- `artifacts/m3/build_report.json`
-- `artifacts/m3/validate_report.json`
-- `artifacts/indexes/master_index.md`
-- `data/vectors/chroma/`
-
-## M4：端到端验收（云端硬门禁）
-入口：`python3 -m tools.m4_validate`
+## 5. Evaluate：离线默认、在线显式
 
 ```bash
-python3 -m tools.m4_validate run \
-  --db-path data/papers.db \
-  --vectors-root data/vectors/chroma \
-  --collection-name papers_v1 \
-  --topics-file artifacts/m3/topic_assignments.json \
-  --fixed-query-file docs/fixtures/m4_fixed_queries.yaml \
-  --embed-base-url https://api.siliconflow.cn/v1/embeddings \
-  --embed-model Qwen/Qwen3-Embedding-8B \
-  --embed-api-key "$JANUS_EMBED_API_KEY"
-
-python3 -m tools.m4_validate status
+./.venv/bin/python -m tools.evaluate run --suite offline
+./.venv/bin/python -m tools.evaluate status
 ```
 
-M4 总门禁：
-- `online_gate_pass`
-- `fixed_suite_pass`（固定查询 100%）
-- `sampled_suite_pass`（抽样 >= 90%）
-- `overall_pass = online_gate_pass AND fixed_suite_pass AND sampled_suite_pass`
+离线套件把固定查询全部通过 FTS 执行，不依赖外部服务。只有显式要求时运行：
 
-## 批次报告清单
-- `artifacts/m1/quality_report.json`
-- `artifacts/m1/backfill_report.json`
-- `artifacts/m2/load_report.json`
-- `artifacts/m2/validate_report.json`
-- `artifacts/m3/build_report.json`
-- `artifacts/m3/validate_report.json`
-- `artifacts/m4/eval_report.json`
-- `artifacts/m4/eval_report.md`
+```bash
+./.venv/bin/python -m tools.evaluate run --suite online
+./.venv/bin/python -m tools.evaluate run --suite all
+```
 
-## 验证基准
-- 端到端主题基准：`Continual Learning > Replay Methods`
+`status` 比较数据库、Chroma、主题分配和固定查询文件的当前指纹；缺失指纹或指纹变化一律返回 stale，不允许复用历史 PASS。
+
+## 6. Doctor：只读诊断
+
+```bash
+./.venv/bin/python -m tools.doctor --profile query
+./.venv/bin/python -m tools.doctor --profile corpus
+./.venv/bin/python -m tools.doctor --profile ops
+```
+
+Doctor 不执行修复。先定位最早失败的依赖，再由用户明确要求最小修复。
+
+## 兼容入口
+
+以下命令继续可用并输出迁移提示：
+
+| 历史入口 | 新入口 |
+|---|---|
+| `tools.m1_pipeline` | `tools.corpus` |
+| `tools.m2_db` | `tools.catalog` |
+| `tools.m3_pipeline` | `tools.projections` |
+| `tools.m4_validate` | `tools.evaluate` |
+
+旧报告路径继续由旧入口维护；新运行清单统一位于 `artifacts/runs/`。

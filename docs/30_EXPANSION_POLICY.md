@@ -1,71 +1,62 @@
-# 扩充策略（会议/年份增量）
+# 会议与年份扩充策略
 
-## 适用场景
-在当前稳定基线之上，持续新增会议与年份覆盖。
+## 原则
 
-## 扩充原则
-1. 先单批次跑通，再扩大批次
-2. 先官方口径对齐，再优化摘要覆盖
-3. 每批次必须产出可审计报告
-4. 事实源以 `data/raw` 为准
+1. 一个 venue/year scope 对应一个可审计批次。
+2. 采集结果先进入 run-scoped snapshot，再进入 staging；不得直接覆盖 `data/raw`。
+3. 事实门禁与官方口径观察分离：字段质量是硬门禁，官方对齐默认是警告。
+4. 批次失败时冻结 snapshot、staging、报告与 manifest，修复后从最早失败步骤恢复。
+5. 只有 canonical 发布成功后才重建 catalog；只有明确要求时才继续 projections/online evaluation。
 
-## 单批次标准流程
-1. 采集到历史输入层
+## 标准流程
+
 ```bash
-python3 -m tools.<venue>_collect --years <RANGE> --output-root archives/root_json
+./.venv/bin/python -m tools.corpus plan --venue <VENUE> --years <RANGE>
+./.venv/bin/python -m tools.corpus collect --venue <VENUE> --years <RANGE>
+./.venv/bin/python -m tools.corpus prepare \
+  --input-glob '<SNAPSHOT>/*.json' --staging-root '<STAGING>' \
+  --enrich --enable-arxiv-title
+./.venv/bin/python -m tools.corpus validate --input-glob '<STAGING>/*/*.json'
+./.venv/bin/python -m tools.corpus publish --staging-root '<STAGING>'
+./.venv/bin/python -m tools.catalog build
+./.venv/bin/python -m tools.catalog validate
+./.venv/bin/python -m tools.evaluate run --suite offline
+./.venv/bin/python -m tools.search search \
+  --query "continual learning replay" --top-k 20
 ```
 
-2. M1 子集处理
-```bash
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' inventory
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' normalize
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' backfill --max-records-per-file 0 --enable-arxiv-title
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/{VENUE}-*.json' validate
-```
+`tools.corpus add --venue <VENUE> --years <RANGE>` 可执行 collect→prepare→validate→publish→catalog。该命令涉及网络和数据发布，只在用户明确要求完整接入时使用；`--build-projections` 也是显式选项。
 
-3. M2 全量重建
-```bash
-python3 -m tools.m2_db run
-```
+## 批次通过标准
 
-4. M3/M4 回归
-```bash
-python3 -m tools.m3_pipeline validate --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --exclude-placeholder
-python3 -m tools.m4_validate status
-```
+| 层 | 标准 |
+|---|---|
+| Corpus | hard `gate_fail_files = 0`；alignment warnings 已解释 |
+| Catalog | `all_pass = true` |
+| Projections（若涉及） | `summary.all_pass = true` |
+| Evaluation | 当前输入指纹下 `overall_pass = true` |
+| Search | 基准查询能返回可核验结果 |
 
-## 摘要补齐矩阵（必须）
-1. 会议专用源（优先）
-- CVPR/CVF 详情页
-- ICML/PMLR
-- ACL Anthology 详情页
-- OpenReview note
+## 冻结与恢复
 
-2. DOI 查询
-- OpenAlex DOI
-- Semantic Scholar DOI
+冻结条件：任一硬门禁失败、采集器异常退出、canonical 发布失败、catalog 校验失败或要求范围内的派生验证失败。
 
-3. 标题查询（DOI 失败后必走）
-- OpenAlex title
-- Semantic Scholar title
-- `m1_pipeline backfill --enable-arxiv-title`
+冻结动作：
 
-4. 人工补录（最后手段）
-- 仅用于小规模残缺
-- 必须记录来源与时间
-- 不得篡改官方总量口径
+1. 保留 `artifacts/runs/<run_id>/manifest.json`；
+2. 保留 snapshot、staging 和报告；
+3. 不手工修正统计字段；
+4. 记录最早失败步骤、输入 scope 与错误；
+5. 停止后续依赖更新。
 
-## 批次门禁建议
-1. M1 子集 `gate_fail_files = 0`
-2. M2 `all_pass = true`
-3. 检索冒烟通过
-```bash
-python3 -m tools.search --db-path data/papers.db stats
-python3 -m tools.search search --query "continual learning replay" --top-k 20
-```
+恢复时从最早失败能力重跑。SQLite 失败继续使用旧数据库；Chroma 不默认删除，优先利用 ID/指纹增量恢复。
 
-## 风险处理
-1. 无 S2 key：优先会议专用源，降低通用 API 依赖
-2. 官方页面 404：报告中区分“源失效”与“解析失败”
-3. DOI 命中低：立即切标题检索通道
-4. 年份门禁失败：冻结当前批次，修复后再并入下一批
+## 常见风险
+
+| 风险 | 处理 |
+|---|---|
+| API key 缺失 | 使用可离线或会议专用源；明确跳过在线步骤 |
+| 官方页面 404/503 | 区分远端不可用与解析器错误，保留失败证据 |
+| DOI 命中低 | 进入标题检索链，不得以 DOI-only 结束 |
+| 官方数量不一致 | 默认 warning 并解释口径；发布政策要求时再启用 strict |
+| 评估报告旧 | 用 `tools.evaluate status` 检测 stale，重新运行离线套件 |

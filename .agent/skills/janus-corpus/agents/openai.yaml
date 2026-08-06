@@ -1,0 +1,4 @@
+interface:
+  display_name: "Janus Corpus"
+  short_description: "Collect and publish corpus batches"
+  default_prompt: "Use $janus-corpus to plan, stage, validate, and publish this corpus batch."

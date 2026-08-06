@@ -1,166 +1,151 @@
-# AGENTS.md — AI 执行入口
+# AGENTS.md — JanusSearch AI 执行入口
 
-## 项目名称
-JanusSearch, Gate of AI Papers — AI 顶会论文归档与智能检索系统
+## 项目
 
-## AI 首读顺序（每次任务开始）
+JanusSearch, Gate of AI Papers — AI 论文归档、检索与评估系统。
+
+## 每次任务首读
+
 1. `docs/README.md`
 2. `docs/20_PIPELINE_AND_GATES.md`
 3. `docs/30_EXPANSION_POLICY.md`
-4. 涉及历史决策时补读 `docs/90_HISTORY.md`
+4. 涉及架构时补读 `docs/10_CORE_ARCHITECTURE.md`
+5. 涉及历史决策时补读 `docs/90_HISTORY.md`
 
-## 文档分层（强约束）
-- `README.md`：面向人类用户（项目介绍、快速上手）
-- `AGENTS.md`：面向 AI（执行约束、路由、验收口径、SOP）
-- `docs/`：少量核心规范文档（架构、流程门禁、扩充策略、历史复盘）
+## 授权边界
 
-## 采集专用 Skill
-- 项目内 skill 根目录：`.agent/skills/`
-- `.agent/skills/paper-search/SKILL.md`：仅用于会议年份采集与导出 JSON 的专用流程。
-- 非采集类任务默认按本文件路由执行。
+- 解释、审查、诊断、分析或规划：只读检查并汇报，除非用户同时明确要求修改。
+- 修改、实现、构建或修复：完成范围内本地改动并运行非破坏性验证。
+- 外部写入、破坏性操作、新增生产依赖、高成本长任务或扩大范围前先征得同意。
+- 除非用户明确要求，否则不提交、不推送、不创建或合并 PR。
+- 保留与当前任务无关的用户修改；不得重置、覆盖或格式化任务范围外文件。
 
-## 当前阶段
-- M1→M4 主链路已贯通
-- 当前重点：会议/年份扩充（批次化执行）
+## 能力路由
 
-## 技术约束
+| 意图 | 主入口 |
+|---|---|
+| 论文检索、详情、导出、显式 PDF 下载 | `tools.search` |
+| 会议/年份采集、规范化、门禁、发布 | `tools.corpus` |
+| SQLite 构建、校验、FTS、统计 | `tools.catalog` |
+| 向量、主题、缓存构建与校验 | `tools.projections` |
+| 离线/在线回归与状态 | `tools.evaluate` |
+| 查询、语料或运维只读诊断 | `tools.doctor` |
+
+项目 Skills 位于 `.agent/skills/`：
+
+- `janussearch`：仅显式调用的总路由；
+- `janus-query`：查询工作流；
+- `janus-corpus`：语料扩充工作流；
+- `janus-ops`：诊断、修复和评估工作流。
+
+## 执行环境
+
 - Python 3.11+
 - macOS + Unix CLI
 - 包管理：`uv`
-- 数据库：SQLite3
-- 向量库：ChromaDB
-- 不使用 Docker
-- 不使用 Web 框架（Flask/FastAPI/Django）
-- 全部为 CLI（`argparse`）
+- SQLite3 + ChromaDB
+- 不使用 Docker 或 Web 框架；全部为 `argparse` CLI
 
-## 执行环境（强约束）
-- 禁止直接使用系统 `python3` 执行项目命令；系统解释器可能是 `Python 3.9`，不满足本项目 `Python 3.11+` 要求，且看不到 `.venv` 中依赖。
-- 默认使用以下两种方式之一执行：
-  - `UV_CACHE_DIR=.uv-cache uv run <command>`
-  - `./.venv/bin/python -m <module> ...`
-- 在当前 Codex 沙箱内，`uv` 默认全局缓存目录可能无权限访问；若使用 `uv run`，必须显式设置 `UV_CACHE_DIR=.uv-cache`。
-- 仅当任务与项目虚拟环境无关时，才可使用系统命令。
+禁止直接用系统 `python3` 执行项目命令。使用：
 
-## 代码与安全规范
-- Python 文件头：
-  - `#!/usr/bin/env python3`
-  - `# -*- coding: utf-8 -*-`
-- 使用 type hints 与模块 docstring
-- 日志统一 `logging`
-- 路径统一 `pathlib.Path`
+```bash
+./.venv/bin/python -m <module> ...
+UV_CACHE_DIR=.uv-cache uv run <command>
+```
+
+## 代码规范
+
+- Python 文件头：`#!/usr/bin/env python3` 与 `# -*- coding: utf-8 -*-`
+- 使用模块 docstring、type hints、`logging` 和 `pathlib.Path`
 - 网络请求必须带重试
-- API key 仅从环境变量读取，禁止硬编码
+- API key 只从环境变量读取，禁止硬编码或打印
+- 真实暴露错误，不用宽泛捕获、静默默认值或未说明 fallback 掩盖失败
+- 未实际运行的命令、测试或实验不得声称通过
 
-## 数据分层与事实源
-1. 历史输入：`archives/root_json/`
+## 架构边界
+
+生产包为 `janussearch/`：
+
+- `domain/`：稳定业务语义；
+- `application/`：能力工作流；
+- `collectors/`：采集实现与注册表；
+- `infrastructure/`：运行清单、指纹与持久化辅助；
+- `tools/`：薄 CLI 适配与历史兼容入口。
+
+M1～M4 只表示历史实现阶段。`tools.m1_pipeline`～`tools.m4_validate` 保持兼容，但新增功能不得继续扩展 M 编号。
+
+## 数据与恢复
+
+1. 采集快照：`archives/root_json/` 或 run-scoped `collected/`
 2. 唯一事实源：`data/raw/{venue}/{year}.json`
-3. 检索运行面：`data/papers.db` + `data/vectors/chroma`
+3. 查询目录：`data/papers.db`
+4. 派生投影：`data/vectors/chroma`、topic/cache artifacts
 
-执行判断：
-- M2/M3/M4 仅依赖 `data/raw`，不直接读取历史输入层
+约束：
 
-## 里程碑顺序
-1. M1 数据采集与规范化
-2. M2 数据入库（SQLite/FTS）
-3. M3 缓存与混合检索
-4. M4 Agent 端到端验证
+- 下游只依赖 `data/raw`；
+- corpus 必须 staging 验证后发布；
+- SQLite 临时构建成功后原子替换，失败保留旧库；
+- Chroma/cache 原位增量且可重跑，不宣称原子发布；
+- 每个有状态的新能力操作生成 `artifacts/runs/<run_id>/manifest.json`；
+- 退出码：0 成功/警告，1 操作或门禁失败，2 用法/配置错误。
 
-## 关键执行入口
-- M1：`python3 -m tools.m1_pipeline <inventory|normalize|backfill|validate|run>`
-- M2：`python3 -m tools.m2_db run`
-- M3：`python3 -m tools.m3_pipeline run --db-path data/papers.db --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --exclude-placeholder`
-- M4：`python3 -m tools.m4_validate run --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --topics-file artifacts/m3/topic_assignments.json --fixed-query-file docs/fixtures/m4_fixed_queries.yaml --embed-base-url https://api.siliconflow.cn/v1/embeddings --embed-model Qwen/Qwen3-Embedding-8B --embed-api-key "$JANUS_EMBED_API_KEY"`
-- M4 状态：`python3 -m tools.m4_validate status`
+## 门禁
 
-## 验收口径
-- M1：`gate_fail_files = 0` 且无 `aligned=false`
-- M2：`all_pass = true`
-- M4：`overall_pass = true`
-- 端到端基准主题：Continual Learning > Replay Methods
+Corpus 硬门禁：
 
-## 任务执行要求（AI）
-- 优先复用本文件中的执行流程模板（SOP）
-- 每个批次必须产出并检查报告文件
-- 禁止无证据更新与手工篡改统计字段
-- 当门禁失败：冻结当前批次，先修复再推进
+- `duplicate_title_count == 0`
+- `resolved_authors_coverage >= 90.0`
+- `resolved_abstract_coverage >= 85.0`
+- JSON/schema/staging 有效
 
-## 执行流程模板（SOP）
+`paper_count`、`track_counts`、`presentation_level_counts` 官方对齐默认是 warning；只有 `--strict-official-alignment` 才作为硬门禁。
 
-### SOP 1：会议批次扩充（推荐默认流程）
-触发条件：
-- 新增一个会议的若干年份（例如 `ACL 2021-2025`）
+Catalog：`all_pass = true`。Projections：`summary.all_pass = true`。Evaluation：必须在当前输入指纹下 `overall_pass = true`，不得复用 stale PASS。
 
-输入：
-- 会议采集脚本：`tools/<venue>_collect.py`
-- 年份范围：`<YYYY-YYYY>`
+## SOP 1：查询
 
-流程：
-1. 采集到历史输入层
 ```bash
-python3 -m tools.<venue>_collect --years <YYYY-YYYY> --output-root archives/root_json
+./.venv/bin/python -m tools.doctor --profile query
+./.venv/bin/python -m tools.search search --query "<QUERY>" --top-k 20
 ```
 
-2. M1 子集处理
+FTS 优先。Hybrid 仅在明确语义意图，或 FTS 低召回且向量健康时使用。Hybrid 失败先报告错误再降级。PDF 下载必须显式请求。
+
+## SOP 2：会议批次扩充
+
 ```bash
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/<VENUE>-*.json' inventory
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/<VENUE>-*.json' normalize
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/<VENUE>-*.json' backfill --max-records-per-file 0 --enable-arxiv-title
-python3 -m tools.m1_pipeline --input-glob 'archives/root_json/<VENUE>-*.json' validate
+./.venv/bin/python -m tools.corpus plan --venue <VENUE> --years <RANGE>
+./.venv/bin/python -m tools.corpus collect --venue <VENUE> --years <RANGE>
+./.venv/bin/python -m tools.corpus prepare \
+  --input-glob '<SNAPSHOT>/*.json' --staging-root '<STAGING>'
+./.venv/bin/python -m tools.corpus validate --input-glob '<STAGING>/*/*.json'
+./.venv/bin/python -m tools.corpus publish --staging-root '<STAGING>'
+./.venv/bin/python -m tools.catalog build
+./.venv/bin/python -m tools.catalog validate
+./.venv/bin/python -m tools.evaluate run --suite offline
 ```
 
-3. M2 全量重建
+任一硬门禁失败即冻结 snapshot、staging、报告与 manifest，停止后续层。
+
+## SOP 3：运维与回归
+
 ```bash
-python3 -m tools.m2_db run
+./.venv/bin/python -m tools.doctor --profile ops
+./.venv/bin/python -m tools.catalog validate
+./.venv/bin/python -m tools.projections validate
+./.venv/bin/python -m tools.evaluate run --suite offline
+./.venv/bin/python -m tools.evaluate status
+./.venv/bin/python -m tools.search search \
+  --query "continual learning replay" --top-k 20
 ```
 
-4. M3/M4 回归
-```bash
-python3 -m tools.m3_pipeline validate --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --exclude-placeholder
-python3 -m tools.m4_validate status
-```
+先诊断最早失败依赖，只执行用户授权的最小修复，再验证受影响的所有下游层。
 
-通过标准：
-- M1 子集 `gate_fail_files = 0`
-- M2 `all_pass = true`
-- 检索冒烟可用
+## 验证与汇报
 
-### SOP 2：摘要缺失修复（missing_abstract）
-强规则：
-- 禁止 DOI-only
-- DOI 失败后必须进入标题检索链路
-- 标题命中必须过相似度阈值
-
-执行顺序：
-1. 会议专用源（CVF/PMLR/Anthology/OpenReview）
-2. OpenAlex DOI + S2 DOI
-3. OpenAlex title + S2 title + arXiv title
-4. 人工补录（仅小规模残缺）
-
-每轮后必须检查：
-- `artifacts/m1/backfill_report.json`
-- `artifacts/m1/quality_report.json`
-
-### SOP 3：版本回归（发布前）
-流程：
-1. `python3 -m tools.m2_db run`
-2. `python3 -m tools.m3_pipeline validate --db-path data/papers.db --vectors-root data/vectors/chroma --collection-name papers_v1 --exclude-placeholder`
-3. `python3 -m tools.search search --query "continual learning replay" --top-k 20`
-4. `python3 -m tools.search hybrid --query "continual learning replay" --top-k 20`
-5. `python3 -m tools.m4_validate status`
-
-关键报告：
-- `artifacts/m2/validate_report.json`
-- `artifacts/m3/validate_report.json`
-- `artifacts/m4/eval_report.json`
-
-### SOP 4：失败批次冻结与恢复
-冻结条件：
-- 任一门禁失败（M1/M2/M4）
-
-冻结动作：
-1. 记录失败会议与年份
-2. 固定失败报告路径
-3. 暂停该批次继续合并
-
-恢复条件：
-- 失败项修复并重新通过对应门禁
+- 优先针对性验证；风险或仓库规则要求时再扩大范围。
+- 完成前检查最终 diff、意外生成文件、敏感信息和 GitHub 100MB 限制。
+- 最终回复说明完成结果、修改文件、实际命令及结果、剩余风险或未完成验证。
+- 默认中文，简单直白；多项对比、进度和方案选择优先 Markdown 表格。
+- 回答最后一个字加“喵”。

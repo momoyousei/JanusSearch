@@ -993,6 +993,10 @@ def main() -> int:
         level=getattr(logging, args.log_level),
         format="%(asctime)s %(levelname)s %(message)s",
     )
+    LOGGER.warning(
+        "Legacy entrypoint tools.m4_validate is retained for compatibility; "
+        "prefer tools.evaluate."
+    )
 
     db_path = Path(args.db_path)
     vectors_root = Path(args.vectors_root)

@@ -1,85 +1,89 @@
 # JanusSearch
 
-JanusSearch 是本地 AI 顶会论文归档与智能检索系统，覆盖从采集、规范化、入库到向量检索与端到端验收的完整 CLI 流程。
+JanusSearch 是面向 AI 论文归档、可审计检索与离线优先评估的本地 CLI 系统。系统按稳定能力划分，不再用 M1～M4 作为主架构。
 
-这个文档是面向人类用户的，如果你是AI、LLM、Agent、Bot，请阅读AGENTS.md
+AI、LLM、Agent 或 Bot 请先阅读 `AGENTS.md`。
 
-## 当前状态
-- M1→M4 主链路已打通并完成基础端到端验证
-- 当前工作重心：按批次扩充会议与年份覆盖
+## 环境
 
-## 快速开始
-
-### 环境要求
 - Python 3.11+
 - `uv`
 - macOS / Unix CLI
+- SQLite + ChromaDB
 
-### 安装
 ```bash
 uv sync
-uv run python -V
+UV_CACHE_DIR=.uv-cache uv run python -V
 ```
 
-### 常用命令
+仓库内默认使用 `./.venv/bin/python -m ...`，不要使用系统 Python。
 
-1. 检索
+## 快速开始
+
+### 查询
+
 ```bash
-python3 -m tools.search search --query "continual learning replay"
-python3 -m tools.search hybrid --query "continual learning replay" --top-k 20
-python3 -m tools.search get --paper-id <PAPER_ID>
-python3 -m tools.search stats
+./.venv/bin/python -m tools.doctor --profile query
+./.venv/bin/python -m tools.search search --query "continual learning replay"
+./.venv/bin/python -m tools.search hybrid --query "continual learning replay" --top-k 20
 ```
 
-2. 入库（M2）
+### 扩充语料
+
 ```bash
-python3 -m tools.m2_db run
+./.venv/bin/python -m tools.corpus plan --venue ACL --years 2021-2025
+./.venv/bin/python -m tools.corpus collect --venue ACL --years 2021-2025
 ```
 
-3. 向量与缓存（M3）
+完整 staged 流程见 `docs/30_EXPANSION_POLICY.md`。
+
+### 构建查询目录与派生投影
+
 ```bash
-python3 -m tools.m3_pipeline run \
-  --db-path data/papers.db \
-  --embed-base-url https://api.siliconflow.cn/v1/embeddings \
-  --embed-model Qwen/Qwen3-Embedding-8B \
-  --exclude-placeholder
+./.venv/bin/python -m tools.catalog build
+./.venv/bin/python -m tools.catalog validate
+./.venv/bin/python -m tools.projections run
 ```
 
-4. 端到端验收（M4）
+### 评估
+
 ```bash
-export JANUS_EMBED_API_KEY="<YOUR_KEY>"
+./.venv/bin/python -m tools.evaluate run --suite offline
+./.venv/bin/python -m tools.evaluate status
+```
 
-python3 -m tools.m4_validate run \
-  --db-path data/papers.db \
-  --vectors-root data/vectors/chroma \
-  --collection-name papers_v1 \
-  --topics-file artifacts/m3/topic_assignments.json \
-  --fixed-query-file docs/fixtures/m4_fixed_queries.yaml \
-  --embed-base-url https://api.siliconflow.cn/v1/embeddings \
-  --embed-model Qwen/Qwen3-Embedding-8B
+在线套件只在显式需要且 embedding 凭据可用时运行：
 
-python3 -m tools.m4_validate status
+```bash
+./.venv/bin/python -m tools.evaluate run --suite all
 ```
 
 ## 数据与产物
-- 历史输入：`archives/root_json/`
-- 规范化事实源：`data/raw/{venue}/{year}.json`
-- 数据库：`data/papers.db`
-- 向量库：`data/vectors/chroma`
-- 报告与产物：`artifacts/`
-- M1 报告：`artifacts/m1/`
-- M2 报告：`artifacts/m2/`
-- M3 报告与索引：`artifacts/m3/` + `artifacts/indexes/`
-- M4 报告：`artifacts/m4/`
-- 采集报告：`artifacts/collections/`
-- 检索/临时导出：`artifacts/queries/`
 
-## 文档入口
-- 架构与范围：`docs/10_CORE_ARCHITECTURE.md`
-- 全流程与门禁：`docs/20_PIPELINE_AND_GATES.md`
-- 扩充策略：`docs/30_EXPANSION_POLICY.md`
-- 历史复盘：`docs/90_HISTORY.md`
-- 操作流程模板：`AGENTS.md`（SOP 章节）
+| 内容 | 路径 |
+|---|---|
+| 历史采集输入 | `archives/root_json/` |
+| 唯一规范化事实源 | `data/raw/{venue}/{year}.json` |
+| SQLite/FTS 目录 | `data/papers.db` |
+| Chroma 向量 | `data/vectors/chroma/` |
+| 运行清单 | `artifacts/runs/<run_id>/manifest.json` |
+| 查询导出 | `artifacts/queries/` |
+| 新评估报告 | `artifacts/evaluate/` |
+| 历史兼容报告 | `artifacts/m1/`～`artifacts/m4/` |
 
-## AI 协作入口
-- AI 执行约束见：`AGENTS.md`
+## Skills
+
+| Skill | 用途 |
+|---|---|
+| `janussearch` | 仅显式调用的总路由 |
+| `janus-query` | 查询、导出、详情与显式 PDF 下载 |
+| `janus-corpus` | 采集、staging、门禁和发布 |
+| `janus-ops` | 诊断、重建、修复与评估 |
+
+## 文档
+
+- `docs/README.md`：阅读入口
+- `docs/10_CORE_ARCHITECTURE.md`：能力架构与一致性模型
+- `docs/20_PIPELINE_AND_GATES.md`：命令与门禁
+- `docs/30_EXPANSION_POLICY.md`：批次扩充 SOP
+- `docs/90_HISTORY.md`：历史决策

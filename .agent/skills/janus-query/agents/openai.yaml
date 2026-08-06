@@ -1,0 +1,4 @@
+interface:
+  display_name: "Janus Query"
+  short_description: "Search and export JanusSearch papers"
+  default_prompt: "Use $janus-query to search JanusSearch and return auditable paper results."

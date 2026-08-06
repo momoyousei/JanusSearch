@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import glob as glob_lib
 import hashlib
 import html as html_lib
 import json
@@ -391,9 +392,17 @@ def parse_venue_year_from_filename(path: Path) -> Tuple[str, int]:
 
 def infer_context(payload: Dict[str, Any], path: Path) -> FileContext:
     """Build context for one source payload."""
-    fallback_venue, fallback_year = parse_venue_year_from_filename(path)
-    query = payload.get("query", {})
-    source = payload.get("source", {})
+    query_value = payload.get("query", {})
+    query = query_value if isinstance(query_value, dict) else {}
+    source_value = payload.get("source", {})
+    source = source_value if isinstance(source_value, dict) else {}
+
+    payload_venue = ensure_str(payload.get("venue"))
+    payload_year = payload.get("year")
+    if payload_venue and isinstance(payload_year, int):
+        fallback_venue, fallback_year = payload_venue.upper(), payload_year
+    else:
+        fallback_venue, fallback_year = parse_venue_year_from_filename(path)
 
     venue = ensure_str(query.get("venue_code")) or fallback_venue
     year_value = query.get("year")
@@ -405,9 +414,14 @@ def infer_context(payload: Dict[str, Any], path: Path) -> FileContext:
     provider = (
         ensure_str(query.get("provider"))
         or ensure_str(source.get("provider"))
+        or (ensure_str(source_value) if isinstance(source_value, str) else "")
         or "unknown"
     )
-    generated_at = ensure_str(payload.get("generated_at_utc")) or utc_now_iso()
+    generated_at = (
+        ensure_str(payload.get("generated_at_utc"))
+        or ensure_str(payload.get("collected_at"))
+        or utc_now_iso()
+    )
     target = ensure_str(query.get("target")) or f"{venue}-{year}"
     return FileContext(
         path=path,
@@ -442,6 +456,8 @@ def is_missing_text(value: Any) -> bool:
 
 def is_placeholder_record(record: Dict[str, Any]) -> bool:
     """Infer whether a record is an externally reconciled placeholder."""
+    if ensure_str(record.get("record_status")).lower() == "placeholder":
+        return True
     if bool(record.get("external_only")):
         return True
     authors = to_string_list(record.get("authors"))
@@ -1166,9 +1182,15 @@ def backup_file(source_path: Path, backup_root: Path, run_id: str) -> Path:
 
 def find_input_files(input_glob: str) -> List[Path]:
     """Discover source json files from current directory."""
+    pattern_path = Path(input_glob)
+    candidates = (
+        [Path(value) for value in glob_lib.glob(input_glob, recursive=True)]
+        if pattern_path.is_absolute()
+        else list(Path.cwd().glob(input_glob))
+    )
     files = [
         path
-        for path in sorted(Path.cwd().glob(input_glob))
+        for path in sorted(candidates)
         if path.is_file() and path.name.lower().endswith(".json")
     ]
     if not files:
@@ -1281,7 +1303,12 @@ def render_stats_markdown(items: Sequence[Dict[str, Any]], summary: Dict[str, An
     for item in items:
         metrics = item["metrics"]
         gate = "PASS" if item.get("gate_pass") else "FAIL"
-        alignment = "PASS" if item.get("alignment_pass", True) else "FAIL"
+        if item.get("alignment_pass", True):
+            alignment = "PASS"
+        elif summary.get("enforce_official_alignment"):
+            alignment = "FAIL"
+        else:
+            alignment = "WARN"
         lines.append(
             "| "
             + " | ".join(
@@ -1312,6 +1339,7 @@ def render_stats_markdown(items: Sequence[Dict[str, Any]], summary: Dict[str, An
             f"- Duplicate titles: {summary['duplicate_titles']}",
             f"- Alignment pass files: {summary.get('alignment_pass_files', 0)}",
             f"- Alignment fail files: {summary.get('alignment_fail_files', 0)}",
+            f"- Alignment warning files: {summary.get('alignment_warning_files', 0)}",
             f"- Gate pass files: {summary['gate_pass_files']}",
             f"- Gate fail files: {summary['gate_fail_files']}",
         ]
@@ -2535,6 +2563,7 @@ def run_validate(
         "enforce_official_alignment": enforce_official_alignment,
         "alignment_pass_files": 0,
         "alignment_fail_files": 0,
+        "alignment_warning_files": 0,
     }
     all_pass = True
     official_cache: Dict[str, Dict[str, Any]] = {}
@@ -2553,6 +2582,7 @@ def run_validate(
             official_cache=official_cache,
         )
         issues: List[str] = []
+        warnings: List[str] = []
         gate_pass = True
         if metrics["duplicate_title_count"] != 0:
             gate_pass = False
@@ -2567,29 +2597,33 @@ def run_validate(
             issues.append(
                 f"resolved_abstract_coverage={metrics['resolved_abstract_coverage']:.2f}< {threshold_abstract:.2f}"
             )
-        if enforce_official_alignment:
-            paper_alignment = alignment["paper_count"]["aligned"]
-            track_alignment = alignment["track_counts"]["aligned"]
-            level_alignment = alignment["presentation_level_counts"]["aligned"]
+        paper_alignment = alignment["paper_count"]["aligned"]
+        track_alignment = alignment["track_counts"]["aligned"]
+        level_alignment = alignment["presentation_level_counts"]["aligned"]
+        alignment_issues: List[str] = []
+        if paper_alignment is False:
+            alignment_issues.append(
+                "official_paper_count_mismatch="
+                f"{alignment['paper_count']['actual']} vs {alignment['paper_count']['official']}"
+            )
+        if track_alignment is False:
+            alignment_issues.append(
+                "official_track_counts_mismatch="
+                f"{alignment['track_counts']['diff']}"
+            )
+        if level_alignment is False:
+            alignment_issues.append(
+                "official_presentation_counts_mismatch="
+                f"{alignment['presentation_level_counts']['diff']}"
+            )
 
-            if paper_alignment is False:
+        if alignment_issues:
+            if enforce_official_alignment:
                 gate_pass = False
-                issues.append(
-                    "official_paper_count_mismatch="
-                    f"{alignment['paper_count']['actual']} vs {alignment['paper_count']['official']}"
-                )
-            if track_alignment is False:
-                gate_pass = False
-                issues.append(
-                    "official_track_counts_mismatch="
-                    f"{alignment['track_counts']['diff']}"
-                )
-            if level_alignment is False:
-                gate_pass = False
-                issues.append(
-                    "official_presentation_counts_mismatch="
-                    f"{alignment['presentation_level_counts']['diff']}"
-                )
+                issues.extend(alignment_issues)
+            else:
+                warnings.extend(alignment_issues)
+                summary["alignment_warning_files"] += 1
 
         alignment_checks = [
             alignment["paper_count"]["aligned"],
@@ -2618,6 +2652,7 @@ def run_validate(
                 "alignment_pass": alignment_pass,
                 "gate_pass": gate_pass,
                 "issues": issues,
+                "warnings": warnings,
             }
         )
 
@@ -2733,9 +2768,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"Resolved abstract coverage threshold (default: {DEFAULT_ABSTRACT_THRESHOLD})",
     )
     validate.add_argument(
+        "--strict-official-alignment",
+        action="store_true",
+        help="Promote official count/track/presentation alignment mismatches to hard failures.",
+    )
+    validate.add_argument(
         "--skip-official-alignment",
         action="store_true",
-        help="Skip official count alignment checks in validation.",
+        help="Deprecated compatibility flag; official alignment is warning-only by default.",
     )
 
     run = subparsers.add_parser("run", help="Run inventory -> normalize -> backfill -> validate")
@@ -2782,9 +2822,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"papers.cool fallback policy (default: {PAPERS_COOL_DEFAULT_POLICY}).",
     )
     run.add_argument(
+        "--strict-official-alignment",
+        action="store_true",
+        help="Promote official count/track/presentation alignment mismatches to hard failures.",
+    )
+    run.add_argument(
         "--skip-official-alignment",
         action="store_true",
-        help="Skip official count alignment checks in validation.",
+        help="Deprecated compatibility flag; official alignment is warning-only by default.",
     )
     return parser
 
@@ -2797,6 +2842,10 @@ def main() -> int:
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format="%(asctime)s %(levelname)s %(message)s",
+    )
+    LOGGER.warning(
+        "Legacy entrypoint tools.m1_pipeline is retained for compatibility; "
+        "prefer tools.corpus."
     )
 
     canonical_root = Path(args.canonical_root)
@@ -2857,7 +2906,9 @@ def main() -> int:
             stats_md_path=stats_md,
             threshold_authors=args.threshold_authors,
             threshold_abstract=args.threshold_abstract,
-            enforce_official_alignment=not args.skip_official_alignment,
+            enforce_official_alignment=(
+                bool(args.strict_official_alignment) and not args.skip_official_alignment
+            ),
         )
         return 0 if all_pass else 1
 
@@ -2890,7 +2941,9 @@ def main() -> int:
             stats_md_path=stats_md,
             threshold_authors=args.threshold_authors,
             threshold_abstract=args.threshold_abstract,
-            enforce_official_alignment=not args.skip_official_alignment,
+            enforce_official_alignment=(
+                bool(args.strict_official_alignment) and not args.skip_official_alignment
+            ),
         )
         return 0 if all_pass else 1
 

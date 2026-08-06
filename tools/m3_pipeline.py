@@ -486,13 +486,17 @@ def make_chroma_client(vectors_root: Path) -> Any:
     """Create Chroma persistent client."""
     try:
         import chromadb
+        from chromadb.config import Settings
     except ImportError as exc:
         raise RuntimeError(
             "Missing dependency `chromadb`. Install with: uv add chromadb"
         ) from exc
 
     vectors_root.mkdir(parents=True, exist_ok=True)
-    return chromadb.PersistentClient(path=str(vectors_root))
+    return chromadb.PersistentClient(
+        path=str(vectors_root),
+        settings=Settings(anonymized_telemetry=False),
+    )
 
 
 def reset_chroma_collection(vectors_root: Path, collection_name: str) -> Any:
@@ -2225,6 +2229,10 @@ def main() -> int:
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format="%(asctime)s %(levelname)s %(message)s",
+    )
+    LOGGER.warning(
+        "Legacy entrypoint tools.m3_pipeline is retained for compatibility; "
+        "prefer tools.projections."
     )
 
     db_path = Path(args.db_path)

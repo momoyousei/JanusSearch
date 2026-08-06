@@ -250,6 +250,106 @@ class TestSearchExport(unittest.TestCase):
         # P1 contains both "continual learning" and "replay"; should match the first group.
         self.assertEqual(p1["matched_topic"], "Continual Learning / Class-Incremental Learning（持续学习/类增量）")
 
+    def test_grouped_candidate_union_with_required_label_intersection(self) -> None:
+        keywords_json = self.root / "keywords_grouped.json"
+        keyword_payload = {
+            "query": "continual learning replay",
+            "candidate_queries": ["replay", "flatness"],
+            "required_labels": ["Continual Learning", "Replay"],
+            "keywords": [
+                {
+                    "label": "Continual Learning",
+                    "aliases": ["continual learning"],
+                },
+                {
+                    "label": "Replay",
+                    "aliases": ["replay", "rehearsal"],
+                },
+            ],
+        }
+        keywords_json.write_text(
+            json.dumps(keyword_payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        out_tsv = self.root / "grouped.tsv"
+
+        payload = run_export(
+            db_path=self.db_path,
+            query="continual learning replay",
+            mode="search",
+            out_tsv=out_tsv,
+            keywords_json=keywords_json,
+            topics_json=self.root / "missing_topics.json",
+            max_export=0,
+            venues=[],
+            year_from=None,
+            year_to=None,
+            track=None,
+            presentation_level=None,
+            include_placeholder=False,
+            order="bm25",
+            embed_base_url="https://example.org/v1",
+            embed_model="fake",
+            embed_api_key=None,
+            alpha=0.6,
+            vector_top_k=100,
+            bm25_top_k=100,
+            vectors_root=self.root / "vectors",
+            collection_name="papers_v1",
+        )
+
+        self.assertEqual(payload["candidate_queries"], ["replay", "flatness"])
+        self.assertEqual(payload["candidate_total"], 2)
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["exported"], 1)
+        self.assertEqual(read_tsv(out_tsv)[0]["paper_id"], "P1")
+
+    def test_grouped_query_requires_candidate_queries_and_labels_together(self) -> None:
+        base_payload = {
+            "query": "continual learning replay",
+            "keywords": [
+                {"label": "Continual Learning", "aliases": ["continual learning"]},
+                {"label": "Replay", "aliases": ["replay"]},
+            ],
+        }
+        incomplete_definitions = [
+            {**base_payload, "candidate_queries": ["replay"]},
+            {**base_payload, "required_labels": ["Continual Learning", "Replay"]},
+        ]
+
+        for index, keyword_payload in enumerate(incomplete_definitions):
+            with self.subTest(keyword_payload=keyword_payload):
+                keywords_json = self.root / f"keywords_incomplete_{index}.json"
+                keywords_json.write_text(
+                    json.dumps(keyword_payload, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(ValueError, "must either both be non-empty"):
+                    run_export(
+                        db_path=self.db_path,
+                        query="continual learning replay",
+                        mode="search",
+                        out_tsv=self.root / f"incomplete_{index}.tsv",
+                        keywords_json=keywords_json,
+                        topics_json=self.root / "missing_topics.json",
+                        max_export=0,
+                        venues=[],
+                        year_from=None,
+                        year_to=None,
+                        track=None,
+                        presentation_level=None,
+                        include_placeholder=False,
+                        order="bm25",
+                        embed_base_url="https://example.org/v1",
+                        embed_model="fake",
+                        embed_api_key=None,
+                        alpha=0.6,
+                        vector_top_k=100,
+                        bm25_top_k=100,
+                        vectors_root=self.root / "vectors",
+                        collection_name="papers_v1",
+                    )
+
     def test_topics_json_missing_degrades_gracefully(self) -> None:
         keywords_json = self.root / "keywords.json"
         write_keywords_json(keywords_json)
