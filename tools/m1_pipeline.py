@@ -1142,6 +1142,18 @@ def write_json(path: Path, payload: Dict[str, Any]) -> None:
         handle.write("\n")
 
 
+def write_json_atomic(path: Path, payload: Dict[str, Any]) -> None:
+    """Atomically replace one UTF-8 JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f".{path.name}.tmp")
+    try:
+        write_json(temp_path, payload)
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def backup_file(source_path: Path, backup_root: Path, run_id: str) -> Path:
     """Create backup copy before modifying source file."""
     target_dir = backup_root / run_id
@@ -2186,7 +2198,10 @@ def backfill_records(
             elif papers_cool_result["rejected_reason"]:
                 stats["papers_cool_rejected"] += 1
 
+        abstract_repaired = not is_missing_text(record.get("abstract"))
         if updated:
+            record["quality_flags"] = normalize_quality_flags(record)
+        if abstract_repaired:
             record["record_status"] = "repaired"
             record["quality_flags"] = normalize_quality_flags(record)
             stats["updated_records"] += 1
@@ -2301,6 +2316,87 @@ def run_normalize(
     report = {"summary": summary, "files": file_items}
     write_json(report_path, report)
     LOGGER.info("Normalize report written: %s", report_path)
+    return report
+
+
+def _replace_field_provenance(
+    record: Dict[str, Any],
+    field_provenance: Dict[str, str],
+) -> Dict[str, Any]:
+    """Return a record with provenance placed after source_ids in stable schema order."""
+    normalized: Dict[str, Any] = {}
+    inserted = False
+    for key, value in record.items():
+        if key == "field_provenance":
+            if not inserted:
+                normalized[key] = field_provenance
+                inserted = True
+            continue
+        normalized[key] = value
+        if key == "source_ids" and not inserted:
+            normalized["field_provenance"] = field_provenance
+            inserted = True
+    if not inserted:
+        normalized["field_provenance"] = field_provenance
+    return normalized
+
+
+def run_migrate_provenance(
+    canonical_root: Path,
+    report_path: Path,
+) -> Dict[str, Any]:
+    """Backfill canonical field provenance without changing other record values."""
+    files = sorted(path for path in canonical_root.glob("*/*.json") if path.is_file())
+    if not files:
+        raise FileNotFoundError(f"No canonical json files found under: {canonical_root}")
+
+    summary = {
+        "generated_at_utc": utc_now_iso(),
+        "file_count": len(files),
+        "record_count": 0,
+        "updated_file_count": 0,
+        "updated_record_count": 0,
+    }
+    file_items: List[Dict[str, Any]] = []
+
+    for file_path in files:
+        payload = load_payload(file_path)
+        papers = payload.get("papers")
+        if not isinstance(papers, list):
+            raise ValueError(f"{file_path}: papers must be list")
+
+        updated_records = 0
+        migrated: List[Dict[str, Any]] = []
+        for index, record in enumerate(papers):
+            if not isinstance(record, dict):
+                raise ValueError(f"{file_path}: papers[{index}] must be object")
+            field_provenance = normalize_field_provenance(record)
+            if not field_provenance:
+                raise ValueError(
+                    f"{file_path}: papers[{index}] has no populated provenance-tracked fields"
+                )
+            if record.get("field_provenance") != field_provenance:
+                updated_records += 1
+            migrated.append(_replace_field_provenance(record, field_provenance))
+
+        summary["record_count"] += len(migrated)
+        if updated_records:
+            payload["papers"] = migrated
+            write_json_atomic(file_path, payload)
+            summary["updated_file_count"] += 1
+            summary["updated_record_count"] += updated_records
+
+        file_items.append(
+            {
+                "file": str(file_path),
+                "record_count": len(migrated),
+                "updated_record_count": updated_records,
+            }
+        )
+
+    report = {"summary": summary, "files": file_items}
+    write_json(report_path, report)
+    LOGGER.info("Provenance migration report written: %s", report_path)
     return report
 
 
@@ -2581,6 +2677,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Do not write root files, only canonical outputs",
     )
 
+    subparsers.add_parser(
+        "migrate-provenance",
+        help="Backfill canonical field_provenance without changing other fields",
+    )
+
     backfill = subparsers.add_parser("backfill", help="Backfill missing abstracts")
     backfill.add_argument("--timeout", type=float, default=30.0, help="HTTP timeout seconds")
     backfill.add_argument("--retries", type=int, default=3, help="Retry count")
@@ -2706,6 +2807,7 @@ def main() -> int:
 
     inventory_report = m1_root / "inventory.json"
     normalize_report = m1_root / "normalize_report.json"
+    provenance_report = m1_root / "provenance_migration_report.json"
     backfill_report = m1_root / "backfill_report.json"
     validate_report = m1_root / "quality_report.json"
     stats_md = m1_root / "stats.md"
@@ -2721,6 +2823,13 @@ def main() -> int:
             backup_root=backup_root,
             report_path=normalize_report,
             write_back=not args.no_write_back,
+        )
+        return 0
+
+    if args.command == "migrate-provenance":
+        run_migrate_provenance(
+            canonical_root=canonical_root,
+            report_path=provenance_report,
         )
         return 0
 

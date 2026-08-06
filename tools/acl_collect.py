@@ -98,6 +98,7 @@ def fetch_text(url: str, timeout: float, retries: int, min_interval: float) -> s
             "curl",
             "-sS",
             "-L",
+            "--fail-with-body",
             "--max-time",
             str(timeout_seconds),
             url,

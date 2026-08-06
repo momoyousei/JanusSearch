@@ -134,6 +134,14 @@ def to_abs_url(value: str) -> str:
     return urljoin(AAAI_BASE_URL, raw)
 
 
+def to_openreview_abs_url(value: str) -> str:
+    """Return an absolute OpenReview URL."""
+    raw = ensure_str(value)
+    if not raw:
+        return ""
+    return urljoin(OPENREVIEW_BASE_URL, raw)
+
+
 def split_authors(value: str) -> List[str]:
     """Split author text from issue listing."""
     text = normalize_spaces(strip_tags(value))
@@ -626,7 +634,7 @@ def build_openreview_paper_record(
     venue_label = normalize_spaces(ensure_str(note_value(content, "venue")))
     venue_id = normalize_spaces(ensure_str(note_value(content, "venueid")))
     pdf_path = ensure_str(note_value(content, "pdf"))
-    pdf_url = to_abs_url(pdf_path) if pdf_path.startswith("/") else ensure_str(pdf_path)
+    pdf_url = to_openreview_abs_url(pdf_path)
     forum_url = f"{OPENREVIEW_BASE_URL}/forum?id={forum_id or note_id}" if (forum_id or note_id) else ""
 
     presentation_level = "poster"

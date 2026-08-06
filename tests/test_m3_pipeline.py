@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ from unittest.mock import patch
 
 from tools.m2_db import run_load
 from tools.m3_pipeline import (
+    check_chroma_sqlite_integrity,
     run_build_cache,
     run_build_topics,
     run_build_vectors,
@@ -218,6 +220,12 @@ def build_payload() -> Dict[str, Any]:
             "collected_at": "2026-02-20T00:00:00+00:00",
         },
     ]
+    for paper in papers:
+        paper["field_provenance"] = {
+            field: "official"
+            for field in ("abstract", "authors", "url", "track_group", "presentation_level")
+            if paper.get(field)
+        }
     return {
         "venue": "ICLR",
         "year": 2024,
@@ -316,7 +324,31 @@ class TestM3Pipeline(unittest.TestCase):
             patch("tools.m3_pipeline.embed_batch", side_effect=fake_embed_batch),
             patch("tools.m3_pipeline.make_llm_client", side_effect=fake_make_llm_client),
             patch("tools.m3_pipeline.generate_topic_label", side_effect=fake_generate_topic_label),
+            patch(
+                "tools.m3_pipeline.check_chroma_sqlite_integrity",
+                return_value={
+                    "pass": True,
+                    "db_path": str(self.vectors_root / "chroma.sqlite3"),
+                    "quick_check": ["ok"],
+                    "error": None,
+                },
+            ),
         ]
+
+    def test_chroma_sqlite_integrity_check(self) -> None:
+        self.vectors_root.mkdir(parents=True, exist_ok=True)
+        chroma_db = self.vectors_root / "chroma.sqlite3"
+        conn = sqlite3.connect(chroma_db)
+        try:
+            conn.execute("CREATE VIRTUAL TABLE embedding_fulltext_search USING fts5(text)")
+            conn.execute("INSERT INTO embedding_fulltext_search (text) VALUES ('healthy index')")
+            conn.commit()
+        finally:
+            conn.close()
+
+        result = check_chroma_sqlite_integrity(self.vectors_root)
+        self.assertTrue(result["pass"])
+        self.assertEqual(result["quick_check"], ["ok"])
 
     def test_build_vectors_success(self) -> None:
         patches = self._patch_m3()

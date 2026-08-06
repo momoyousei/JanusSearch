@@ -128,6 +128,12 @@ def build_payload() -> Dict[str, Any]:
             "collected_at": "2026-02-20T00:00:00+00:00",
         },
     ]
+    for paper in papers:
+        paper["field_provenance"] = {
+            field: "official"
+            for field in ("abstract", "authors", "url", "track_group", "presentation_level")
+            if paper.get(field)
+        }
     return {
         "venue": "ICLR",
         "year": 2024,

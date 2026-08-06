@@ -4,19 +4,24 @@
 
 from __future__ import annotations
 
+import copy
+import json
+import tempfile
 import unittest
-from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.m1_pipeline import (
     FileContext,
     backfill_from_papers_cool,
+    backfill_records,
     canonicalize_doi,
     dedupe_records,
     is_placeholder_record,
     normalize_title,
     parse_papers_cool_venue_html,
     resolve_icml_pmlr_volume,
+    run_migrate_provenance,
     transform_record,
 )
 
@@ -119,6 +124,113 @@ class TestM1Pipeline(unittest.TestCase):
                 "presentation_level": "official",
             },
         )
+
+    @patch("tools.m1_pipeline.backfill_from_pmlr", return_value=False)
+    def test_backfill_metadata_only_does_not_mark_abstract_repaired(
+        self,
+        _pmlr_mock,
+    ) -> None:
+        class FakeSemanticScholarClient:
+            @staticmethod
+            def lookup_by_doi(_doi: str) -> dict:
+                return {
+                    "title": "Target Paper",
+                    "abstract": None,
+                    "citationCount": 7,
+                    "paperId": "s2-target",
+                }
+
+            @staticmethod
+            def search_by_title(_title: str) -> dict:
+                return {}
+
+        record = {
+            "paper_title": "Target Paper",
+            "title": "Target Paper",
+            "abstract": "",
+            "authors": ["Alice"],
+            "doi": "10.1000/target",
+            "url": "https://example.org/target",
+            "record_status": "resolved",
+            "source_ids": {},
+            "quality_flags": ["missing_abstract"],
+        }
+        stats = backfill_records(
+            [record],
+            venue="TEST",
+            year=2025,
+            client=FakeSemanticScholarClient(),
+            timeout=1.0,
+            retries=1,
+            max_records=0,
+            enable_arxiv_title=False,
+            enable_papers_cool=False,
+            papers_cool_policy="full_fields",
+        )
+
+        self.assertEqual(record["abstract"], "")
+        self.assertEqual(record["record_status"], "resolved")
+        self.assertEqual(stats["updated_records"], 0)
+        self.assertEqual(stats["failed_records"], 1)
+
+    def test_migrate_provenance_preserves_other_record_values(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            canonical_root = root / "data" / "raw"
+            target = canonical_root / "iclr" / "2024.json"
+            report_path = root / "artifacts" / "m1" / "provenance.json"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            record = {
+                "paper_id": "P1",
+                "title": "A Test Paper",
+                "authors": ["Alice"],
+                "venue": "ICLR",
+                "year": 2024,
+                "abstract": "Abstract",
+                "doi": None,
+                "url": "https://example.org/p1",
+                "citation_count": 1,
+                "source_provider": "openreview",
+                "source_ids": {"openreview_id": "P1"},
+                "keywords": [],
+                "track": "conference",
+                "track_display_name": "Conference",
+                "track_group": "main",
+                "presentation_level": "poster",
+                "institutions": [],
+                "record_status": "resolved",
+                "quality_flags": [],
+                "collected_at": "2026-08-06T00:00:00+00:00",
+            }
+            payload = {
+                "venue": "ICLR",
+                "year": 2024,
+                "count": 1,
+                "papers": [record],
+            }
+            target.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            before = copy.deepcopy(payload)
+
+            report = run_migrate_provenance(canonical_root, report_path)
+            after = json.loads(target.read_text(encoding="utf-8"))
+
+            provenance = after["papers"][0].pop("field_provenance")
+            self.assertEqual(after, before)
+            self.assertEqual(
+                provenance,
+                {
+                    "abstract": "official",
+                    "authors": "official",
+                    "url": "official",
+                    "track_group": "official",
+                    "presentation_level": "official",
+                },
+            )
+            self.assertEqual(report["summary"]["updated_file_count"], 1)
+            self.assertEqual(report["summary"]["updated_record_count"], 1)
 
     def test_parse_papers_cool_venue_html_acl(self) -> None:
         html = """

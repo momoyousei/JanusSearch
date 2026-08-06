@@ -16,8 +16,10 @@ from tools.m2_db import run_load
 from tools.m4_validate import (
     build_arg_parser,
     build_sampled_queries,
+    load_topic_membership,
     run_fixed_suite,
     run_m4,
+    run_sampled_suite,
     run_status,
 )
 
@@ -68,6 +70,13 @@ def paper_item(
         "citation_count": 5,
         "source_provider": "openreview",
         "source_ids": {"openreview_id": f"OR-{paper_id}"},
+        "field_provenance": {
+            "abstract": "official",
+            "authors": "official",
+            "url": "official",
+            "track_group": "official",
+            "presentation_level": "official",
+        },
         "keywords": ["continual learning", "replay"],
         "track": "conference",
         "track_display_name": "Conference",
@@ -179,6 +188,23 @@ class TestM4Validate(unittest.TestCase):
                             "subtopic_name": "Gradient Methods",
                         }
                     ],
+                },
+            ],
+            "assignments": [
+                {
+                    "paper_id": "P-ICLR-MEMORY",
+                    "topic_slug": "continual_learning",
+                    "subtopic_slug": "replay_methods",
+                },
+                {
+                    "paper_id": "P-ICML-LAYERWISE",
+                    "topic_slug": "continual_learning",
+                    "subtopic_slug": "replay_methods",
+                },
+                {
+                    "paper_id": "P-NEURIPS-RAR",
+                    "topic_slug": "optimization",
+                    "subtopic_slug": "gradient_methods",
                 },
             ],
         }
@@ -324,6 +350,82 @@ class TestM4Validate(unittest.TestCase):
         )
         self.assertEqual(first["cases"], second["cases"])
         self.assertGreater(len(first["cases"]), 0)
+
+    def test_topic_membership_contains_topic_and_subtopic_keys(self) -> None:
+        membership = load_topic_membership(self.topics_file)
+        self.assertIn("P-ICLR-MEMORY", membership[("continual_learning", None)])
+        self.assertIn(
+            "P-ICLR-MEMORY", membership[("continual_learning", "replay_methods")]
+        )
+
+    def test_sampled_suite_rejects_nonmember_result(self) -> None:
+        case = {
+            "case_id": "sample_continual_learning_replay_methods",
+            "query": "Continual Learning Replay Methods",
+            "topic_slug": "continual_learning",
+            "subtopic_slug": "replay_methods",
+            "top_k": 20,
+        }
+        result = {
+            "paper_id": "UNRELATED",
+            "title": "A Structurally Valid but Unrelated Paper",
+            "venue": "ICLR",
+            "year": 2024,
+        }
+        with patch(
+            "tools.m4_validate.run_hybrid",
+            return_value={"total": 1, "results": [result]},
+        ):
+            report = run_sampled_suite(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name="papers_v1",
+                sampled_cases=[case],
+                topic_membership={
+                    ("continual_learning", "replay_methods"): {"P-ICLR-MEMORY"}
+                },
+                embed_base_url="https://api.siliconflow.cn/v1/embeddings",
+                embed_model="Qwen/Qwen3-Embedding-8B",
+                embed_api_key="sk-test",
+            )
+        self.assertFalse(report["pass_threshold"])
+        self.assertTrue(report["cases"][0]["structure_ok"])
+        self.assertFalse(report["cases"][0]["relevance_ok"])
+        self.assertEqual(report["cases"][0]["relevant_hit_count"], 0)
+
+    def test_sampled_suite_accepts_member_result(self) -> None:
+        case = {
+            "case_id": "sample_continual_learning_replay_methods",
+            "query": "Continual Learning Replay Methods",
+            "topic_slug": "continual_learning",
+            "subtopic_slug": "replay_methods",
+            "top_k": 20,
+        }
+        result = {
+            "paper_id": "P-ICLR-MEMORY",
+            "title": "Memory Replay with Data Compression for Continual Learning",
+            "venue": "ICLR",
+            "year": 2022,
+        }
+        with patch(
+            "tools.m4_validate.run_hybrid",
+            return_value={"total": 1, "results": [result]},
+        ):
+            report = run_sampled_suite(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name="papers_v1",
+                sampled_cases=[case],
+                topic_membership={
+                    ("continual_learning", "replay_methods"): {"P-ICLR-MEMORY"}
+                },
+                embed_base_url="https://api.siliconflow.cn/v1/embeddings",
+                embed_model="Qwen/Qwen3-Embedding-8B",
+                embed_api_key="sk-test",
+            )
+        self.assertTrue(report["pass_threshold"])
+        self.assertTrue(report["cases"][0]["relevance_ok"])
+        self.assertEqual(report["cases"][0]["relevant_result_ids"], ["P-ICLR-MEMORY"])
 
     def test_report_schema_and_status(self) -> None:
         with (

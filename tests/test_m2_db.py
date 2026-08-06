@@ -9,6 +9,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.m2_db import run_load, run_reindex_fts, run_validate
 
@@ -147,6 +148,70 @@ class TestM2DB(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_failed_rebuild_preserves_existing_database(self) -> None:
+        run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("CREATE TABLE rebuild_sentinel (value TEXT NOT NULL)")
+            conn.execute("INSERT INTO rebuild_sentinel (value) VALUES ('keep-me')")
+            conn.commit()
+        finally:
+            conn.close()
+
+        payload_path = self.input_root / "iclr" / "2024.json"
+        payload = json.loads(payload_path.read_text(encoding="utf-8"))
+        del payload["papers"][0]["title"]
+        payload_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "missing required keys"):
+            run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            sentinel = conn.execute("SELECT value FROM rebuild_sentinel").fetchone()[0]
+            paper_count = conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(sentinel, "keep-me")
+        self.assertEqual(paper_count, 1)
+        self.assertEqual(list(self.db_path.parent.glob(f".{self.db_path.name}.m2-*.tmp")), [])
+
+    def test_database_open_failure_preserves_existing_database(self) -> None:
+        run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+
+        with patch(
+            "tools.m2_db.connect_db",
+            side_effect=sqlite3.OperationalError("cannot open replacement database"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cannot open replacement database"):
+                run_load(
+                    input_root=self.input_root,
+                    db_path=self.db_path,
+                    index_root=self.index_root,
+                )
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            paper_count = conn.execute("SELECT COUNT(*) FROM papers").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(paper_count, 1)
+        self.assertEqual(list(self.db_path.parent.glob(f".{self.db_path.name}.m2-*.tmp")), [])
+
+    def test_load_rejects_missing_field_provenance(self) -> None:
+        payload_path = self.input_root / "iclr" / "2024.json"
+        payload = json.loads(payload_path.read_text(encoding="utf-8"))
+        del payload["papers"][0]["field_provenance"]
+        payload_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "field_provenance"):
+            run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+        self.assertFalse(self.db_path.exists())
+
     def test_validate_detects_mismatch(self) -> None:
         run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
         conn = sqlite3.connect(self.db_path)
@@ -163,6 +228,30 @@ class TestM2DB(unittest.TestCase):
         )
         self.assertFalse(all_pass)
         self.assertIn("paper_count mismatch", report["issues"])
+
+    def test_validate_detects_invalid_persisted_field_provenance(self) -> None:
+        run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                "UPDATE papers SET field_provenance_json = '{}' WHERE paper_id = ?",
+                ("S2-test-paper-1",),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        report, all_pass = run_validate(
+            input_root=self.input_root,
+            db_path=self.db_path,
+            index_root=self.index_root,
+        )
+        self.assertFalse(all_pass)
+        self.assertIn("invalid_field_provenance mismatch", report["issues"])
+        self.assertEqual(
+            report["diffs"]["invalid_field_provenance"][0]["paper_id"],
+            "S2-test-paper-1",
+        )
 
     def test_source_file_manifest(self) -> None:
         run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)

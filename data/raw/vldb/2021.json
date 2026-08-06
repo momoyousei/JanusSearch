@@ -43,6 +43,13 @@
         "doi": "10.14778/3476249.3476285",
         "openalex_id": "https://openalex.org/W3185475042"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -84,6 +91,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461547",
         "openalex_id": "https://openalex.org/W3165484655"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Speedup",
@@ -133,6 +147,13 @@
         "doi": "10.14778/3457390.3457406",
         "openalex_id": "https://openalex.org/W3033994564"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -173,6 +194,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476255",
         "openalex_id": "https://openalex.org/W3128793550"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -221,6 +249,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447697",
         "openalex_id": "https://openalex.org/W3150241674"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -271,6 +306,13 @@
         "doi": "10.14778/3450980.3450989",
         "openalex_id": "https://openalex.org/W3147796863"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Noise (video)",
@@ -319,6 +361,13 @@
         "doi": "10.14778/3476311.3476317",
         "openalex_id": "https://openalex.org/W3196877232"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "SPARQL",
@@ -366,6 +415,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476361",
         "openalex_id": "https://openalex.org/W3197100267"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "NoSQL",
@@ -416,6 +472,13 @@
         "doi": "10.14778/3476311.3476329",
         "openalex_id": "https://openalex.org/W3196769185"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Scalability",
@@ -462,6 +525,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476347",
         "openalex_id": "https://openalex.org/W3196526244"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Workflow",
@@ -512,6 +582,13 @@
         "doi": "10.14778/3476311.3476355",
         "openalex_id": "https://openalex.org/W3196644750"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Benchmarking",
         "Anomaly detection",
@@ -556,6 +633,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476286",
         "openalex_id": "https://openalex.org/W3198118189"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Bloom filter",
@@ -603,6 +687,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446100",
         "openalex_id": "https://openalex.org/W3043413334"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -652,6 +743,13 @@
         "doi": "10.14778/3476249.3476267",
         "openalex_id": "https://openalex.org/W3198197820"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Shortest path problem",
@@ -700,6 +798,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476358",
         "openalex_id": "https://openalex.org/W3198393833"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Utterance",
@@ -752,6 +857,13 @@
         "doi": "10.14778/3450980.3450992",
         "openalex_id": "https://openalex.org/W3139827290"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Oracle",
@@ -798,6 +910,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476356",
         "openalex_id": "https://openalex.org/W3197401059"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -848,6 +967,13 @@
         "doi": "10.14778/3476311.3476354",
         "openalex_id": "https://openalex.org/W3196882216"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Pipeline (software)",
@@ -897,6 +1023,13 @@
         "doi": "10.14778/3457390.3457397",
         "openalex_id": "https://openalex.org/W3164035230"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Dram",
@@ -945,6 +1078,13 @@
         "doi": "10.14778/3476249.3476266",
         "openalex_id": "https://openalex.org/W3197605116"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Bounded function",
         "Outlier",
@@ -989,6 +1129,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476288",
         "openalex_id": "https://openalex.org/W3198591728"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -1037,6 +1184,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476271",
         "openalex_id": "https://openalex.org/W3184292079"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Queueing theory",
@@ -1087,6 +1241,13 @@
         "doi": "10.14778/3461535.3461552",
         "openalex_id": "https://openalex.org/W3111141572"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -1124,6 +1285,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476404",
         "openalex_id": "https://openalex.org/W3172703303"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -1169,6 +1337,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476336",
         "openalex_id": "https://openalex.org/W3197684911"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Hyperparameter",
@@ -1217,6 +1392,13 @@
         "doi": "10.14778/3476311.3476318",
         "openalex_id": "https://openalex.org/W3185107419"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Machine learning",
@@ -1264,6 +1446,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476337",
         "openalex_id": "https://openalex.org/W3198466249"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -1318,6 +1507,13 @@
         "doi": "10.14778/3476311.3476346",
         "openalex_id": "https://openalex.org/W3196904276"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Data science",
@@ -1367,6 +1563,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476362",
         "openalex_id": "https://openalex.org/W3197025661"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -1419,6 +1622,13 @@
         "doi": "10.14778/3461535.3461541",
         "openalex_id": "https://openalex.org/W4313222084"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Serialization",
@@ -1467,6 +1677,13 @@
         "doi": "10.14778/3476311.3476341",
         "openalex_id": "https://openalex.org/W3196475749"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Outlier",
@@ -1513,6 +1730,13 @@
         "doi": "10.14778/3461535.3463474",
         "openalex_id": "https://openalex.org/W3175054836"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Feature (linguistics)"
@@ -1555,6 +1779,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476333",
         "openalex_id": "https://openalex.org/W3196436244"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -1609,6 +1840,13 @@
         "doi": "10.14778/3461535.3461550",
         "openalex_id": "https://openalex.org/W3173764925"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Memoization",
@@ -1652,6 +1890,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476303",
         "openalex_id": "https://openalex.org/W3201524081"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Pipeline (software)",
@@ -1700,6 +1945,13 @@
         "doi": "10.14778/3476249.3476306",
         "openalex_id": "https://openalex.org/W3121750545"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Joins",
         "Join (topology)",
@@ -1744,6 +1996,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476385",
         "openalex_id": "https://openalex.org/W3198412807"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Metadata",
@@ -1794,6 +2053,13 @@
         "doi": "10.14778/3447689.3447694",
         "openalex_id": "https://openalex.org/W3148000254"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Closeness",
         "Computer science",
@@ -1842,6 +2108,13 @@
         "doi": "10.14778/3467861.3467870",
         "openalex_id": "https://openalex.org/W3106456643"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -1881,6 +2154,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447705",
         "openalex_id": "https://openalex.org/W3151309405"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Encryption",
@@ -1930,6 +2210,13 @@
         "doi": "10.14778/3476249.3476258",
         "openalex_id": "https://openalex.org/W3198329374"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Vertex (graph theory)",
         "Computer science",
@@ -1976,6 +2263,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476275",
         "openalex_id": "https://openalex.org/W3198021757"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -2025,6 +2319,13 @@
         "doi": "10.14778/3476311.3476363",
         "openalex_id": "https://openalex.org/W3198782179"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Differential privacy",
@@ -2070,6 +2371,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476326",
         "openalex_id": "https://openalex.org/W3197016261"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -2117,6 +2425,13 @@
         "doi": "10.14778/3457390.3457398",
         "openalex_id": "https://openalex.org/W3164690045"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Question answering",
@@ -2163,6 +2478,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476277",
         "openalex_id": "https://openalex.org/W3197640018"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -2213,6 +2535,13 @@
         "doi": "10.14778/3457390.3457404",
         "openalex_id": "https://openalex.org/W3165341913"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Workload",
@@ -2258,6 +2587,13 @@
         "doi": "10.14778/3447689.3447709",
         "openalex_id": "https://openalex.org/W3134512890"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Programming language",
@@ -2302,6 +2638,13 @@
         "doi": "10.14778/3476249.3476290",
         "openalex_id": "https://openalex.org/W3186434753"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -2341,6 +2684,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450981",
         "openalex_id": "https://openalex.org/W3146297698"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Maximization",
@@ -2388,6 +2738,13 @@
         "doi": "10.14778/3476249.3476297",
         "openalex_id": "https://openalex.org/W3196580506"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Joins",
@@ -2433,6 +2790,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476291",
         "openalex_id": "https://openalex.org/W3197267923"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -2481,6 +2845,13 @@
         "doi": "10.14778/3476311.3476359",
         "openalex_id": "https://openalex.org/W3197142901"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Dataflow",
         "Computer science",
@@ -2527,6 +2898,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461546",
         "openalex_id": "https://openalex.org/W3210479060"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Counterfactual thinking",
@@ -2576,6 +2954,13 @@
         "doi": "10.14778/3484224.3484235",
         "openalex_id": "https://openalex.org/W3209651982"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "SPARQL",
         "Computer science",
@@ -2623,6 +3008,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476274",
         "openalex_id": "https://openalex.org/W3197204476"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Compaction",
@@ -2672,6 +3064,13 @@
         "doi": "10.14778/3476311.3476315",
         "openalex_id": "https://openalex.org/W3198155591"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Joins",
         "Computer science",
@@ -2720,6 +3119,13 @@
         "doi": "10.14778/3467861.3467865",
         "openalex_id": "https://openalex.org/W3174017036"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Encryption",
@@ -2765,6 +3171,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476292",
         "openalex_id": "https://openalex.org/W3192056702"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -2813,6 +3226,13 @@
         "doi": "10.14778/3467861.3467872",
         "openalex_id": "https://openalex.org/W3168854329"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -2853,6 +3273,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476403",
         "openalex_id": "https://openalex.org/W3198440572"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Leverage (statistics)",
@@ -2901,6 +3328,13 @@
         "doi": "10.14778/3461535.3461537",
         "openalex_id": "https://openalex.org/W3174095827"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Isolation (microbiology)",
@@ -2945,6 +3379,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476296",
         "openalex_id": "https://openalex.org/W3197201888"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "NoSQL",
@@ -2995,6 +3436,13 @@
         "doi": "10.14778/3476311.3476352",
         "openalex_id": "https://openalex.org/W3196614708"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Ask price",
         "Computer science",
@@ -3041,6 +3489,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484232",
         "openalex_id": "https://openalex.org/W3210990339"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Microservices",
@@ -3089,6 +3544,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476272",
         "openalex_id": "https://openalex.org/W3197295672"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -3141,6 +3603,13 @@
         "doi": "10.14778/3476311.3476370",
         "openalex_id": "https://openalex.org/W3197096412"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Analytics",
@@ -3192,6 +3661,13 @@
         "doi": "10.14778/3476311.3476334",
         "openalex_id": "https://openalex.org/W3197917898"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Reinforcement learning",
         "Computer science",
@@ -3238,6 +3714,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446103",
         "openalex_id": "https://openalex.org/W3118268131"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -3287,6 +3770,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447700",
         "openalex_id": "https://openalex.org/W3145740377"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Sensitivity (control systems)",
@@ -3339,6 +3829,13 @@
         "doi": "10.14778/3476311.3476331",
         "openalex_id": "https://openalex.org/W3198871417"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Debugging",
@@ -3388,6 +3885,13 @@
         "doi": "10.14778/3476249.3476302",
         "openalex_id": "https://openalex.org/W3197319853"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Edge computing",
@@ -3435,6 +3939,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476305",
         "openalex_id": "https://openalex.org/W3198189630"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -3486,6 +3997,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476294",
         "openalex_id": "https://openalex.org/W3197468999"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -3540,6 +4058,13 @@
         "doi": "10.14778/3476311.3476316",
         "openalex_id": "https://openalex.org/W3198045395"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Maintainability",
@@ -3588,6 +4113,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476340",
         "openalex_id": "https://openalex.org/W3198059990"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Apperception",
@@ -3642,6 +4174,13 @@
         "doi": "10.14778/3476311.3476335",
         "openalex_id": "https://openalex.org/W3196792859"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Revenue",
         "Variety (cybernetics)",
@@ -3689,6 +4228,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476345",
         "openalex_id": "https://openalex.org/W3196452755"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -3741,6 +4287,13 @@
         "doi": "10.14778/3476311.3476338",
         "openalex_id": "https://openalex.org/W3209362341"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Embedding",
@@ -3789,6 +4342,13 @@
         "doi": "10.14778/3476311.3476332",
         "openalex_id": "https://openalex.org/W3198482311"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Debugging",
         "Computer science",
@@ -3836,6 +4396,13 @@
         "doi": "10.14778/3476311.3476328",
         "openalex_id": "https://openalex.org/W3198511061"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Popularity",
@@ -3879,6 +4446,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484241",
         "openalex_id": "https://openalex.org/W3209512305"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Interpretability",
@@ -3930,6 +4504,13 @@
         "doi": "10.14778/3476311.3476353",
         "openalex_id": "https://openalex.org/W3197661828"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Dice",
         "Computer science",
@@ -3980,6 +4561,13 @@
         "doi": "10.14778/3446095.3446106",
         "openalex_id": "https://openalex.org/W3139053233"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Differential privacy",
         "Computer science",
@@ -4029,6 +4617,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457403",
         "openalex_id": "https://openalex.org/W3164968002"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4081,6 +4676,13 @@
         "doi": "10.14778/3467861.3467867",
         "openalex_id": "https://openalex.org/W3175089547"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Software portability",
@@ -4128,6 +4730,13 @@
         "doi": "10.14778/3450980.3450991",
         "openalex_id": "https://openalex.org/W3140576235"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Joins",
         "Join (topology)",
@@ -4174,6 +4783,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476262",
         "openalex_id": "https://openalex.org/W3198451689"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4223,6 +4839,13 @@
         "doi": "10.14778/3484224.3484234",
         "openalex_id": "https://openalex.org/W3207801254"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Benchmark (surveying)",
         "Workload",
@@ -4265,6 +4888,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467878",
         "openalex_id": "https://openalex.org/W3174836606"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4313,6 +4943,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447702",
         "openalex_id": "https://openalex.org/W3142348832"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Bipartite graph",
@@ -4364,6 +5001,13 @@
         "doi": "10.14778/3467861.3467873",
         "openalex_id": "https://openalex.org/W3173381866"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Reachability",
         "Bipartite graph",
@@ -4407,6 +5051,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457407",
         "openalex_id": "https://openalex.org/W3164681303"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Bounding overwatch",
@@ -4457,6 +5108,13 @@
         "doi": "10.14778/3446095.3446097",
         "openalex_id": "https://openalex.org/W3139337630"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Subgraph isomorphism problem",
         "Computer science",
@@ -4506,6 +5164,13 @@
         "doi": "10.14778/3476311.3476349",
         "openalex_id": "https://openalex.org/W3198158841"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Grid",
@@ -4550,6 +5215,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446098",
         "openalex_id": "https://openalex.org/W3137814466"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4598,6 +5270,13 @@
         "doi": "10.14778/3447689.3447691",
         "openalex_id": "https://openalex.org/W3151291933"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Selection (genetic algorithm)",
@@ -4640,6 +5319,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476278",
         "openalex_id": "https://openalex.org/W3208392556"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Table (database)",
@@ -4684,6 +5370,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450985",
         "openalex_id": "https://openalex.org/W3144614056"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Commit",
@@ -4730,6 +5423,13 @@
         "doi": "10.14778/3461535.3461544",
         "openalex_id": "https://openalex.org/W3111171549"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Population",
         "Sample (material)",
@@ -4773,6 +5473,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476410",
         "openalex_id": "https://openalex.org/W3196324538"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4821,6 +5528,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476307",
         "openalex_id": "https://openalex.org/W3198800015"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4871,6 +5585,13 @@
         "doi": "10.14778/3476249.3476304",
         "openalex_id": "https://openalex.org/W3198645887"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Inference",
@@ -4916,6 +5637,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476406",
         "openalex_id": "https://openalex.org/W3197496199"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -4975,6 +5703,13 @@
         "doi": "10.14778/3476311.3476376",
         "openalex_id": "https://openalex.org/W3197515312"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Distributed computing",
@@ -5021,6 +5756,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447696",
         "openalex_id": "https://openalex.org/W3148935725"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Hash function",
@@ -5070,6 +5812,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461540",
         "openalex_id": "https://openalex.org/W3174395588"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5121,6 +5870,13 @@
         "doi": "10.14778/3476249.3476254",
         "openalex_id": "https://openalex.org/W3198024709"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Estimator",
         "Cardinality (data modeling)",
@@ -5169,6 +5925,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450982",
         "openalex_id": "https://openalex.org/W3142882589"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Vertex (graph theory)",
@@ -5223,6 +5986,13 @@
         "doi": "10.14778/3447689.3447712",
         "openalex_id": "https://openalex.org/W3111458750"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Workflow",
@@ -5274,6 +6044,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446096",
         "openalex_id": "https://openalex.org/W3138851831"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5327,6 +6104,13 @@
         "doi": "10.14778/3461535.3461539",
         "openalex_id": "https://openalex.org/W4289706945"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Cardinality (data modeling)",
         "Computation",
@@ -5378,6 +6162,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476265",
         "openalex_id": "https://openalex.org/W3198682658"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5431,6 +6222,13 @@
         "doi": "10.14778/3476249.3476259",
         "openalex_id": "https://openalex.org/W3197977787"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Cardinality (data modeling)",
@@ -5480,6 +6278,13 @@
         "doi": "10.14778/3447689.3447713",
         "openalex_id": "https://openalex.org/W3151791879"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -5522,6 +6327,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476261",
         "openalex_id": "https://openalex.org/W3195971739"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Differential privacy",
@@ -5573,6 +6385,13 @@
         "doi": "10.14778/3484224.3484228",
         "openalex_id": "https://openalex.org/W3209947110"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Encryption",
@@ -5615,6 +6434,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484240",
         "openalex_id": "https://openalex.org/W3210210147"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5665,6 +6491,13 @@
         "doi": "10.14778/3447689.3447706",
         "openalex_id": "https://openalex.org/W3148437589"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Artificial intelligence",
@@ -5714,6 +6547,13 @@
         "doi": "10.14778/3476311.3476339",
         "openalex_id": "https://openalex.org/W3196743233"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Profiling (computer programming)",
         "Computer science",
@@ -5759,6 +6599,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476351",
         "openalex_id": "https://openalex.org/W3196996325"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5807,6 +6654,13 @@
         "doi": "10.14778/3461535.3461555",
         "openalex_id": "https://openalex.org/W4287186718"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Counterfactual thinking",
         "Counterfactual conditional",
@@ -5853,6 +6707,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476367",
         "openalex_id": "https://openalex.org/W3196715416"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -5903,6 +6764,13 @@
         "doi": "10.14778/3447689.3447703",
         "openalex_id": "https://openalex.org/W3132781388"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Workflow",
@@ -5952,6 +6820,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476295",
         "openalex_id": "https://openalex.org/W3190799236"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [],
       "track": "main",
@@ -6008,6 +6883,13 @@
         "doi": "10.14778/3476249.3476252",
         "openalex_id": "https://openalex.org/W3197484625"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Benchmarking",
@@ -6063,6 +6945,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476324",
         "openalex_id": "https://openalex.org/W3198627837"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -6126,6 +7015,13 @@
         "doi": "10.14778/3476311.3476369",
         "openalex_id": "https://openalex.org/W3196829622"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Graph",
@@ -6184,6 +7080,13 @@
         "doi": "10.14778/3476311.3476387",
         "openalex_id": "https://openalex.org/W3198546401"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Latency (audio)",
@@ -6229,6 +7132,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447710",
         "openalex_id": "https://openalex.org/W3147694699"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Timestamp",
@@ -6277,6 +7187,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446099",
         "openalex_id": "https://openalex.org/W3137198243"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Hierarchy",
@@ -6327,6 +7244,13 @@
         "doi": "10.14778/3476249.3476301",
         "openalex_id": "https://openalex.org/W3197847098"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Scalability",
         "Computer science",
@@ -6374,6 +7298,13 @@
         "doi": "10.14778/3476311.3476357",
         "openalex_id": "https://openalex.org/W3197613133"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Classifier (UML)",
         "Debugging",
@@ -6417,6 +7348,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467862",
         "openalex_id": "https://openalex.org/W3161100413"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Oracle",
@@ -6469,6 +7407,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476323",
         "openalex_id": "https://openalex.org/W3198262273"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computation",
@@ -6533,6 +7478,13 @@
         "doi": "10.14778/3476311.3476382",
         "openalex_id": "https://openalex.org/W3192755710"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Hyperspace",
         "Computer science",
@@ -6578,6 +7530,13 @@
         "doi": "10.14778/3447689.3447704",
         "openalex_id": "https://openalex.org/W3148088798"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Vertex (graph theory)",
@@ -6622,6 +7581,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446104",
         "openalex_id": "https://openalex.org/W3137695810"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -6671,6 +7637,13 @@
         "doi": "10.14778/3461535.3461551",
         "openalex_id": "https://openalex.org/W3174551995"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Database transaction",
@@ -6718,6 +7691,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476343",
         "openalex_id": "https://openalex.org/W3197746951"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Toolchain",
@@ -6767,6 +7747,13 @@
         "doi": "10.14778/3476311.3476320",
         "openalex_id": "https://openalex.org/W3196770169"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Bottleneck",
         "Intuition",
@@ -6810,6 +7797,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484237",
         "openalex_id": "https://openalex.org/W3208287863"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "The Internet",
@@ -6859,6 +7853,13 @@
         "doi": "10.14778/3467861.3467871",
         "openalex_id": "https://openalex.org/W3175499338"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Automatic summarization",
@@ -6904,6 +7905,13 @@
         "doi": "10.14778/3476311.3476409",
         "openalex_id": "https://openalex.org/W3196738893"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Diversity (politics)",
         "Field (mathematics)",
@@ -6947,6 +7955,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476325",
         "openalex_id": "https://openalex.org/W3198767952"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -6993,6 +8008,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467876",
         "openalex_id": "https://openalex.org/W3176539131"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7044,6 +8066,13 @@
         "doi": "10.14778/3476311.3476312",
         "openalex_id": "https://openalex.org/W3197924179"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Zoom",
         "Computer science",
@@ -7094,6 +8123,13 @@
         "doi": "10.14778/3450980.3450990",
         "openalex_id": "https://openalex.org/W3146390850"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Quantile",
         "Bounded function",
@@ -7135,6 +8171,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476393",
         "openalex_id": "https://openalex.org/W3196747654"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7186,6 +8229,13 @@
         "doi": "10.14778/3457390.3457392",
         "openalex_id": "https://openalex.org/W3164472442"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Workflow",
@@ -7234,6 +8284,13 @@
         "doi": "10.14778/3476249.3476269",
         "openalex_id": "https://openalex.org/W3198843179"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Artificial intelligence",
@@ -7280,6 +8337,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457405",
         "openalex_id": "https://openalex.org/W3165266481"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7332,6 +8396,13 @@
         "doi": "10.14778/3476249.3476264",
         "openalex_id": "https://openalex.org/W3135674429"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "PCI Express",
@@ -7376,6 +8447,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476263",
         "openalex_id": "https://openalex.org/W3184011463"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Search engine indexing",
@@ -7425,6 +8503,13 @@
         "doi": "10.14778/3461535.3461542",
         "openalex_id": "https://openalex.org/W3177193549"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Core (optical fiber)",
@@ -7466,6 +8551,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476321",
         "openalex_id": "https://openalex.org/W3198379073"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7512,6 +8604,13 @@
         "doi": "10.14778/3476311.3476408",
         "openalex_id": "https://openalex.org/W3210516937"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Cloud computing",
         "Debugging",
@@ -7557,6 +8656,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476405",
         "openalex_id": "https://openalex.org/W3217092890"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7607,6 +8713,13 @@
         "doi": "10.14778/3476311.3476411",
         "openalex_id": "https://openalex.org/W3198839277"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Database",
@@ -7651,6 +8764,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476402",
         "openalex_id": "https://openalex.org/W3196976833"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Pipeline (software)",
@@ -7699,6 +8819,13 @@
         "doi": "10.14778/3461535.3461554",
         "openalex_id": "https://openalex.org/W3175248537"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Massively parallel",
@@ -7743,6 +8870,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447699",
         "openalex_id": "https://openalex.org/W3126776340"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7794,6 +8928,13 @@
         "doi": "10.14778/3457390.3457394",
         "openalex_id": "https://openalex.org/W3164820482"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Trajectory",
@@ -7840,6 +8981,13 @@
         "doi": "10.14778/3461535.3461536",
         "openalex_id": "https://openalex.org/W3176303762"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Vertex (graph theory)",
         "Computer science"
@@ -7879,6 +9027,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476300",
         "openalex_id": "https://openalex.org/W3135808354"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Missing data",
@@ -7927,6 +9082,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476371",
         "openalex_id": "https://openalex.org/W3198194663"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -7978,6 +9140,13 @@
         "doi": "10.14778/3484224.3484229",
         "openalex_id": "https://openalex.org/W3211036868"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Cloud computing",
@@ -8025,6 +9194,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484226",
         "openalex_id": "https://openalex.org/W3209297949"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Hash function",
@@ -8076,6 +9252,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476314",
         "openalex_id": "https://openalex.org/W3198754919"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -8166,6 +9349,13 @@
         "doi": "10.14778/3476311.3476377",
         "openalex_id": "https://openalex.org/W3197796305"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "NAPA",
         "Computer science",
@@ -8209,6 +9399,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476407",
         "openalex_id": "https://openalex.org/W3196447082"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Similarity (geometry)",
@@ -8262,6 +9459,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447701",
         "openalex_id": "https://openalex.org/W3146557037"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Scrolling",
@@ -8320,6 +9524,13 @@
         "doi": "10.14778/3476311.3476375",
         "openalex_id": "https://openalex.org/W3197125869"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Context (archaeology)",
@@ -8369,6 +9580,13 @@
         "doi": "10.14778/3447689.3447714",
         "openalex_id": "https://openalex.org/W3141857288"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Motif (music)",
         "Computer science",
@@ -8417,6 +9635,13 @@
         "doi": "10.14778/3476249.3476260",
         "openalex_id": "https://openalex.org/W3196565839"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Timestamp",
         "Computer science",
@@ -8462,6 +9687,13 @@
         "doi": "10.14778/3461535.3461553",
         "openalex_id": "https://openalex.org/W3177367774"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Algebra over a field"
@@ -8503,6 +9735,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476401",
         "openalex_id": "https://openalex.org/W3198116319"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -8548,6 +9787,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447695",
         "openalex_id": "https://openalex.org/W3142663085"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Substring",
@@ -8601,6 +9847,13 @@
         "doi": "10.14778/3476311.3476380",
         "openalex_id": "https://openalex.org/W3196849431"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Selection (genetic algorithm)",
@@ -8647,6 +9900,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447693",
         "openalex_id": "https://openalex.org/W3152256139"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "STREAMS",
@@ -8704,6 +9964,13 @@
         "doi": "10.14778/3446095.3446102",
         "openalex_id": "https://openalex.org/W3136905682"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Latency (audio)",
@@ -8747,6 +10014,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450983",
         "openalex_id": "https://openalex.org/W3139934801"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Bipartite graph",
@@ -8796,6 +10070,13 @@
         "doi": "10.14778/3467861.3467864",
         "openalex_id": "https://openalex.org/W3173621811"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Differential privacy",
         "Computer science",
@@ -8842,6 +10123,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457400",
         "openalex_id": "https://openalex.org/W3164439293"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -8892,6 +10180,13 @@
         "doi": "10.14778/3447689.3447692",
         "openalex_id": "https://openalex.org/W3150053915"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Scalability",
@@ -8936,6 +10231,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476319",
         "openalex_id": "https://openalex.org/W3196851046"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Shortest path problem",
@@ -8983,6 +10285,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476253",
         "openalex_id": "https://openalex.org/W3093296244"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [],
       "track": "main",
@@ -9034,6 +10343,13 @@
         "doi": "10.14778/3484224.3484233",
         "openalex_id": "https://openalex.org/W3208345284"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Pipeline (software)",
@@ -9081,6 +10397,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446101",
         "openalex_id": "https://openalex.org/W3136326637"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Hash function",
@@ -9130,6 +10453,13 @@
         "doi": "10.14778/3476249.3476298",
         "openalex_id": "https://openalex.org/W3188064594"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -9169,6 +10499,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476281",
         "openalex_id": "https://openalex.org/W3196910658"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -9218,6 +10555,13 @@
         "doi": "10.14778/3476311.3476327",
         "openalex_id": "https://openalex.org/W3198307109"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Cardinality (data modeling)",
         "Computer science",
@@ -9263,6 +10607,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467874",
         "openalex_id": "https://openalex.org/W3176386585"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Soundness",
@@ -9311,6 +10662,13 @@
         "doi": "10.14778/3457390.3457402",
         "openalex_id": "https://openalex.org/W3164278511"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "SQL",
@@ -9356,6 +10714,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476308",
         "openalex_id": "https://openalex.org/W3198095237"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -9403,6 +10768,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467868",
         "openalex_id": "https://openalex.org/W3175189084"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Sketch",
@@ -9452,6 +10824,13 @@
         "doi": "10.14778/3476249.3476279",
         "openalex_id": "https://openalex.org/W3196884045"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Bottleneck",
@@ -9499,6 +10878,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484231",
         "openalex_id": "https://openalex.org/W3211025647"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Differential privacy",
@@ -9550,6 +10936,13 @@
         "doi": "10.14778/3476311.3476360",
         "openalex_id": "https://openalex.org/W3188994034"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Complex event processing",
@@ -9595,6 +10988,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476384",
         "openalex_id": "https://openalex.org/W3196384427"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -9647,6 +11047,13 @@
         "doi": "10.14778/3476311.3476379",
         "openalex_id": "https://openalex.org/W3198655391"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Scalability",
@@ -9698,6 +11105,13 @@
         "doi": "10.14778/3447689.3447707",
         "openalex_id": "https://openalex.org/W3145761337"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Overhead (engineering)",
@@ -9744,6 +11158,13 @@
         "doi": "10.14778/3476311.3476342",
         "openalex_id": "https://openalex.org/W3196485832"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Graph",
@@ -9789,6 +11210,13 @@
         "doi": "10.14778/3476249.3476280",
         "openalex_id": "https://openalex.org/W3193177876"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -9832,6 +11260,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476313",
         "openalex_id": "https://openalex.org/W3198746473"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -9886,6 +11321,13 @@
         "doi": "10.14778/3467861.3467875",
         "openalex_id": "https://openalex.org/W3177112284"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Online transaction processing",
@@ -9932,6 +11374,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476268",
         "openalex_id": "https://openalex.org/W3185890500"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Serializability",
@@ -9982,6 +11431,13 @@
         "doi": "10.14778/3476249.3476289",
         "openalex_id": "https://openalex.org/W3198101889"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Overhead (engineering)",
@@ -10028,6 +11484,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476364",
         "openalex_id": "https://openalex.org/W3196867679"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -10084,6 +11547,13 @@
         "doi": "10.14778/3457390.3457391",
         "openalex_id": "https://openalex.org/W3165814564"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Tuple",
@@ -10134,6 +11604,13 @@
         "doi": "10.14778/3476311.3476365",
         "openalex_id": "https://openalex.org/W3197626606"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Anomaly detection",
         "Subsequence",
@@ -10180,6 +11657,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3467861.3467863",
         "openalex_id": "https://openalex.org/W3176476506"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Anomaly detection",
@@ -10229,6 +11713,13 @@
         "doi": "10.14778/3461535.3461538",
         "openalex_id": "https://openalex.org/W4313222113"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Operating system",
@@ -10277,6 +11768,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476282",
         "openalex_id": "https://openalex.org/W3196292518"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -10330,6 +11828,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476273",
         "openalex_id": "https://openalex.org/W3197490669"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Compartmentalization (fire protection)",
@@ -10390,6 +11895,13 @@
         "doi": "10.14778/3476311.3476348",
         "openalex_id": "https://openalex.org/W3196908569"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Concurrency",
         "Computer science",
@@ -10434,6 +11946,13 @@
         "doi": "10.14778/3476249.3476276",
         "openalex_id": "https://openalex.org/W3118593453"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -10473,6 +11992,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450988",
         "openalex_id": "https://openalex.org/W3139616807"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Betweenness centrality",
@@ -10522,6 +12048,13 @@
         "doi": "10.14778/3476249.3476287",
         "openalex_id": "https://openalex.org/W3186509987"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Sketch",
         "Computer science",
@@ -10568,6 +12101,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476283",
         "openalex_id": "https://openalex.org/W3198515637"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -10616,6 +12156,13 @@
         "doi": "10.14778/3450980.3450986",
         "openalex_id": "https://openalex.org/W3149592999"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Software",
         "Computer science",
@@ -10657,6 +12204,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476322",
         "openalex_id": "https://openalex.org/W3198656788"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Sonification",
@@ -10708,6 +12262,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476388",
         "openalex_id": "https://openalex.org/W3198638494"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "SPARK (programming language)",
@@ -10762,6 +12323,13 @@
         "doi": "10.14778/3476311.3476383",
         "openalex_id": "https://openalex.org/W3197981281"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Encoder",
@@ -10807,6 +12375,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484242",
         "openalex_id": "https://openalex.org/W3210024618"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Service (business)",
@@ -10854,6 +12429,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457395",
         "openalex_id": "https://openalex.org/W3164627924"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -10905,6 +12487,13 @@
         "doi": "10.14778/3476249.3476299",
         "openalex_id": "https://openalex.org/W3197182341"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Set (abstract data type)",
@@ -10950,6 +12539,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476386",
         "openalex_id": "https://openalex.org/W3197545262"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -10997,6 +12593,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476344",
         "openalex_id": "https://openalex.org/W3197376471"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Cove",
@@ -11046,6 +12649,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3457390.3457399",
         "openalex_id": "https://openalex.org/W3165312848"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Tensor algebra",
@@ -11097,6 +12707,13 @@
         "doi": "10.14778/3467861.3467869",
         "openalex_id": "https://openalex.org/W3176459841"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Computation",
@@ -11141,6 +12758,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3447689.3447708",
         "openalex_id": "https://openalex.org/W3139991122"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11188,6 +12812,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476374",
         "openalex_id": "https://openalex.org/W3196732841"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11240,6 +12871,13 @@
         "doi": "10.14778/3476311.3476378",
         "openalex_id": "https://openalex.org/W3196498014"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Implementation",
@@ -11283,6 +12921,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450984",
         "openalex_id": "https://openalex.org/W3150554837"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Exploit",
@@ -11338,6 +12983,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476390",
         "openalex_id": "https://openalex.org/W3196442060"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Big data",
@@ -11396,6 +13048,13 @@
         "doi": "10.14778/3476311.3476373",
         "openalex_id": "https://openalex.org/W3198388007"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Computation",
@@ -11440,6 +13099,13 @@
         "doi": "10.14778/3476311.3476391",
         "openalex_id": "https://openalex.org/W3197232753"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Amazon rainforest",
         "Redshift",
@@ -11483,6 +13149,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476394",
         "openalex_id": "https://openalex.org/W3197536806"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Popularity",
@@ -11532,6 +13205,13 @@
         "doi": "10.14778/3484224.3484238",
         "openalex_id": "https://openalex.org/W3210535961"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Automatic summarization",
         "Computer science",
@@ -11578,6 +13258,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476293",
         "openalex_id": "https://openalex.org/W3197688135"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11626,6 +13313,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476257",
         "openalex_id": "https://openalex.org/W3196877602"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11677,6 +13371,13 @@
         "doi": "10.14778/3484224.3484230",
         "openalex_id": "https://openalex.org/W3210252566"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Group cohesiveness",
         "Topology (electrical circuits)",
@@ -11723,6 +13424,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476249.3476284",
         "openalex_id": "https://openalex.org/W3198196723"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11771,6 +13479,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476372",
         "openalex_id": "https://openalex.org/W3198076459"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11826,6 +13541,13 @@
         "doi": "10.14778/3467861.3467877",
         "openalex_id": "https://openalex.org/W3173937074"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Remote direct memory access",
         "Computer science",
@@ -11872,6 +13594,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461549",
         "openalex_id": "https://openalex.org/W3173319858"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -11921,6 +13650,13 @@
         "doi": "10.14778/3457390.3457401",
         "openalex_id": "https://openalex.org/W3164948779"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Crowds",
         "Computer science",
@@ -11967,6 +13703,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476392",
         "openalex_id": "https://openalex.org/W3198700550"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12017,6 +13760,13 @@
         "doi": "10.14778/3476249.3476256",
         "openalex_id": "https://openalex.org/W3183473866"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Plug-in",
@@ -12063,6 +13813,13 @@
         "doi": "10.14778/3484224.3484239",
         "openalex_id": "https://openalex.org/W3209599188"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Machine learning",
@@ -12108,6 +13865,13 @@
         "doi": "10.14778/3476249.3476309",
         "openalex_id": "https://openalex.org/W3197384784"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Probabilistic logic",
@@ -12151,6 +13915,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3450980.3450987",
         "openalex_id": "https://openalex.org/W3149954208"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12200,6 +13971,13 @@
         "doi": "10.14778/3476311.3476330",
         "openalex_id": "https://openalex.org/W3183874866"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Trance",
@@ -12245,6 +14023,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461545",
         "openalex_id": "https://openalex.org/W4312847577"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Trident",
@@ -12292,6 +14077,13 @@
         "doi": "10.14778/3484224.3484225",
         "openalex_id": "https://openalex.org/W3209915026"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Search engine indexing",
@@ -12337,6 +14129,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3484224.3484236",
         "openalex_id": "https://openalex.org/W3208735199"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12389,6 +14188,13 @@
         "doi": "10.14778/3467861.3467866",
         "openalex_id": "https://openalex.org/W3175985532"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Submodular set function",
         "Maximization",
@@ -12440,6 +14246,13 @@
         "doi": "10.14778/3457390.3457393",
         "openalex_id": "https://openalex.org/W3164254023"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Index (typography)",
@@ -12486,6 +14299,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476381",
         "openalex_id": "https://openalex.org/W3198091435"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12537,6 +14357,13 @@
         "doi": "10.14778/3476311.3476366",
         "openalex_id": "https://openalex.org/W3197648193"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Schema matching",
         "Computer science",
@@ -12586,6 +14413,13 @@
         "doi": "10.14778/3484224.3484227",
         "openalex_id": "https://openalex.org/W3210303017"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Computer science",
         "Selection (genetic algorithm)",
@@ -12633,6 +14467,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3461535.3461543",
         "openalex_id": "https://openalex.org/W4287186706"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12688,6 +14529,13 @@
         "doi": "10.14778/3476249.3476270",
         "openalex_id": "https://openalex.org/W3185616770"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [],
       "track": "main",
       "track_display_name": "Main",
@@ -12734,6 +14582,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3476311.3476389",
         "openalex_id": "https://openalex.org/W3197174867"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Computer science",
@@ -12784,6 +14639,13 @@
         "doi": "10.14778/3476311.3476350",
         "openalex_id": "https://openalex.org/W3197124430"
       },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
+      },
       "keywords": [
         "Negation",
         "Computer science",
@@ -12828,6 +14690,13 @@
         "dblp_volume": "14",
         "doi": "10.14778/3446095.3446105",
         "openalex_id": "https://openalex.org/W3139527657"
+      },
+      "field_provenance": {
+        "abstract": "venue_special",
+        "authors": "venue_special",
+        "url": "venue_special",
+        "track_group": "venue_special",
+        "presentation_level": "venue_special"
       },
       "keywords": [
         "Online transaction processing",

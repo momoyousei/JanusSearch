@@ -493,12 +493,37 @@ def build_sampled_queries(
     }
 
 
+def load_topic_membership(topics_file: Path) -> Dict[tuple[str, str | None], set[str]]:
+    """Load paper membership for every topic and exact subtopic."""
+    if not topics_file.exists():
+        raise FileNotFoundError(f"Topics assignment file not found: {topics_file}")
+    payload = json.loads(topics_file.read_text(encoding="utf-8"))
+    assignments = payload.get("assignments")
+    if not isinstance(assignments, list):
+        raise ValueError(f"{topics_file} does not contain an `assignments` array.")
+
+    membership: Dict[tuple[str, str | None], set[str]] = {}
+    for assignment in assignments:
+        if not isinstance(assignment, dict):
+            continue
+        paper_id = ensure_str(assignment.get("paper_id"))
+        topic_slug = ensure_str(assignment.get("topic_slug"))
+        subtopic_slug = ensure_str(assignment.get("subtopic_slug"))
+        if not paper_id or not topic_slug:
+            continue
+        membership.setdefault((topic_slug, None), set()).add(paper_id)
+        if subtopic_slug:
+            membership.setdefault((topic_slug, subtopic_slug), set()).add(paper_id)
+    return membership
+
+
 def run_sampled_suite(
     *,
     db_path: Path,
     vectors_root: Path,
     collection_name: str,
     sampled_cases: Sequence[Mapping[str, Any]],
+    topic_membership: Mapping[tuple[str, str | None], set[str]],
     embed_base_url: str,
     embed_model: str,
     embed_api_key: str,
@@ -511,6 +536,8 @@ def run_sampled_suite(
         case = dict(raw_case)
         case_id = ensure_str(case.get("case_id"))
         query = ensure_str(case.get("query"))
+        topic_slug = ensure_str(case.get("topic_slug"))
+        subtopic_slug = ensure_str(case.get("subtopic_slug")) or None
         top_k = int(case.get("top_k", DEFAULT_TOP_K))
         error: str | None = None
         payload: Dict[str, Any]
@@ -540,15 +567,33 @@ def run_sampled_suite(
             error = str(exc)
 
         total = int(payload.get("total", 0))
-        first = payload.get("results", [None])[0] if payload.get("results") else None
-        structure_ok = bool(
-            isinstance(first, dict)
-            and ensure_str(first.get("paper_id"))
-            and ensure_str(first.get("title"))
-            and ensure_str(first.get("venue"))
-            and first.get("year") is not None
+        result_items = payload.get("results")
+        if not isinstance(result_items, list):
+            result_items = []
+        structure_ok = bool(result_items) and all(
+            isinstance(item, dict)
+            and ensure_str(item.get("paper_id"))
+            and ensure_str(item.get("title"))
+            and ensure_str(item.get("venue"))
+            and item.get("year") is not None
+            for item in result_items
         )
-        case_pass = error is None and total > 0 and structure_ok
+        returned_ids = {
+            ensure_str(item.get("paper_id"))
+            for item in result_items
+            if isinstance(item, dict) and ensure_str(item.get("paper_id"))
+        }
+        expected_ids = topic_membership.get((topic_slug, subtopic_slug), set())
+        relevant_result_ids = sorted(returned_ids & expected_ids)
+        membership_available = bool(expected_ids)
+        relevance_ok = bool(relevant_result_ids)
+        case_pass = (
+            error is None
+            and total > 0
+            and structure_ok
+            and membership_available
+            and relevance_ok
+        )
         if case_pass:
             passed += 1
 
@@ -556,11 +601,17 @@ def run_sampled_suite(
             {
                 "case_id": case_id,
                 "query": query,
-                "topic_slug": case.get("topic_slug"),
-                "subtopic_slug": case.get("subtopic_slug"),
+                "topic_slug": topic_slug,
+                "subtopic_slug": subtopic_slug,
                 "top_k": top_k,
                 "actual_total": total,
+                "returned_result_count": len(result_items),
                 "structure_ok": structure_ok,
+                "membership_available": membership_available,
+                "expected_member_count": len(expected_ids),
+                "relevant_hit_count": len(relevant_result_ids),
+                "relevant_result_ids": relevant_result_ids,
+                "relevance_ok": relevance_ok,
                 "pass": case_pass,
                 "error": error,
             }
@@ -758,11 +809,13 @@ def run_m4(
             seed=sample_seed,
             top_k=top_k,
         )
+        topic_membership = load_topic_membership(topics_file)
         sampled_suite = run_sampled_suite(
             db_path=db_path,
             vectors_root=vectors_root,
             collection_name=collection_name,
             sampled_cases=sampled_payload.get("cases", []),
+            topic_membership=topic_membership,
             embed_base_url=embed_base_url,
             embed_model=embed_model,
             embed_api_key=api_key,

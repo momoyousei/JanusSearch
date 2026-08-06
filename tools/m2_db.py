@@ -21,6 +21,21 @@ LOGGER = logging.getLogger("m2_db")
 DEFAULT_INPUT_ROOT = Path("data/raw")
 DEFAULT_DB_PATH = Path("data/papers.db")
 DEFAULT_INDEX_ROOT = Path("artifacts")
+FIELD_PROVENANCE_FIELDS = {
+    "abstract",
+    "authors",
+    "url",
+    "track_group",
+    "presentation_level",
+}
+FIELD_PROVENANCE_VALUES = {
+    "official",
+    "venue_special",
+    "s2",
+    "arxiv",
+    "papers_cool",
+    "manual",
+}
 
 
 @dataclass
@@ -102,12 +117,15 @@ def load_payload(path: Path) -> Dict[str, Any]:
     return payload
 
 
-def connect_db(db_path: Path) -> sqlite3.Connection:
+def connect_db(db_path: Path, *, journal_mode: str = "WAL") -> sqlite3.Connection:
     """Create SQLite connection with practical pragmas."""
+    normalized_journal_mode = ensure_str(journal_mode).upper()
+    if normalized_journal_mode not in {"WAL", "DELETE"}:
+        raise ValueError(f"Unsupported SQLite journal mode: {journal_mode}")
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute(f"PRAGMA journal_mode = {normalized_journal_mode};")  # noqa: S608
     conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
@@ -338,6 +356,34 @@ def _paper_row(
     )
 
 
+def _field_provenance_errors(
+    field_provenance: Any, populated_fields: set[str]
+) -> List[str]:
+    """Return canonical field-provenance contract violations."""
+    if not isinstance(field_provenance, dict) or not field_provenance:
+        return ["must be a non-empty object"]
+
+    invalid_fields = sorted(
+        ensure_str(key) for key in field_provenance if key not in FIELD_PROVENANCE_FIELDS
+    )
+    invalid_values = sorted(
+        {
+            ensure_str(value)
+            for value in field_provenance.values()
+            if not isinstance(value, str) or value not in FIELD_PROVENANCE_VALUES
+        }
+    )
+    missing_fields = sorted(populated_fields - set(field_provenance))
+    errors: List[str] = []
+    if invalid_fields:
+        errors.append(f"invalid fields={invalid_fields}")
+    if invalid_values:
+        errors.append(f"invalid values={invalid_values}")
+    if missing_fields:
+        errors.append(f"missing populated fields={missing_fields}")
+    return errors
+
+
 def _assert_required_record_fields(record: Dict[str, Any], source_file: Path) -> None:
     """Fail fast when required fields are missing."""
     required = (
@@ -351,6 +397,7 @@ def _assert_required_record_fields(record: Dict[str, Any], source_file: Path) ->
         "institutions",
         "quality_flags",
         "source_ids",
+        "field_provenance",
         "source_provider",
         "track",
         "track_display_name",
@@ -362,6 +409,19 @@ def _assert_required_record_fields(record: Dict[str, Any], source_file: Path) ->
     missing = [key for key in required if key not in record]
     if missing:
         raise ValueError(f"{source_file}: record missing required keys: {missing}")
+
+    populated_fields = {"track_group", "presentation_level"}
+    if ensure_str(record.get("abstract")):
+        populated_fields.add("abstract")
+    if any(ensure_str(value) for value in ensure_list(record.get("authors"))):
+        populated_fields.add("authors")
+    if ensure_str(record.get("url")):
+        populated_fields.add("url")
+    provenance_errors = _field_provenance_errors(
+        record.get("field_provenance"), populated_fields
+    )
+    if provenance_errors:
+        raise ValueError(f"{source_file}: invalid field_provenance: {'; '.join(provenance_errors)}")
 
 
 def load_one_file(
@@ -511,25 +571,24 @@ def load_one_file(
 
 
 def run_load(input_root: Path, db_path: Path, index_root: Path) -> Dict[str, Any]:
-    """Run full rebuild load from canonical files."""
+    """Build a replacement database and atomically publish it after success."""
     files = find_source_files(input_root)
     m2_root = index_root / "m2"
     m2_root.mkdir(parents=True, exist_ok=True)
     report_path = m2_root / "load_report.json"
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if db_path.exists():
-        db_path.unlink()
-
     run_id = f"m2-{uuid.uuid4().hex[:12]}"
+    build_db_path = db_path.with_name(f".{db_path.name}.{run_id}.tmp")
     ingested_at = utc_now_iso()
-    conn = connect_db(db_path)
 
     file_stats: List[FileLoadStats] = []
     started = time.perf_counter()
     fts_rows = 0
     fts_rebuild_seconds = 0.0
+    conn: sqlite3.Connection | None = None
     try:
+        conn = connect_db(build_db_path, journal_mode="DELETE")
         create_schema(conn)
         insert_run_start(conn, run_id=run_id, input_root=input_root, db_path=db_path)
 
@@ -566,21 +625,41 @@ def run_load(input_root: Path, db_path: Path, index_root: Path) -> Dict[str, Any
         LOGGER.error("M2 load failed: %s", error_message)
         LOGGER.debug("Traceback:\n%s", traceback.format_exc())
         paper_count = sum(item.loaded_count for item in file_stats)
-        try:
-            finalize_run(
-                conn,
-                run_id=run_id,
-                status="failed",
-                file_count=len(file_stats),
-                paper_count=paper_count,
-                error_message=error_message,
-            )
-        except sqlite3.Error:
-            LOGGER.warning("Failed to persist ingestion failure metadata.")
+        if conn is not None:
+            try:
+                finalize_run(
+                    conn,
+                    run_id=run_id,
+                    status="failed",
+                    file_count=len(file_stats),
+                    paper_count=paper_count,
+                    error_message=error_message,
+                )
+            except sqlite3.Error:
+                LOGGER.warning("Failed to persist ingestion failure metadata.")
         status = "failed"
     finally:
         duration_seconds = round(time.perf_counter() - started, 3)
-        conn.close()
+        if conn is not None:
+            conn.close()
+
+    if status == "success":
+        try:
+            build_db_path.replace(db_path)
+        except OSError as exc:
+            status = "failed"
+            error_message = f"{exc.__class__.__name__}: {exc}"
+            LOGGER.error("Failed to publish rebuilt M2 database: %s", error_message)
+
+    if status != "success":
+        for candidate in (
+            build_db_path,
+            Path(f"{build_db_path}-journal"),
+            Path(f"{build_db_path}-wal"),
+            Path(f"{build_db_path}-shm"),
+        ):
+            if candidate.exists():
+                candidate.unlink()
 
     report = {
         "summary": {
@@ -698,7 +777,8 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
         }
         for record in papers:
             if not isinstance(record, dict):
-                continue
+                raise ValueError(f"{file_path}: papers item must be object")
+            _assert_required_record_fields(record, file_path)
             status = ensure_str(record.get("record_status"))
             expected_status_counts[status] = expected_status_counts.get(status, 0) + 1
             expected_relation_counts["paper_authors"] += len(ensure_list(record.get("authors")))
@@ -765,8 +845,43 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
             ORDER BY file_path
             """
         ).fetchall()
+        provenance_rows = conn.execute(
+            """
+            SELECT
+                p.paper_id,
+                p.abstract,
+                p.url,
+                p.track_group,
+                p.presentation_level,
+                p.field_provenance_json,
+                EXISTS (
+                    SELECT 1 FROM paper_authors AS pa WHERE pa.paper_id = p.paper_id
+                ) AS has_authors
+            FROM papers AS p
+            """
+        ).fetchall()
     finally:
         conn.close()
+
+    invalid_field_provenance: List[Dict[str, Any]] = []
+    for row in provenance_rows:
+        populated_fields = {"track_group", "presentation_level"}
+        if ensure_str(row["abstract"]):
+            populated_fields.add("abstract")
+        if bool(row["has_authors"]):
+            populated_fields.add("authors")
+        if ensure_str(row["url"]):
+            populated_fields.add("url")
+        try:
+            field_provenance = json.loads(ensure_str(row["field_provenance_json"]))
+        except (json.JSONDecodeError, TypeError):
+            errors = ["must contain valid JSON"]
+        else:
+            errors = _field_provenance_errors(field_provenance, populated_fields)
+        if errors:
+            invalid_field_provenance.append(
+                {"paper_id": ensure_str(row["paper_id"]), "errors": errors}
+            )
 
     actual_source_file_manifest = {
         ensure_str(row["file_path"]): {
@@ -797,6 +912,7 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
 
     add_check("duplicate_paper_ids", 0, duplicate_paper_ids)
     add_check("missing_required_fields", 0, missing_required_count)
+    add_check("invalid_field_provenance", 0, len(invalid_field_provenance))
     add_check("source_file_manifest", expected_source_file_manifest, actual_source_file_manifest)
 
     report = {
@@ -822,6 +938,7 @@ def run_validate(input_root: Path, db_path: Path, index_root: Path) -> Tuple[Dic
             "venue_year_expected_minus_actual": _compare_maps(
                 expected_venue_year_counts, actual_venue_year_counts
             ),
+            "invalid_field_provenance": invalid_field_provenance,
         },
     }
     write_json(report_path, report)

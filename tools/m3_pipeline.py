@@ -1815,6 +1815,40 @@ def _validate_cache_files(
     }
 
 
+def check_chroma_sqlite_integrity(vectors_root: Path) -> Dict[str, Any]:
+    """Run SQLite quick_check against Chroma's persistent metadata database."""
+    db_path = vectors_root / "chroma.sqlite3"
+    if not db_path.exists():
+        return {
+            "pass": False,
+            "db_path": str(db_path),
+            "quick_check": [],
+            "error": "Chroma SQLite database does not exist.",
+        }
+
+    conn: sqlite3.Connection | None = None
+    try:
+        conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
+        quick_check = [ensure_str(row[0]) for row in conn.execute("PRAGMA quick_check").fetchall()]
+        passed = quick_check == ["ok"]
+        return {
+            "pass": passed,
+            "db_path": str(db_path),
+            "quick_check": quick_check,
+            "error": None if passed else "SQLite quick_check reported corruption.",
+        }
+    except sqlite3.Error as exc:
+        return {
+            "pass": False,
+            "db_path": str(db_path),
+            "quick_check": [],
+            "error": f"{exc.__class__.__name__}: {exc}",
+        }
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def run_validate(
     *,
     db_path: Path,
@@ -1876,6 +1910,7 @@ def run_validate(
         assignments=assignments,
         topics=topics,
     )
+    chroma_integrity = check_chroma_sqlite_integrity(vectors_root)
 
     checks: List[Dict[str, Any]] = []
     issues: List[str] = []
@@ -1891,6 +1926,7 @@ def run_validate(
     add_check("unique_assignment_count", len(assignments), len(unique_assigned_ids))
     add_check("assignment_missing_in_db", 0, len(missing_in_db))
     add_check("cache_missing_files", 0, cache_status["missing_file_count"])
+    add_check("chroma_sqlite_integrity", True, bool(chroma_integrity["pass"]))
 
     report = {
         "summary": {
@@ -1912,6 +1948,7 @@ def run_validate(
             "unique_assignment_count": len(unique_assigned_ids),
             "missing_paper_ids_in_db": missing_in_db,
             "cache": cache_status,
+            "chroma_sqlite_integrity": chroma_integrity,
         },
     }
     write_json(validate_report_path, report)

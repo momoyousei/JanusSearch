@@ -830,6 +830,7 @@ def collect_one_year(
     source_mode: str,
 ) -> Dict[str, Any]:
     """Collect one year and write output JSON."""
+    provider = venue_provider(venue)
     if venue == "CVPR" and source_mode == "virtual":
         return collect_cvpr_virtual_year(
             year=year,
