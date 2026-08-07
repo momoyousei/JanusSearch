@@ -20,6 +20,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urljoin
 from urllib.request import Request, urlopen
 
+from janussearch.collectors.outcomes import write_collection_result
+from janussearch.infrastructure.http import decode_response_body
+
 LOGGER = logging.getLogger("aaai_collect")
 
 AAAI_BASE_URL = "https://ojs.aaai.org"
@@ -107,7 +110,8 @@ def fetch_text(url: str, timeout: float, retries: int, min_interval: float) -> s
         request = Request(url, headers=DEFAULT_HEADERS)
         try:
             with urlopen(request, timeout=timeout) as response:
-                return response.read().decode("utf-8", "ignore")
+                headers = {key.lower(): value for key, value in response.headers.items()}
+                return decode_response_body(response.read(), headers).decode("utf-8", "replace")
         except (HTTPError, URLError, TimeoutError, socket.timeout, ConnectionError, OSError) as err:
             last_err = err
             LOGGER.warning("Fetch failed (%s/%s) %s: %s", attempt, retries, url, err)
@@ -1083,36 +1087,16 @@ def main() -> int:
                     missing_years.append(year)
                 continue
 
-            missing_years.append(year)
-            collected_at = utc_now_iso()
-            payload = build_payload(
+            sidecar = write_collection_result(
+                output_root,
+                outcome="incomplete_source",
+                venue="AAAI",
                 year=year,
-                papers=[],
-                collected_at=collected_at,
-                source_year_count_estimate=0,
+                sources=[ARCHIVE_URL],
+                reason="no_technical_track_issue_found_in_archive",
+                metrics={"issue_count": 0, "paper_count": 0},
             )
-            output_root.mkdir(parents=True, exist_ok=True)
-            output_path = output_root / f"AAAI-{year % 100:02d}.json"
-            output_path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            summary.append(
-                {
-                    "year": year,
-                    "issue_count": 0,
-                    "official_article_entry_count": 0,
-                    "official_unique_article_count": 0,
-                    "collected_paper_count": 0,
-                    "missing_vs_official_unique": 0,
-                    "detail_fetch_failed_count": 0,
-                    "output_file": str(output_path),
-                    "generated_at_utc": collected_at,
-                    "issues": [],
-                    "note": "no_technical_track_issue_found_in_archive",
-                }
-            )
-            continue
+            raise RuntimeError(f"No AAAI Technical Track issues found; sidecar={sidecar}")
 
         LOGGER.info("Collecting AAAI %s from %s issues", year, len(year_issues))
         summary.append(
@@ -1143,6 +1127,20 @@ def main() -> int:
     }
     report_path = collections_root / "aaai_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_collection_result(
+        output_root,
+        outcome="collected",
+        venue="AAAI",
+        year=years[0] if len(years) == 1 else 0,
+        sources=[ARCHIVE_URL],
+        reason="aaai_ojs_technical_track_issues_collected",
+        metrics={
+            "years": years,
+            "issue_count": sum(int(item.get("issue_count") or 0) for item in summary),
+            "paper_count": total_collected,
+            "official_unique": total_official_unique,
+        },
+    )
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total official unique papers: %s", total_official_unique)
     LOGGER.info("Total collected papers: %s", total_collected)

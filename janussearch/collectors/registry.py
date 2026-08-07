@@ -93,27 +93,37 @@ def parse_years(raw: str) -> List[int]:
 
 
 _SPECS: tuple[CollectorSpec, ...] = (
-    CollectorSpec(("AAAI",), "tools.aaai_collect", "aaai"),
+    CollectorSpec(
+        ("AAAI",),
+        "tools.aaai_collect",
+        "aaai_ojs",
+        extra_args=("--no-openreview-fallback",),
+    ),
     CollectorSpec(("ACL",), "tools.acl_collect", "acl_anthology"),
     CollectorSpec(("AISTATS",), "tools.aistats_collect", "pmlr"),
-    CollectorSpec(("CVPR", "ICCV", "ECCV"), "tools.cvpr_collect", "cvf", venue_option="--venue"),
-    CollectorSpec(("ICML",), "tools.icml_collect", "pmlr"),
+    CollectorSpec(
+        ("CVPR", "ICCV"),
+        "tools.cvpr_collect",
+        "cvf",
+        venue_option="--venue",
+        extra_args=("--source", "openaccess"),
+    ),
     CollectorSpec(("IJCAI",), "tools.ijcai_collect", "ijcai"),
     CollectorSpec(("KDD",), "tools.kdd_collect", "dblp_openalex"),
     CollectorSpec(("TPAMI",), "tools.tpami_collect", "dblp_openalex"),
     CollectorSpec(
-        ("ICDE", "VLDB", "SIGIR", "ACMMM", "WWW"),
+        ("ICDE", "SIGIR", "ACMMM", "WWW"),
         "tools.dblp_expand_collect",
         "dblp_openalex",
         venue_option="--venues",
     ),
     CollectorSpec(
-        ("ICLR", "NEURIPS"),
-        "janussearch.collectors.generic",
-        "openreview",
+        ("ICLR", "ICML", "NEURIPS", "ECCV"),
+        "janussearch.collectors.virtual",
+        "official_virtual",
         mode="target",
-        extra_args=("--provider", "openreview"),
     ),
+    CollectorSpec(("VLDB",), "tools.pvldb_collect", "pvldb_official"),
 )
 
 _BY_VENUE: Dict[str, CollectorSpec] = {

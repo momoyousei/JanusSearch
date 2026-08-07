@@ -1335,6 +1335,9 @@ def fetch_openreview_notes_for_venue(
 ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     best_notes: List[Dict[str, Any]] = []
     best_meta = {"base_url": "", "filter_key": "", "venue_id": venue_id, "mode": ""}
+    successful_query_count = 0
+    failed_query_count = 0
+    last_query_error: RuntimeError | None = None
 
     for base_url in OPENREVIEW_BASE_URLS:
         best_content_notes: List[Dict[str, Any]] = []
@@ -1370,7 +1373,10 @@ def fetch_openreview_notes_for_venue(
                         retries=retries,
                         base_url=base_url,
                     )
-                except RuntimeError:
+                    successful_query_count += 1
+                except RuntimeError as exc:
+                    failed_query_count += 1
+                    last_query_error = exc
                     collected = []
                     break
 
@@ -1428,7 +1434,10 @@ def fetch_openreview_notes_for_venue(
                         retries=retries,
                         base_url=base_url,
                     )
-                except RuntimeError:
+                    successful_query_count += 1
+                except RuntimeError as exc:
+                    failed_query_count += 1
+                    last_query_error = exc
                     collected = []
                     break
 
@@ -1484,6 +1493,11 @@ def fetch_openreview_notes_for_venue(
                 "union_count": str(len(union_notes)),
             }
 
+    if successful_query_count == 0 and failed_query_count:
+        raise RuntimeError(
+            f"All OpenReview queries failed for {venue_id}; "
+            f"attempted_query_groups={failed_query_count}; last_error={last_query_error}"
+        ) from last_query_error
     return best_notes, best_meta
 
 

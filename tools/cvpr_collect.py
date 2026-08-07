@@ -18,6 +18,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urljoin
 from urllib.request import Request, urlopen
 
+from janussearch.collectors.outcomes import write_collection_result
+
 LOGGER = logging.getLogger("cvpr_collect")
 
 CVF_BASE_URL = "https://openaccess.thecvf.com"
@@ -872,6 +874,17 @@ def collect_one_year(
             retries=retries,
             min_interval=min_interval,
         )
+    if not papers:
+        write_collection_result(
+            output_root,
+            outcome="incomplete_source",
+            venue=venue,
+            year=year,
+            sources=[list_url],
+            reason="official_listing_returned_zero_papers",
+            metrics={"paper_count": 0, "source_mode": source_mode},
+        )
+        raise RuntimeError(f"{venue} {year} official listing returned zero papers")
     abstract_success = 0
     abstract_failed = 0
     if fetch_abstracts:
@@ -1033,6 +1046,20 @@ def main() -> int:
     }
     report_path = collections_root / f"{venue.lower()}_collection_report.json"
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    if len(years) == 1:
+        item = summary[0]
+        sources = [ensure_str(item.get("official_url"))]
+        if ensure_str(item.get("data_url")):
+            sources.append(ensure_str(item.get("data_url")))
+        write_collection_result(
+            output_root,
+            outcome="collected",
+            venue=venue,
+            year=years[0],
+            sources=[source for source in sources if source],
+            reason="official_openaccess_collection_complete",
+            metrics={"paper_count": total, "providers": providers},
+        )
     LOGGER.info("Collection report written: %s", report_path)
     LOGGER.info("Total collected papers: %s", total)
     return 0

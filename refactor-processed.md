@@ -72,3 +72,36 @@
 - [ ] 在不暴露凭据的前提下，显式运行 online evaluation；默认离线评估已经通过。
 
 按用户范围要求，工作区明文 API 凭据问题仍排除在修改范围外；本轮未读取、修改或删除 `.codex/.env`。
+
+## 2026-08-07 七个 Venue 顺序修复与安全发布
+
+范围：严格按 AAAI → ICLR → NeurIPS → ECCV → CVPR → ICML → VLDB 顺序执行。每个 venue 完成代码修复、测试、独立 snapshot、差异审计、门禁和台账更新后，才进入下一个；未知删除一律冻结。全程不读取或修改 `.codex/.env`，不构建 Chroma/topic/cache，不调用 embedding/LLM，不提交、不推送。
+
+### TODO
+
+- [x] 公共能力：统一 HTTP 响应解码、virtual collector、版本化采集结果、`NO_UPDATE`/不完整来源语义。
+- [x] 安全发布：新增 `tools.corpus reconcile`，继承稳定 ID，逐条审计删除，并在 publish 前复核 staging 哈希。
+- [x] 1. AAAI 2026：修复无 `Content-Encoding` 的 gzip 响应，重读 Technical Track issue，完成终态记录。
+- [x] 2. ICLR 2026：合并官方 events/abstracts，只保留 Conference，审计 5 个撤回项，完成终态记录。
+- [x] 3. NeurIPS 2026：确认官方空源，写 `NO_UPDATE` manifest，不生成 canonical 空文件。
+- [x] 4. ECCV 2026：改用官方 virtual 端点确认未发布，写 `NO_UPDATE` manifest，不生成 canonical 空文件。
+- [x] 5. CVPR 2026：以 CVF OpenAccess 为准，对账改题、删除和新增，完成安全发布。
+- [x] 6. ICML 2026：验证固定快照提交与 SHA-256，仅保留 Conference/Position Track，完成部分批次发布。
+- [x] 7. VLDB 2026：解析 PVLDB Volume 19 Next.js 数据，排除 Front Matter，并用 DBLP 补充标识。
+- [x] Skill：精简更新 `janus-corpus` 及 collector reference，并通过 `skill-creator` 快速校验。
+- [x] 全局验收：仅重建一次 SQLite/FTS Catalog，运行全量测试、doctor、固定查询、diff/sensitive/100MB 检查。
+
+### 进度
+
+| 顺序 | Venue/事项 | 状态 | 证据/备注 |
+|---:|---|---|---|
+| 0 | 建立本轮台账 | 已完成 | 基线 `HEAD=1ade624f`；78/78 测试通过；`doctor --profile corpus` 通过（89 个 canonical 文件）；raw 汇总哈希 `ae217022…`，SQLite 哈希 `938e36c…`。 |
+| 1 | AAAI 2026 | `UPDATED` | OJS 实际 43 个 Technical Track issue、4,149 篇、详情失败 0；新增/删除均为 0，1 个摘要扩展、1 个标题拼写修正；质量门禁通过并安全发布。 |
+| 2 | ICLR 2026 | `UPDATED` | 5,691 个官方事件过滤/合并为 5,353 篇；5,353 个 ID 继承，5 个已批准撤回，未知删除 0；作者/摘要 100%，安全发布。 |
+| 3 | NeurIPS 2026 | `NO_UPDATE` | 官方 virtual `count=0`、实际 0；仅写 collection sidecar，无论文 JSON、无 canonical 变化。 |
+| 4 | ECCV 2026 | `NO_UPDATE` | 官方 virtual `count=0`、实际 0；仅写 collection sidecar，不再从旧年份 ECVA 总页写空快照。 |
+| 5 | CVPR 2026 | `UPDATED` | CVF 4,068 篇；242 个改题映射、3 个批准删除、1 个正式新增、未知删除 0；详情与质量门禁 100%，安全发布。 |
+| 6 | ICML 2026 | `UPDATED_PARTIAL` | 官方分页第二页 403；固定提交/SHA 精确匹配，6,559 ID 均为 canonical 子集；8 个批准删除、未知删除/第三方新增均为 0，安全发布。 |
+| 7 | VLDB 2026 | `UPDATED_PARTIAL` | PVLDB Volume 19 排除 8 个 Front Matter 后为 135 篇；作者/摘要 100%，DBLP 77 条只补标识；新增 canonical 并安全发布。 |
+| 8 | Skill 验收 | 已完成 | `janus-corpus` 与 collector reference 已加入 `NO_UPDATE`、来源完整性、reconcile 和固定快照规则；`skill-creator` `quick_validate.py` 返回 `Skill is valid!`。 |
+| 9 | 全局验收 | 已完成 | Catalog 仅实际重建一次；90 个源文件、135,489 篇，FTS 135,489 行且 `all_pass=true`；92/92 测试、corpus doctor、固定查询、`git diff --check`、精确凭据扫描及 Git 100 MB 检查均通过。Chroma/topic/cache 未重建，相关投影保持 stale。 |

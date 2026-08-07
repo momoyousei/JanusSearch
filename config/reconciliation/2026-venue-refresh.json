@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "targets": {
+    "iclr/2026.json": {
+      "allowed_removals": [
+        "S2-d181921fdea6e553",
+        "S2-b1beb90ea6577e51",
+        "S2-8461b173afa0cbfa",
+        "S2-5a4563f9431f4198",
+        "S2-9f96e3eda349aef8"
+      ],
+      "allow_fuzzy_retitle": false,
+      "audit_note": "Five withdrawn OpenReview submissions absent from the official 2026 Conference event set."
+    },
+    "cvpr/2026.json": {
+      "allowed_removals": [
+        "S2-c864240e2074081c",
+        "S2-e1c41904257c967d",
+        "S2-e3ab4968fd40e4f2"
+      ],
+      "allow_fuzzy_retitle": true,
+      "expected_retitle_matches": 242,
+      "audit_note": "Final CVF OpenAccess is authoritative; three virtual-only records are approved removals."
+    },
+    "icml/2026.json": {
+      "allowed_removals": [
+        "S2-76250717a2b6e800",
+        "S2-5340253435edb211",
+        "S2-03a3f26b65b2abde",
+        "S2-f14172e6c40e9dba",
+        "S2-e37ec431263569e5",
+        "S2-60b38c10e3c3a2fa",
+        "S2-7e2948a9d88c1fe3",
+        "S2-603471b7c28526e3"
+      ],
+      "allow_fuzzy_retitle": false,
+      "audit_note": "Eight OpenReview IDs absent from the approved pinned snapshot."
+    }
+  }
+}

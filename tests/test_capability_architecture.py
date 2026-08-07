@@ -80,9 +80,13 @@ class TestCollectorRegistry(unittest.TestCase):
         neurips = get_collector("neurips").command(
             venue="NEURIPS", years="2025", output_root=Path("snapshot")
         )
-        self.assertEqual(neurips[:2], ["-m", "janussearch.collectors.generic"])
+        self.assertEqual(neurips[:2], ["-m", "janussearch.collectors.virtual"])
         self.assertIn("NEURIPS-2025", neurips)
-        self.assertEqual(neurips[-2:], ["--provider", "openreview"])
+
+        vldb = get_collector("vldb").command(
+            venue="VLDB", years="2026", output_root=Path("snapshot")
+        )
+        self.assertEqual(vldb[:2], ["-m", "tools.pvldb_collect"])
 
     def test_unsupported_venue_is_configuration_error(self) -> None:
         with self.assertRaises(ConfigurationError):
@@ -173,6 +177,91 @@ class TestCorpusSafety(unittest.TestCase):
             self.assertEqual(result["published_count"], 1)
             self.assertEqual(json.loads(target.read_text(encoding="utf-8"))["version"], 2)
             self.assertFalse(any(target.parent.glob(".*.publish.*")))
+
+    def test_reconcile_inherits_stable_id_after_retitle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staging = root / "staging"
+            canonical = root / "raw"
+            output = root / "reconciled"
+            old_path = canonical / "test" / "2026.json"
+            new_path = staging / "test" / "2026.json"
+            old_path.parent.mkdir(parents=True)
+            new_path.parent.mkdir(parents=True)
+            old_path.write_text(
+                json.dumps(
+                    {
+                        "papers": [
+                            {
+                                "paper_id": "S2-stable",
+                                "title": "Old title",
+                                "authors": ["Alice"],
+                                "openreview_id": "forum-1",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            new_path.write_text(
+                json.dumps(
+                    {
+                        "papers": [
+                            {
+                                "paper_id": "S2-generated",
+                                "title": "New title",
+                                "authors": ["Alice"],
+                                "openreview_id": "forum-1",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = corpus.reconcile(
+                staging_root=staging,
+                canonical_root=canonical,
+                output_root=output,
+            )
+
+            reconciled = json.loads((output / "test" / "2026.json").read_text(encoding="utf-8"))
+            self.assertEqual(reconciled["papers"][0]["paper_id"], "S2-stable")
+            self.assertEqual(report["files"][0]["mapping_method_counts"], {"stable_id": 1})
+
+    def test_reconcile_blocks_unapproved_deletion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staging = root / "staging"
+            canonical = root / "raw"
+            old_path = canonical / "test" / "2026.json"
+            new_path = staging / "test" / "2026.json"
+            old_path.parent.mkdir(parents=True)
+            new_path.parent.mkdir(parents=True)
+            old_path.write_text(
+                json.dumps(
+                    {
+                        "papers": [
+                            {"paper_id": "S2-one", "title": "One", "authors": ["A"]},
+                            {"paper_id": "S2-two", "title": "Two", "authors": ["B"]},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            new_path.write_text(
+                json.dumps(
+                    {"papers": [{"paper_id": "S2-one", "title": "One", "authors": ["A"]}]}
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "Unknown removals blocked"):
+                corpus.reconcile(
+                    staging_root=staging,
+                    canonical_root=canonical,
+                    output_root=root / "reconciled",
+                )
 
     def test_staging_validation_uses_source_pointer_for_alignment(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -87,6 +87,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--input-glob", default="data/raw/*/*.json")
     _add_validation(validate_parser)
 
+    reconcile_parser = subparsers.add_parser(
+        "reconcile", help="Preserve stable IDs and audit additions/removals before publish"
+    )
+    reconcile_parser.add_argument("--staging-root", required=True)
+    reconcile_parser.add_argument("--output-root", required=True)
+    reconcile_parser.add_argument("--canonical-root", default="data/raw")
+    reconcile_parser.add_argument(
+        "--policy",
+        default="config/reconciliation/2026-venue-refresh.json",
+        help="Versioned approved-removal and retitle policy",
+    )
+
     publish_parser = subparsers.add_parser("publish", help="Validate then publish staged canonical JSON")
     publish_parser.add_argument("--staging-root", required=True)
     publish_parser.add_argument("--canonical-root", default="data/raw")
@@ -150,6 +162,19 @@ def _record_alignment_warnings(
     return warning_count
 
 
+def _compact_reconciliation_result(result: dict[str, Any]) -> dict[str, Any]:
+    """Keep per-record mappings on disk without flooding the terminal JSON."""
+    compact = dict(result)
+    compact_files: list[dict[str, Any]] = []
+    for item in result.get("files", []):
+        compact_item = dict(item)
+        mappings = compact_item.pop("mappings", [])
+        compact_item["mapping_record_count"] = len(mappings)
+        compact_files.append(compact_item)
+    compact["files"] = compact_files
+    return compact
+
+
 def main() -> int:
     """Execute one staged corpus operation."""
     args = build_arg_parser().parse_args()
@@ -171,7 +196,34 @@ def main() -> int:
         elif args.command == "collect":
             output_root = Path(args.output_root) if args.output_root else run_root / "collected"
             result = corpus.collect(args.venue, args.years, output_root)
-            manifest.add_step("collect", "passed", metrics={"files": len(result["files"])}, artifacts=result["files"])
+            step_status = "skipped" if result["outcome"] == "no_update" else "passed"
+            manifest.add_step(
+                "collect",
+                step_status,
+                metrics={"files": len(result["files"]), "outcome": result["outcome"]},
+                artifacts=[*result["files"], output_root / ".janus-collection.json"],
+            )
+
+        elif args.command == "reconcile":
+            reconciliation_result = corpus.reconcile(
+                staging_root=Path(args.staging_root),
+                canonical_root=Path(args.canonical_root),
+                output_root=Path(args.output_root),
+                policy_path=Path(args.policy) if args.policy else None,
+            )
+            manifest.add_step(
+                "reconcile",
+                "skipped" if reconciliation_result["outcome"] == "no_update" else "passed",
+                metrics={
+                    "outcome": reconciliation_result["outcome"],
+                    "files": len(reconciliation_result["files"]),
+                    "added": sum(item["added_count"] for item in reconciliation_result["files"]),
+                    "removed": sum(item["removed_count"] for item in reconciliation_result["files"]),
+                    "changed": sum(item["changed_count"] for item in reconciliation_result["files"]),
+                },
+                artifacts=[reconciliation_result["report_path"], reconciliation_result["output_root"]],
+            )
+            result = _compact_reconciliation_result(reconciliation_result)
 
         elif args.command == "prepare":
             staging_root = Path(args.staging_root) if args.staging_root else run_root / "staging"
@@ -214,18 +266,51 @@ def main() -> int:
                 validation,
                 strict=args.strict_official_alignment,
             )
-            result = corpus.publish(staging_root, Path(args.canonical_root))
+            result = corpus.publish(
+                staging_root,
+                Path(args.canonical_root),
+                require_reconciliation=True,
+            )
             manifest.add_step("publish", "passed", metrics={"published_count": result["published_count"]}, artifacts=result["published_files"])
 
         elif args.command == "add":
             collection_root = Path(args.output_root) if args.output_root else run_root / "collected"
             staging_root = run_root / "staging"
             collected = corpus.collect(args.venue, args.years, collection_root)
-            manifest.add_step("collect", "passed", metrics={"files": len(collected["files"])}, artifacts=collected["files"])
-            prepared = corpus.prepare(**_prepare_kwargs(args, input_glob=str(collection_root / "*.json"), staging_root=staging_root, reports_root=reports_root))
+            collect_status = "skipped" if collected["outcome"] == "no_update" else "passed"
+            manifest.add_step(
+                "collect",
+                collect_status,
+                metrics={"files": len(collected["files"]), "outcome": collected["outcome"]},
+                artifacts=[*collected["files"], collection_root / ".janus-collection.json"],
+            )
+            if collected["outcome"] == "no_update":
+                result = {"collection": collected, "publication": None, "catalog": None}
+                manifest_path = manifest.finish(exit_code=ExitCode.SUCCESS, warnings=True)
+                print(json.dumps({"result": result, "run_manifest": str(manifest_path)}, ensure_ascii=False, indent=2))
+                return int(ExitCode.SUCCESS)
+            prepared = corpus.prepare(**_prepare_kwargs(args, input_glob=str(collection_root / "[!.]*.json"), staging_root=staging_root, reports_root=reports_root))
             manifest.add_step("prepare", "passed", metrics=prepared["normalize"].get("summary"), artifacts=[staging_root])
+            reconciled_root = run_root / "reconciled"
+            reconciled = corpus.reconcile(
+                staging_root=staging_root,
+                canonical_root=Path(args.canonical_root),
+                output_root=reconciled_root,
+                policy_path=Path("config/reconciliation/2026-venue-refresh.json"),
+            )
+            manifest.add_step(
+                "reconcile",
+                "skipped" if reconciled["outcome"] == "no_update" else "passed",
+                metrics={"outcome": reconciled["outcome"]},
+                artifacts=[reconciled["report_path"]],
+            )
+            if reconciled["outcome"] == "no_update":
+                result = {"collection": collected, "reconciliation": reconciled, "publication": None, "catalog": None}
+                manifest_path = manifest.finish(exit_code=ExitCode.SUCCESS, warnings=True)
+                print(json.dumps({"result": result, "run_manifest": str(manifest_path)}, ensure_ascii=False, indent=2))
+                return int(ExitCode.SUCCESS)
             validation, passed = corpus.validate(
-                input_glob=str(staging_root / "*/*.json"),
+                input_glob=str(reconciled_root / "*/*.json"),
                 reports_root=reports_root,
                 threshold_authors=args.threshold_authors,
                 threshold_abstract=args.threshold_abstract,
@@ -239,7 +324,11 @@ def main() -> int:
                 validation,
                 strict=args.strict_official_alignment,
             )
-            published = corpus.publish(staging_root, Path(args.canonical_root))
+            published = corpus.publish(
+                reconciled_root,
+                Path(args.canonical_root),
+                require_reconciliation=True,
+            )
             manifest.add_step("publish", "passed", metrics={"published_count": published["published_count"]}, artifacts=published["published_files"])
             _catalog_build, _ = execute_catalog("build", input_root=Path(args.canonical_root), db_path=Path(args.db_path), index_root=Path("artifacts"))
             catalog_validation, catalog_passed = execute_catalog("validate", input_root=Path(args.canonical_root), db_path=Path(args.db_path), index_root=Path("artifacts"))

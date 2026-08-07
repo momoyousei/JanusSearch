@@ -30,6 +30,8 @@ fi
 ./.venv/bin/python -m tools.corpus collect --venue <VENUE> --years <YYYY-YYYY>
 ```
 
+Read `.janus-collection.json`. `no_update` is a successful terminal state: do not prepare, publish, or create an empty canonical file. `incomplete_source` is a failure even when a partial response exists.
+
 4. Normalize into isolated staging. Add `--enrich --enable-arxiv-title` only when missing-field repair is in scope:
 
 ```bash
@@ -38,22 +40,32 @@ fi
   --staging-root '<STAGING>'
 ```
 
-5. Validate staging. Duplicate titles and author/abstract coverage remain hard gates. Official paper count, track count, and presentation-level alignment are warnings by default:
+5. Reconcile staged records with canonical IDs and the versioned approval policy:
+
+```bash
+./.venv/bin/python -m tools.corpus reconcile \
+  --staging-root '<STAGING>' \
+  --output-root '<RECONCILED>'
+```
+
+Reconciliation ignores run timestamps, matches stable source IDs before titles, preserves old `paper_id` across retitles, and blocks every deletion not listed in the policy. Keep the per-record report with the run artifacts.
+
+6. Validate reconciled staging. Duplicate titles and author/abstract coverage remain hard gates. Official paper count, track count, and presentation-level alignment are warnings by default:
 
 ```bash
 ./.venv/bin/python -m tools.corpus validate \
-  --input-glob '<STAGING>/*/*.json'
+  --input-glob '<RECONCILED>/*/*.json'
 ```
 
 Use `--strict-official-alignment` only when the user or release policy explicitly requires official alignment as a hard gate.
 
-6. Publish only through the validating publish command:
+7. Publish only through the validating publish command. It rechecks the reconciliation report, staging hashes, and unchanged canonical baseline:
 
 ```bash
-./.venv/bin/python -m tools.corpus publish --staging-root '<STAGING>'
+./.venv/bin/python -m tools.corpus publish --staging-root '<RECONCILED>'
 ```
 
-7. Build and validate the query catalog:
+8. Build and validate the query catalog once after all accepted venue batches:
 
 ```bash
 ./.venv/bin/python -m tools.catalog build
@@ -65,6 +77,8 @@ Use `tools.corpus add` only when the user wants the complete collect-to-catalog 
 ## Failure rules
 
 - Stop the batch when staging validation fails; canonical JSON must remain unchanged.
+- Stop on pagination shortfall, source fingerprint mismatch, duplicate mapping, or an unapproved deletion.
+- A fixed third-party snapshot is allowed only when the version, SHA-256, filtering, and canonical-subset rules are explicitly approved and recorded; otherwise treat it as `incomplete_source`.
 - Preserve the old SQLite database when its replacement build fails.
 - If catalog validation fails after canonical publication, freeze the batch and report that canonical is published but the prior atomic SQLite catalog remains available; do not claim rollback of canonical.
 - Do not fabricate missing fields or edit statistics by hand.

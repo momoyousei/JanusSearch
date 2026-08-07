@@ -1191,7 +1191,9 @@ def find_input_files(input_glob: str) -> List[Path]:
     files = [
         path
         for path in sorted(candidates)
-        if path.is_file() and path.name.lower().endswith(".json")
+        if path.is_file()
+        and not path.name.startswith(".")
+        and path.name.lower().endswith(".json")
     ]
     if not files:
         raise FileNotFoundError(f"No files found with pattern: {input_glob}")
