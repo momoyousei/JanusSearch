@@ -19,6 +19,7 @@ from tools.m1_pipeline import (
     dedupe_records,
     is_placeholder_record,
     normalize_title,
+    normalize_presentation_level,
     parse_papers_cool_venue_html,
     resolve_icml_pmlr_volume,
     run_migrate_provenance,
@@ -41,6 +42,12 @@ class TestM1Pipeline(unittest.TestCase):
             "10.1109/CVPR.2016.90",
         )
         self.assertIsNone(canonicalize_doi(""))
+
+    def test_missing_presentation_is_not_invented_as_poster(self) -> None:
+        self.assertEqual(normalize_presentation_level("", "ICLR"), "unknown")
+        self.assertEqual(normalize_presentation_level("poster", "ICLR"), "poster")
+        self.assertEqual(normalize_presentation_level("poster", "TPAMI"), "not_applicable")
+        self.assertEqual(normalize_presentation_level(None, "VLDB"), "not_applicable")
 
     def test_icml_pmlr_volume_mapping(self) -> None:
         self.assertEqual(resolve_icml_pmlr_volume(2021), "v139")

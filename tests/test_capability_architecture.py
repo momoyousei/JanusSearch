@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import ast
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +21,7 @@ from janussearch.domain.errors import ConfigurationError
 from janussearch.domain.run import ExitCode, RunStatus
 from janussearch.infrastructure.fingerprints import fingerprint_payload
 from janussearch.infrastructure.manifests import RunManifest
+from janussearch.infrastructure.service_config import embed_model, llm_model
 from tools.m1_pipeline import run_validate
 from tools.m2_db import canonical_source_file_key
 
@@ -30,6 +33,31 @@ class TestRunContracts(unittest.TestCase):
         self.assertEqual(int(ExitCode.SUCCESS), 0)
         self.assertEqual(int(ExitCode.OPERATION_FAILED), 1)
         self.assertEqual(int(ExitCode.USAGE_ERROR), 2)
+
+    def test_service_models_use_canonical_environment_names(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {"JANUS_EMBED_MODEL": "embed-test", "JANUS_LLM_MODEL": "llm-test"},
+            clear=False,
+        ):
+            self.assertEqual(embed_model("fallback"), "embed-test")
+            self.assertEqual(llm_model("fallback"), "llm-test")
+
+    def test_production_package_never_imports_tools(self) -> None:
+        package_root = Path(__file__).resolve().parents[1] / "janussearch"
+        violations: list[str] = []
+        for path in package_root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names = [item.name for item in node.names]
+                elif isinstance(node, ast.ImportFrom):
+                    names = [node.module or ""]
+                else:
+                    continue
+                if any(name == "tools" or name.startswith("tools.") for name in names):
+                    violations.append(f"{path.relative_to(package_root)}:{node.lineno}")
+        self.assertEqual(violations, [])
 
     def test_payload_fingerprint_is_order_independent(self) -> None:
         self.assertEqual(
@@ -74,7 +102,7 @@ class TestCollectorRegistry(unittest.TestCase):
         acl = get_collector("acl").command(
             venue="ACL", years="2024-2025", output_root=Path("snapshot")
         )
-        self.assertEqual(acl[:2], ["-m", "tools.acl_collect"])
+        self.assertEqual(acl[:2], ["-m", "janussearch.collectors.acl"])
         self.assertIn("--years", acl)
 
         neurips = get_collector("neurips").command(
@@ -86,7 +114,7 @@ class TestCollectorRegistry(unittest.TestCase):
         vldb = get_collector("vldb").command(
             venue="VLDB", years="2026", output_root=Path("snapshot")
         )
-        self.assertEqual(vldb[:2], ["-m", "tools.pvldb_collect"])
+        self.assertEqual(vldb[:2], ["-m", "janussearch.collectors.pvldb"])
 
     def test_unsupported_venue_is_configuration_error(self) -> None:
         with self.assertRaises(ConfigurationError):
@@ -229,6 +257,73 @@ class TestCorpusSafety(unittest.TestCase):
             self.assertEqual(reconciled["papers"][0]["paper_id"], "S2-stable")
             self.assertEqual(report["files"][0]["mapping_method_counts"], {"stable_id": 1})
 
+    def test_reconcile_requires_explicit_retitle_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staging = root / "staging"
+            canonical = root / "raw"
+            old_path = canonical / "test" / "2026.json"
+            new_path = staging / "test" / "2026.json"
+            old_path.parent.mkdir(parents=True)
+            new_path.parent.mkdir(parents=True)
+            old_path.write_text(
+                json.dumps(
+                    {"papers": [{"paper_id": "S2-old", "title": "Old title", "authors": ["Alice"]}]}
+                ),
+                encoding="utf-8",
+            )
+            new_path.write_text(
+                json.dumps(
+                    {"papers": [{"paper_id": "S2-new", "title": "New title", "authors": ["Alice"]}]}
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "Unknown removals blocked"):
+                corpus.reconcile(
+                    staging_root=staging,
+                    canonical_root=canonical,
+                    output_root=root / "blocked",
+                )
+
+            policy = root / "policy.json"
+            policy.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "targets": {
+                            "test/2026.json": {
+                                "allowed_removals": [],
+                                "retitle_mappings": [
+                                    {
+                                        "old_paper_id": "S2-old",
+                                        "old_title": "Old title",
+                                        "new_title": "New title",
+                                    }
+                                ],
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            report = corpus.reconcile(
+                staging_root=staging,
+                canonical_root=canonical,
+                output_root=root / "approved",
+                policy_path=policy,
+            )
+            self.assertEqual(report["files"][0]["mapping_method_counts"], {"approved_retitle": 1})
+
+    def test_unique_index_treats_author_signature_as_one_key(self) -> None:
+        records = [
+            {"authors": ["Alice", "Bob"]},
+            {"authors": ["Carol"]},
+        ]
+        index = corpus._unique_index(records, corpus._author_signature)
+        self.assertEqual(index[("alice", "bob")], 0)
+        self.assertEqual(index[("carol",)], 1)
+
     def test_reconcile_blocks_unapproved_deletion(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -262,6 +357,80 @@ class TestCorpusSafety(unittest.TestCase):
                     canonical_root=canonical,
                     output_root=root / "reconciled",
                 )
+
+    def test_publish_rejects_staging_file_missing_from_reconciliation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staging = root / "staging"
+            canonical = root / "raw"
+            source = staging / "test" / "2026.json"
+            source.parent.mkdir(parents=True)
+            source.write_text(json.dumps({"papers": []}), encoding="utf-8")
+            reconciled = root / "reconciled"
+            corpus.reconcile(
+                staging_root=staging,
+                canonical_root=canonical,
+                output_root=reconciled,
+            )
+            extra = reconciled / "other" / "2026.json"
+            extra.parent.mkdir(parents=True)
+            extra.write_text(json.dumps({"papers": []}), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "file set mismatch"):
+                corpus.publish(reconciled, canonical, require_reconciliation=True)
+
+    def test_publish_rejects_noncanonical_reconciliation_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            staging = root / "staging"
+            canonical = root / "raw"
+            staging.mkdir()
+            report = {
+                "schema_version": 2,
+                "outcome": "no_update",
+                "policy": {"path": None, "sha256": None},
+                "prepare_metadata_sha256": None,
+                "source_inputs": [],
+                "collection_results": [],
+                "files": [{"relative_path": "../escape.json"}],
+            }
+            (staging / corpus.RECONCILIATION_NAME).write_text(
+                json.dumps(report), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "Invalid reconciliation path"):
+                corpus.publish(staging, canonical, require_reconciliation=True)
+
+    def test_publish_rejects_source_changed_after_reconciliation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            snapshot = root / "snapshot" / "TEST-25.json"
+            staging = root / "staging"
+            reconciled = root / "reconciled"
+            snapshot.parent.mkdir()
+            snapshot.write_text(json.dumps(self._source_payload(1)), encoding="utf-8")
+            corpus.prepare(
+                input_glob=str(snapshot),
+                staging_root=staging,
+                reports_root=root / "reports",
+                enrich=False,
+                timeout=1.0,
+                retries=0,
+                max_records_per_file=0,
+                min_interval=0.0,
+                enable_arxiv_title=False,
+                enable_papers_cool=False,
+                papers_cool_policy="full_fields",
+            )
+            corpus.reconcile(
+                staging_root=staging,
+                canonical_root=root / "raw",
+                output_root=reconciled,
+            )
+            snapshot.write_text(json.dumps({"papers": []}), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "Source input changed"):
+                corpus.publish(reconciled, root / "raw", require_reconciliation=True)
 
     def test_staging_validation_uses_source_pointer_for_alignment(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -418,17 +587,52 @@ class TestFreshnessAndDiagnostics(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             vectors = Path(temp_dir) / "vectors"
             vectors.mkdir()
-            fake_chromadb = SimpleNamespace(
-                PersistentClient=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("corrupt store"))
-            )
-            fake_config = SimpleNamespace(Settings=lambda **kwargs: kwargs)
-            with patch.dict(
-                "sys.modules",
-                {"chromadb": fake_chromadb, "chromadb.config": fake_config},
-            ):
-                checks = list(check_vectors(vectors, "papers_v1"))
+            (vectors / "chroma.sqlite3").write_bytes(b"corrupt store")
+            checks = list(check_vectors(vectors, "papers_v1"))
             self.assertEqual(checks[0]["status"], "error")
-            self.assertIn("corrupt store", checks[0]["message"])
+            self.assertIn("database", checks[0]["message"].lower())
+
+    def test_vector_check_rejects_equal_count_with_wrong_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            vectors = root / "vectors"
+            vectors.mkdir()
+            db_path = root / "papers.db"
+            connection = sqlite3.connect(db_path)
+            connection.execute("CREATE TABLE papers (paper_id TEXT, record_status TEXT)")
+            connection.execute("INSERT INTO papers VALUES ('expected-id', 'resolved')")
+            connection.commit()
+            connection.close()
+            vector_db = sqlite3.connect(vectors / "chroma.sqlite3")
+            vector_db.executescript(
+                """
+                CREATE TABLE collections (id TEXT PRIMARY KEY, name TEXT);
+                CREATE TABLE segments (id TEXT PRIMARY KEY, scope TEXT, collection TEXT);
+                CREATE TABLE embeddings (
+                    id INTEGER PRIMARY KEY, segment_id TEXT, embedding_id TEXT
+                );
+                CREATE TABLE embedding_metadata (
+                    id INTEGER, key TEXT, string_value TEXT, int_value INTEGER
+                );
+                INSERT INTO collections VALUES ('collection-id', 'papers_v1');
+                INSERT INTO segments VALUES ('segment-id', 'METADATA', 'collection-id');
+                INSERT INTO embeddings VALUES (1, 'segment-id', 'wrong-id');
+                INSERT INTO embedding_metadata VALUES (1, 'paper_id', 'wrong-id', NULL);
+                INSERT INTO embedding_metadata VALUES (1, 'embed_model', 'fixture', NULL);
+                INSERT INTO embedding_metadata
+                    VALUES (1, 'embedding_text_sha256', 'abc', NULL);
+                INSERT INTO embedding_metadata
+                    VALUES (1, 'vector_schema_version', NULL, 2);
+                """
+            )
+            vector_db.commit()
+            vector_db.close()
+
+            checks = list(check_vectors(vectors, "papers_v1", db_path))
+            coverage = next(item for item in checks if item["name"] == "vectors.coverage")
+            self.assertEqual(coverage["status"], "error")
+            self.assertEqual(coverage["details"]["missing_count"], 1)
+            self.assertEqual(coverage["details"]["extra_count"], 1)
 
 
 class TestSkillReplacement(unittest.TestCase):

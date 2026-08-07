@@ -12,12 +12,16 @@ import subprocess
 import sys
 import unicodedata
 from difflib import SequenceMatcher
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Iterable, List, Tuple
 
-from janussearch.collectors.outcomes import COLLECTION_RESULT_NAME, read_collection_result
+from janussearch.collectors.outcomes import (
+    COLLECTION_RESULT_NAME,
+    read_collection_result,
+    write_collection_result,
+)
 from janussearch.collectors.registry import get_collector, parse_years
-from tools import m1_pipeline as legacy
+from janussearch.application import corpus_pipeline as legacy
 
 
 def inspect(input_glob: str, report_path: Path) -> Dict[str, Any]:
@@ -67,20 +71,34 @@ def collect(venue: str, years: str, output_root: Path) -> Dict[str, Any]:
             raise RuntimeError(
                 f"Collector failed with exit code {result.returncode}: {result.stderr[-1000:]}"
             )
-    collection_result = read_collection_result(output_root)
     files = sorted(
         str(path)
         for path in output_root.rglob("*.json")
         if path.name != COLLECTION_RESULT_NAME and not path.name.startswith(".")
     )
+    collection_result = read_collection_result(
+        output_root,
+        expected_venue=collection_plan["venue"],
+        expected_years=collection_plan["years"],
+    )
     if collection_result is None:
         if not files:
             raise RuntimeError("Collector produced neither paper JSON nor a collection result")
-        collection_result = {
-            "schema_version": 1,
-            "outcome": "collected",
-            "reason": "legacy_collector_with_nonempty_output",
-        }
+        write_collection_result(
+            output_root,
+            outcome="collected",
+            venue=collection_plan["venue"],
+            years=collection_plan["years"],
+            sources=[f"collector:{collection_plan['collector_module']}"],
+            reason="registered_collector_completed_with_audited_files",
+            metrics={"paper_file_count": len(files)},
+        )
+        collection_result = read_collection_result(
+            output_root,
+            expected_venue=collection_plan["venue"],
+            expected_years=collection_plan["years"],
+        )
+        assert collection_result is not None
     outcome = str(collection_result["outcome"])
     if outcome == "collected" and not files:
         raise RuntimeError("Collector declared collected but produced no paper JSON")
@@ -116,6 +134,17 @@ def prepare(
         raise FileExistsError(f"Staging root already contains JSON: {staging_root}")
     normalize_report = reports_root / "normalize_report.json"
     backfill_report = reports_root / "backfill_report.json"
+    source_files = legacy.find_input_files(input_glob)
+    source_evidence = [
+        {"path": str(path.resolve()), "sha256": _sha256(path)} for path in source_files
+    ]
+    collection_results = []
+    for sidecar in sorted({path.parent / COLLECTION_RESULT_NAME for path in source_files}):
+        if sidecar.is_file():
+            collection_results.append(
+                {"path": str(sidecar.resolve()), "sha256": _sha256(sidecar)}
+            )
+
     normalized = legacy.run_normalize(
         input_glob=input_glob,
         canonical_root=staging_root,
@@ -146,7 +175,16 @@ def prepare(
     metadata_path = staging_root / ".janus-corpus.json"
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path.write_text(
-        json.dumps({"schema_version": 1, "source_input_glob": input_glob}, ensure_ascii=False, indent=2)
+        json.dumps(
+            {
+                "schema_version": 2,
+                "source_input_glob": input_glob,
+                "source_files": source_evidence,
+                "collection_results": collection_results,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
         + "\n",
         encoding="utf-8",
     )
@@ -233,6 +271,12 @@ def _normalized_title(value: Any) -> str:
     return "".join(character for character in text.casefold() if character.isalnum())
 
 
+def _exact_title_key(value: Any) -> str:
+    """Normalize case and whitespace without erasing retitle-significant punctuation."""
+    text = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return " ".join(text.split())
+
+
 def _normalized_author(value: Any) -> str:
     """Normalize one author name across accents and punctuation."""
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -275,7 +319,7 @@ def _unique_index(records: list[dict[str, Any]], key_builder: Any) -> dict[Any, 
     candidates: dict[Any, list[int]] = {}
     for index, record in enumerate(records):
         keys = key_builder(record)
-        if not isinstance(keys, (set, list, tuple)):
+        if not isinstance(keys, (set, list)):
             keys = [keys]
         for key in keys:
             if key:
@@ -382,9 +426,9 @@ def _merge_existing_completeness(
 
 def _load_policy(path: Path | None) -> dict[str, Any]:
     if path is None:
-        return {"schema_version": 1, "targets": {}}
+        return {"schema_version": 2, "targets": {}}
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != 1 or not isinstance(payload.get("targets"), dict):
+    if payload.get("schema_version") != 2 or not isinstance(payload.get("targets"), dict):
         raise ValueError(f"Invalid reconciliation policy: {path}")
     return payload
 
@@ -408,7 +452,11 @@ def reconcile(
     overall_outcome = "no_update"
 
     metadata = staging_root / ".janus-corpus.json"
+    metadata_payload: dict[str, Any] | None = None
     if metadata.is_file():
+        metadata_payload = json.loads(metadata.read_text(encoding="utf-8"))
+        if metadata_payload.get("schema_version") != 2:
+            raise ValueError(f"Unsupported prepare metadata: {metadata}")
         shutil.copy2(metadata, output_root / metadata.name)
 
     for source in sources:
@@ -427,6 +475,10 @@ def reconcile(
 
         matches: dict[int, tuple[int, str, float | None]] = {}
         used_old: set[int] = set()
+        target_policy = policy["targets"].get(relative.as_posix(), {})
+        expected_source_hash = target_policy.get("source_sha256")
+        if expected_source_hash and _sha256(source) != expected_source_hash:
+            raise RuntimeError(f"Source fingerprint mismatch for {relative}")
         old_id_index = _unique_index(old_records, _stable_ids)
         for new_index, record in enumerate(new_records):
             candidates = {old_id_index[key] for key in _stable_ids(record) if key in old_id_index}
@@ -438,42 +490,56 @@ def reconcile(
                 matches[new_index] = (old_index, "stable_id", None)
                 used_old.add(old_index)
 
-        old_title_index = _unique_index(old_records, lambda item: _normalized_title(item.get("title")))
+        explicit_mappings = target_policy.get("retitle_mappings", [])
+        if not isinstance(explicit_mappings, list):
+            raise ValueError(f"Invalid retitle mappings for {relative}")
+        old_paper_index = _unique_index(
+            old_records,
+            lambda item: [f"paper_id:{str(item.get('paper_id') or '').strip()}"],
+        )
+        new_title_index = _unique_index(
+            new_records,
+            lambda item: [_exact_title_key(item.get("title"))],
+        )
+        seen_old_ids: set[str] = set()
+        seen_new_titles: set[str] = set()
+        used_explicit = 0
+        for approved in explicit_mappings:
+            if not isinstance(approved, dict):
+                raise ValueError(f"Invalid retitle mapping for {relative}: {approved!r}")
+            old_paper_id = str(approved.get("old_paper_id") or "").strip()
+            old_title = str(approved.get("old_title") or "")
+            new_title = str(approved.get("new_title") or "")
+            new_title_key = _exact_title_key(new_title)
+            if not old_paper_id or not old_title or not new_title_key:
+                raise ValueError(f"Incomplete retitle mapping for {relative}")
+            if old_paper_id in seen_old_ids or new_title_key in seen_new_titles:
+                raise RuntimeError(f"Duplicate approved retitle mapping for {relative}")
+            seen_old_ids.add(old_paper_id)
+            seen_new_titles.add(new_title_key)
+            old_index = old_paper_index.get(f"paper_id:{old_paper_id}")
+            new_index = new_title_index.get(new_title_key)
+            if old_index is None or new_index is None:
+                raise RuntimeError(f"Approved retitle mapping target is missing for {relative}")
+            if str(old_records[old_index].get("title") or "") != old_title:
+                raise RuntimeError(f"Approved retitle old title changed for {old_paper_id}")
+            if str(new_records[new_index].get("title") or "") != new_title:
+                raise RuntimeError(f"Approved retitle new title changed for {old_paper_id}")
+            if old_index in used_old or new_index in matches:
+                raise RuntimeError(f"Ambiguous approved retitle mapping for {relative}")
+            matches[new_index] = (old_index, "approved_retitle", 1.0)
+            used_old.add(old_index)
+            used_explicit += 1
+
+        old_title_index = _unique_index(
+            old_records, lambda item: [_exact_title_key(item.get("title"))]
+        )
         for new_index, record in enumerate(new_records):
             if new_index in matches:
                 continue
-            old_index = old_title_index.get(_normalized_title(record.get("title")))
+            old_index = old_title_index.get(_exact_title_key(record.get("title")))
             if old_index is not None and old_index not in used_old:
-                matches[new_index] = (old_index, "normalized_title", None)
-                used_old.add(old_index)
-
-        target_policy = policy["targets"].get(relative.as_posix(), {})
-        fuzzy_enabled = bool(target_policy.get("allow_fuzzy_retitle"))
-        if fuzzy_enabled:
-            old_author_index = _unique_index(old_records, _author_signature)
-            for new_index, record in enumerate(new_records):
-                if new_index in matches:
-                    continue
-                signature = _author_signature(record)
-                old_index = old_author_index.get(signature)
-                if signature and old_index is not None and old_index not in used_old:
-                    matches[new_index] = (old_index, "exact_author_set", 1.0)
-                    used_old.add(old_index)
-
-            scored_candidates: list[tuple[float, float, float, int, int]] = []
-            for new_index, new_record in enumerate(new_records):
-                if new_index in matches:
-                    continue
-                for old_index, old_record in enumerate(old_records):
-                    if old_index in used_old:
-                        continue
-                    score, title_score, author_score = _fuzzy_score(new_record, old_record)
-                    if score >= 0.63 and (author_score >= 0.50 or title_score >= 0.84):
-                        scored_candidates.append((score, title_score, author_score, new_index, old_index))
-            for score, title_score, author_score, new_index, old_index in sorted(scored_candidates, reverse=True):
-                if new_index in matches or old_index in used_old:
-                    continue
-                matches[new_index] = (old_index, "fuzzy_retitle", round(score, 6))
+                matches[new_index] = (old_index, "exact_title", None)
                 used_old.add(old_index)
 
         mapping_records: list[dict[str, Any]] = []
@@ -505,22 +571,9 @@ def reconcile(
                 f"Unknown removals blocked for {relative}: count={len(unknown_removals)} ids={unknown_removals[:8]}"
             )
         unmatched_new = [index for index in range(len(new_records)) if index not in matches]
-        fuzzy_count = sum(item["method"] in {"exact_author_set", "fuzzy_retitle"} for item in mapping_records)
-        retitle_count = sum(
-            item["method"] in {"normalized_title", "exact_author_set", "fuzzy_retitle"}
-            for item in mapping_records
-        )
-        minimum_fuzzy = int(target_policy.get("minimum_fuzzy_retitle_matches", 0))
-        if fuzzy_count < minimum_fuzzy:
-            raise RuntimeError(
-                f"Fuzzy retitle reconciliation regressed for {relative}: {fuzzy_count} < {minimum_fuzzy}"
-            )
-        expected_retitle = target_policy.get("expected_retitle_matches")
-        if expected_retitle is not None and retitle_count != int(expected_retitle):
-            raise RuntimeError(
-                f"Retitle reconciliation changed for {relative}: "
-                f"{retitle_count} != {int(expected_retitle)}"
-            )
+        retitle_count = sum(item["method"] == "approved_retitle" for item in mapping_records)
+        if retitle_count != used_explicit:
+            raise RuntimeError(f"Approved retitle mappings were not fully applied for {relative}")
         changed_count = sum(bool(item["changed"]) for item in mapping_records)
         file_outcome = (
             "no_update"
@@ -559,9 +612,15 @@ def reconcile(
         )
 
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "outcome": overall_outcome,
-        "policy_path": str(policy_path) if policy_path else None,
+        "policy": {
+            "path": str(policy_path.resolve()) if policy_path else None,
+            "sha256": _sha256(policy_path) if policy_path else None,
+        },
+        "prepare_metadata_sha256": _sha256(metadata) if metadata.is_file() else None,
+        "source_inputs": (metadata_payload or {}).get("source_files", []),
+        "collection_results": (metadata_payload or {}).get("collection_results", []),
         "files": file_reports,
     }
     report_path = output_root / RECONCILIATION_NAME
@@ -575,10 +634,72 @@ def _verify_reconciliation(staging_root: Path, canonical_root: Path) -> dict[str
     if not report_path.is_file():
         raise RuntimeError(f"Missing reconciliation report: {report_path}")
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    if report.get("schema_version") != 1:
+    if report.get("schema_version") != 2:
         raise RuntimeError(f"Unsupported reconciliation report: {report_path}")
-    for item in report.get("files", []):
-        relative = Path(item["relative_path"])
+    metadata_path = staging_root / ".janus-corpus.json"
+    expected_metadata_hash = report.get("prepare_metadata_sha256")
+    current_metadata_hash = _sha256(metadata_path) if metadata_path.is_file() else None
+    if current_metadata_hash != expected_metadata_hash:
+        raise RuntimeError(f"Prepare metadata changed since reconciliation: {metadata_path}")
+
+    policy = report.get("policy")
+    if not isinstance(policy, dict):
+        raise RuntimeError(f"Reconciliation policy evidence is missing: {report_path}")
+    policy_path = Path(policy["path"]) if policy.get("path") else None
+    current_policy_hash = _sha256(policy_path) if policy_path and policy_path.is_file() else None
+    if current_policy_hash != policy.get("sha256"):
+        raise RuntimeError(f"Reconciliation policy changed: {policy_path}")
+
+    for evidence_group, label in (
+        (report.get("source_inputs"), "Source input"),
+        (report.get("collection_results"), "Collection result"),
+    ):
+        if not isinstance(evidence_group, list):
+            raise RuntimeError(f"Invalid {label.lower()} evidence: {report_path}")
+        for evidence in evidence_group:
+            if not isinstance(evidence, dict) or not evidence.get("path"):
+                raise RuntimeError(f"Invalid {label.lower()} evidence: {evidence!r}")
+            evidence_path = Path(str(evidence["path"]))
+            current_hash = _sha256(evidence_path) if evidence_path.is_file() else None
+            if current_hash != evidence.get("sha256"):
+                raise RuntimeError(f"{label} changed since reconciliation: {evidence_path}")
+    report_files = report.get("files")
+    if not isinstance(report_files, list) or not report_files:
+        raise RuntimeError(f"Reconciliation report has no files: {report_path}")
+    relative_paths: list[Path] = []
+    seen_paths: set[str] = set()
+    for item in report_files:
+        raw_relative = item.get("relative_path") if isinstance(item, dict) else None
+        if not isinstance(raw_relative, str):
+            raise RuntimeError(f"Invalid reconciliation path: {raw_relative!r}")
+        pure = PurePosixPath(raw_relative)
+        if (
+            pure.is_absolute()
+            or ".." in pure.parts
+            or "." in pure.parts
+            or len(pure.parts) != 2
+            or not pure.name.endswith(".json")
+            or pure.as_posix() != raw_relative
+        ):
+            raise RuntimeError(f"Invalid reconciliation path: {raw_relative}")
+        if raw_relative in seen_paths:
+            raise RuntimeError(f"Duplicate reconciliation path: {raw_relative}")
+        seen_paths.add(raw_relative)
+        relative = Path(*pure.parts)
+        relative_paths.append(relative)
+
+    staged_paths = {
+        path.relative_to(staging_root).as_posix() for path in _staged_files(staging_root)
+    }
+    if staged_paths != seen_paths:
+        missing = sorted(staged_paths - seen_paths)
+        extra = sorted(seen_paths - staged_paths)
+        raise RuntimeError(
+            "Reconciliation file set mismatch: "
+            f"unreported_staging={missing} missing_staging={extra}"
+        )
+
+    for item, relative in zip(report_files, relative_paths):
         source = staging_root / relative
         target = canonical_root / relative
         if _sha256(source) != item.get("output_sha256"):

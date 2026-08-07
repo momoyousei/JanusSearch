@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-from tools import m3_pipeline as legacy
+from janussearch.application import projection_pipeline as legacy
 
 
 def execute(args: Any) -> Tuple[Dict[str, Any], bool]:
@@ -98,4 +98,3 @@ def execute(args: Any) -> Tuple[Dict[str, Any], bool]:
         validate_step = payload.get("steps", {}).get("validate", {})
         return payload, bool(validate_step.get("summary", {}).get("all_pass"))
     raise ValueError(f"Unknown projections operation: {args.command}")
-

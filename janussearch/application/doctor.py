@@ -49,25 +49,120 @@ def check_database(db_path: Path) -> Iterable[Dict[str, Any]]:
     yield _check("database.paper_count", "pass", f"Catalog contains {int(count[0])} papers")
 
 
-def check_vectors(vectors_root: Path, collection_name: str) -> Iterable[Dict[str, Any]]:
-    """Open the local Chroma collection to detect absent or corrupt state."""
+def check_vectors(
+    vectors_root: Path,
+    collection_name: str,
+    db_path: Path | None = None,
+) -> Iterable[Dict[str, Any]]:
+    """Check vector readability, candidate coverage, and required metadata."""
     if not vectors_root.exists():
         yield _check("vectors.exists", "warning", f"Vector store is missing: {vectors_root}")
         return
+    chroma_db = vectors_root / "chroma.sqlite3"
+    if not chroma_db.is_file():
+        yield _check("vectors.readable", "error", f"Chroma database is missing: {chroma_db}")
+        return
+    vector_connection: sqlite3.Connection | None = None
     try:
-        import chromadb
-        from chromadb.config import Settings
-
-        client = chromadb.PersistentClient(
-            path=str(vectors_root),
-            settings=Settings(anonymized_telemetry=False),
+        vector_connection = sqlite3.connect(
+            f"{chroma_db.resolve().as_uri()}?mode=ro&immutable=1",
+            uri=True,
         )
-        collection = client.get_collection(name=collection_name)
-        count = collection.count()
-    except Exception as exc:
+        collection_row = vector_connection.execute(
+            "SELECT id FROM collections WHERE name = ?",
+            (collection_name,),
+        ).fetchone()
+        if collection_row is None:
+            raise sqlite3.DatabaseError(f"Collection is missing: {collection_name}")
+        collection_id = str(collection_row[0])
+        records = vector_connection.execute(
+            """
+            SELECT
+                e.embedding_id,
+                MAX(CASE WHEN m.key = 'paper_id' THEN m.string_value END),
+                MAX(CASE WHEN m.key = 'embed_model' THEN m.string_value END),
+                MAX(CASE WHEN m.key = 'embedding_text_sha256' THEN m.string_value END),
+                MAX(
+                    CASE WHEN m.key = 'vector_schema_version'
+                    THEN COALESCE(m.int_value, CAST(m.string_value AS INTEGER)) END
+                )
+            FROM embeddings AS e
+            JOIN segments AS s ON s.id = e.segment_id
+            LEFT JOIN embedding_metadata AS m ON m.id = e.id
+            WHERE s.collection = ? AND s.scope = 'METADATA'
+            GROUP BY e.id, e.embedding_id
+            ORDER BY e.id
+            """,
+            (collection_id,),
+        ).fetchall()
+        count = len(records)
+    except sqlite3.Error as exc:
         yield _check("vectors.readable", "error", str(exc))
         return
+    finally:
+        if vector_connection is not None:
+            vector_connection.close()
     yield _check("vectors.readable", "pass", f"Collection {collection_name} contains {count} vectors")
+    if db_path is None:
+        return
+
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        expected_ids = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT paper_id FROM papers WHERE record_status != 'placeholder'"
+            ).fetchall()
+        }
+    except sqlite3.Error as exc:
+        yield _check("vectors.coverage", "error", f"Unable to read vector candidates: {exc}")
+        return
+    finally:
+        if connection is not None:
+            connection.close()
+
+    actual_ids = {str(row[0]) for row in records}
+    malformed_metadata: list[str] = []
+    for row in records:
+        paper_id = str(row[0])
+        if (
+            str(row[1] or "") != paper_id
+            or not row[2]
+            or not row[3]
+            or int(row[4] or 0) < 2
+        ):
+            malformed_metadata.append(paper_id)
+
+    missing_ids = sorted(expected_ids - actual_ids)
+    extra_ids = sorted(actual_ids - expected_ids)
+    coverage_pass = not missing_ids and not extra_ids and len(actual_ids) == count
+    yield _check(
+        "vectors.coverage",
+        "pass" if coverage_pass else "error",
+        (
+            "Vector IDs exactly cover non-placeholder papers"
+            if coverage_pass
+            else "Vector IDs do not cover non-placeholder papers"
+        ),
+        expected_count=len(expected_ids),
+        actual_count=len(actual_ids),
+        missing_count=len(missing_ids),
+        extra_count=len(extra_ids),
+        missing_sample=missing_ids[:20],
+        extra_sample=extra_ids[:20],
+    )
+    yield _check(
+        "vectors.metadata",
+        "pass" if not malformed_metadata else "error",
+        (
+            "Vector metadata contract is complete"
+            if not malformed_metadata
+            else "Vector metadata contract is incomplete"
+        ),
+        malformed_count=len(malformed_metadata),
+        malformed_sample=malformed_metadata[:20],
+    )
 
 
 def check_corpus(raw_root: Path, archives_root: Path) -> Iterable[Dict[str, Any]]:
@@ -116,7 +211,7 @@ def execute(
     checks: list[Dict[str, Any]] = []
     if profile in {"query", "ops"}:
         checks.extend(check_database(db_path))
-        checks.extend(check_vectors(vectors_root, collection_name))
+        checks.extend(check_vectors(vectors_root, collection_name, db_path))
     if profile in {"corpus", "ops"}:
         checks.extend(check_corpus(raw_root, archives_root))
     if profile == "ops":

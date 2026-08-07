@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
-from tools import m2_db as legacy
+from janussearch.infrastructure import catalog_sqlite as legacy
 
 
 def execute(
@@ -30,4 +30,3 @@ def execute(
         payload = legacy.run_stats(db_path=db_path)
         return payload, True
     raise ValueError(f"Unknown catalog operation: {operation}")
-

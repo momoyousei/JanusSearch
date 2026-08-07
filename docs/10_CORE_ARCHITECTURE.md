@@ -33,7 +33,7 @@ collectors -> corpus -> catalog -> projections -> evaluate
 | 基础设施层 | `janussearch/infrastructure/` | 指纹、运行清单和持久化辅助 |
 | CLI 适配层 | `tools/` | `argparse`、日志、输入输出和兼容入口 |
 
-旧 `tools.m1_pipeline`～`tools.m4_validate` 暂时承载已验证实现，新能力入口通过应用层调用它们。它们是迁移兼容面，不是新的架构边界；新增工作不得继续扩展 M 编号。
+业务实现位于 `janussearch/`；生产包不得导入 `tools`。`tools.m1_pipeline`～`tools.m4_validate` 与旧 venue collector 模块仅为模块别名兼容入口，`tools.corpus/catalog/projections/evaluate/search/doctor` 负责 CLI 适配。新增工作不得继续扩展 M 编号或把业务逻辑放回 `tools`。
 
 ## 数据事实源
 
@@ -53,7 +53,7 @@ Canonical 顶层字段包括 `venue`、`year`、`collected_at`、`source`、`cou
 
 ## 一致性与恢复模型
 
-- Corpus：先写隔离 staging，验证通过后按 canonical 相对路径发布；staging 失败不得改变事实源。
+- Corpus：采集 sidecar、隔离 staging、显式 reconcile 和门禁全部通过后按 canonical 相对路径发布；任一步失败不得改变事实源。
 - SQLite：构建临时数据库，成功后原子替换；失败保留旧库。
 - Chroma：原位增量，按 `paper_id`、文本 hash、模型配置和 schema metadata 判断重算；可重跑恢复，不宣称原子替换。
 - Cache/topic：原位可重建，使用进度文件、输入指纹和验证报告判断状态。

@@ -10,7 +10,7 @@ import logging
 from janussearch.application.projections import execute
 from janussearch.domain.run import ExitCode
 from janussearch.infrastructure.manifests import RunManifest
-from tools.m3_pipeline import build_arg_parser as build_compatible_parser
+from janussearch.application.projection_pipeline import build_arg_parser as build_compatible_parser
 
 LOGGER = logging.getLogger("janussearch.projections")
 
@@ -53,4 +53,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

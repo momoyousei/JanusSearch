@@ -15,6 +15,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 from janussearch.collectors.virtual import (
+    ApprovedPaginationIncomplete,
     collect_target,
     dedupe_records,
     fetch_complete_events,
@@ -24,6 +25,7 @@ from janussearch.collectors.virtual import (
     canonical_openreview_id,
 )
 from janussearch.infrastructure.http import HttpFetchError, decode_response_body, fetch_response
+from janussearch.collectors.outcomes import read_collection_result, write_collection_result
 from tools.aaai_collect import build_openreview_paper_record
 from tools.acl_collect import fetch_text as fetch_acl_text
 from tools.cvpr_collect import collect_one_year
@@ -72,6 +74,67 @@ class TestCollectors(unittest.TestCase):
                 fetch_response("https://example.test/data.json", retries=1)
         self.assertEqual(raised.exception.category, "http_forbidden")
         self.assertEqual(raised.exception.status_code, 403)
+
+    def test_collection_sidecar_v2_validates_scope_and_file_hashes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paper_file = root / "ACL-25.json"
+            paper_file.write_text(json.dumps({"papers": []}), encoding="utf-8")
+            path = write_collection_result(
+                root,
+                outcome="collected",
+                venue="ACL",
+                years=[2025],
+                sources=["https://aclanthology.org/events/acl-2025/"],
+                reason="fixture",
+            )
+            payload = read_collection_result(
+                root, expected_venue="ACL", expected_years=[2025]
+            )
+            self.assertEqual(payload["schema_version"], 2)
+            self.assertEqual(payload["years"], [2025])
+            self.assertFalse(path.with_suffix(".json.tmp").exists())
+            with self.assertRaisesRegex(ValueError, "year scope mismatch"):
+                read_collection_result(root, expected_venue="ACL", expected_years=[2026])
+            paper_file.write_text(json.dumps({"papers": [1]}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "file hash mismatch"):
+                read_collection_result(root, expected_venue="ACL", expected_years=[2025])
+
+    def test_collection_sidecar_rejects_year_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaisesRegex(ValueError, "concrete years"):
+                write_collection_result(
+                    Path(temp_dir),
+                    outcome="no_update",
+                    venue="AAAI",
+                    year=0,
+                    sources=["fixture"],
+                    reason="fixture",
+                )
+
+    def test_collection_sidecar_keeps_incomplete_multi_year_outcome(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            write_collection_result(
+                root,
+                outcome="collected",
+                venue="AAAI",
+                year=2025,
+                sources=["fixture-2025"],
+                reason="complete",
+            )
+            write_collection_result(
+                root,
+                outcome="incomplete_source",
+                venue="AAAI",
+                year=2026,
+                sources=["fixture-2026"],
+                reason="incomplete",
+            )
+            payload = read_collection_result(
+                root, expected_venue="AAAI", expected_years=[2025, 2026]
+            )
+            self.assertEqual(payload["outcome"], "incomplete_source")
 
     def test_virtual_abstracts_are_joined_by_event_id(self) -> None:
         merged = merge_abstracts(
@@ -128,6 +191,22 @@ class TestCollectors(unittest.TestCase):
         self.assertEqual(record["institutions"], ["Example University"])
         self.assertEqual(record["presentation_level"], "oral")
 
+    def test_virtual_empty_path_does_not_replace_paper_url_with_host(self) -> None:
+        record = build_record(
+            {
+                "id": "8",
+                "title": "Paper with direct URL",
+                "authors": ["Alice"],
+                "abstract": "Abstract",
+                "paper_url": "https://openreview.net/forum?id=forum-8",
+            },
+            venue="ICLR",
+            year=2026,
+            collected_at="2026-08-07T00:00:00+00:00",
+            provider="official",
+        )
+        self.assertEqual(record["url"], "https://openreview.net/forum?id=forum-8")
+
     def test_canonical_openreview_id_accepts_source_ids(self) -> None:
         self.assertEqual(
             canonical_openreview_id({"openreview_id": None, "source_ids": {"openreview_id": "forum-1"}}),
@@ -140,6 +219,29 @@ class TestCollectors(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "declared=2 fetched=1"):
                 fetch_complete_events(
                     "https://iclr.cc/static/virtual/data/test.json",
+                    timeout=1.0,
+                    retries=1,
+                )
+
+    def test_virtual_second_page_403_is_approved_pagination_incomplete(self) -> None:
+        first = {
+            "count": 2,
+            "next": "https://icml.cc/static/virtual/data/page-2.json",
+            "results": [{"id": 1}],
+        }
+        forbidden = HttpFetchError(
+            url="https://icml.cc/static/virtual/data/page-2.json",
+            category="http_forbidden",
+            message="Forbidden",
+            status_code=403,
+        )
+        with patch(
+            "janussearch.collectors.virtual.fetch_json",
+            side_effect=[first, forbidden],
+        ):
+            with self.assertRaises(ApprovedPaginationIncomplete):
+                fetch_complete_events(
+                    "https://icml.cc/static/virtual/data/page-1.json",
                     timeout=1.0,
                     retries=1,
                 )
@@ -162,13 +264,32 @@ class TestCollectors(unittest.TestCase):
             output = Path(temp_dir) / "ICML-26.json"
             with patch(
                 "janussearch.collectors.virtual.fetch_complete_events",
-                side_effect=RuntimeError("official pagination shortfall"),
+                side_effect=ApprovedPaginationIncomplete("official pagination shortfall"),
             ), patch(
                 "janussearch.collectors.virtual.load_icml_pinned_snapshot",
                 side_effect=RuntimeError("pinned mismatch"),
             ):
                 with self.assertRaisesRegex(RuntimeError, "sources are unusable"):
                     collect_target("ICML", 2026, output)
+
+    def test_icml_first_page_failure_does_not_use_pinned_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "ICML-26.json"
+            error = HttpFetchError(
+                url="https://icml.cc/first.json",
+                category="http_forbidden",
+                message="Forbidden",
+                status_code=403,
+            )
+            with patch(
+                "janussearch.collectors.virtual.fetch_complete_events",
+                side_effect=error,
+            ), patch(
+                "janussearch.collectors.virtual.load_icml_pinned_snapshot"
+            ) as fallback:
+                with self.assertRaisesRegex(RuntimeError, "Incomplete official virtual source"):
+                    collect_target("ICML", 2026, output)
+            fallback.assert_not_called()
             self.assertFalse(output.exists())
             sidecar = json.loads((output.parent / ".janus-collection.json").read_text())
             self.assertEqual(sidecar["outcome"], "incomplete_source")

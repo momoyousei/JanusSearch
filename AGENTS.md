@@ -84,7 +84,7 @@ M1～M4 只表示历史实现阶段。`tools.m1_pipeline`～`tools.m4_validate` 
 约束：
 
 - 下游只依赖 `data/raw`；
-- corpus 必须 staging 验证后发布；
+- corpus 必须依次经过 collection sidecar、staging、reconcile 和验证后发布；
 - SQLite 临时构建成功后原子替换，失败保留旧库；
 - Chroma/cache 原位增量且可重跑，不宣称原子发布；
 - 每个有状态的新能力操作生成 `artifacts/runs/<run_id>/manifest.json`；
@@ -119,8 +119,10 @@ FTS 优先。Hybrid 仅在明确语义意图，或 FTS 低召回且向量健康�
 ./.venv/bin/python -m tools.corpus collect --venue <VENUE> --years <RANGE>
 ./.venv/bin/python -m tools.corpus prepare \
   --input-glob '<SNAPSHOT>/*.json' --staging-root '<STAGING>'
-./.venv/bin/python -m tools.corpus validate --input-glob '<STAGING>/*/*.json'
-./.venv/bin/python -m tools.corpus publish --staging-root '<STAGING>'
+./.venv/bin/python -m tools.corpus reconcile \
+  --staging-root '<STAGING>' --output-root '<RECONCILED>'
+./.venv/bin/python -m tools.corpus validate --input-glob '<RECONCILED>/*/*.json'
+./.venv/bin/python -m tools.corpus publish --staging-root '<RECONCILED>'
 ./.venv/bin/python -m tools.catalog build
 ./.venv/bin/python -m tools.catalog validate
 ./.venv/bin/python -m tools.evaluate run --suite offline

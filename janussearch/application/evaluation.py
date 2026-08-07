@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Sequence, Tuple
 
 from janussearch.infrastructure.fingerprints import fingerprint_paths
-from tools import m4_validate as legacy
+from janussearch.application import evaluation_pipeline as legacy
 
 
 def evaluation_fingerprint(
@@ -216,4 +216,3 @@ def status(
         "overall_pass": bool(summary.get("overall_pass")) and not stale,
     }
     return result, bool(result["overall_pass"])
-

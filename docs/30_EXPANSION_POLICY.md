@@ -3,7 +3,7 @@
 ## 原则
 
 1. 一个 venue/year scope 对应一个可审计批次。
-2. 采集结果先进入 run-scoped snapshot，再进入 staging；不得直接覆盖 `data/raw`。
+2. 采集结果先进入带 v2 sidecar 的 run-scoped snapshot，再进入 staging 和 reconcile；不得直接覆盖 `data/raw`。
 3. 事实门禁与官方口径观察分离：字段质量是硬门禁，官方对齐默认是警告。
 4. 批次失败时冻结 snapshot、staging、报告与 manifest，修复后从最早失败步骤恢复。
 5. 只有 canonical 发布成功后才重建 catalog；只有明确要求时才继续 projections/online evaluation。
@@ -16,8 +16,10 @@
 ./.venv/bin/python -m tools.corpus prepare \
   --input-glob '<SNAPSHOT>/*.json' --staging-root '<STAGING>' \
   --enrich --enable-arxiv-title
-./.venv/bin/python -m tools.corpus validate --input-glob '<STAGING>/*/*.json'
-./.venv/bin/python -m tools.corpus publish --staging-root '<STAGING>'
+./.venv/bin/python -m tools.corpus reconcile \
+  --staging-root '<STAGING>' --output-root '<RECONCILED>'
+./.venv/bin/python -m tools.corpus validate --input-glob '<RECONCILED>/*/*.json'
+./.venv/bin/python -m tools.corpus publish --staging-root '<RECONCILED>'
 ./.venv/bin/python -m tools.catalog build
 ./.venv/bin/python -m tools.catalog validate
 ./.venv/bin/python -m tools.evaluate run --suite offline
@@ -25,7 +27,7 @@
   --query "continual learning replay" --top-k 20
 ```
 
-`tools.corpus add --venue <VENUE> --years <RANGE>` 可执行 collect→prepare→validate→publish→catalog。该命令涉及网络和数据发布，只在用户明确要求完整接入时使用；`--build-projections` 也是显式选项。
+`tools.corpus add --venue <VENUE> --years <RANGE>` 可执行 collect→prepare→reconcile→validate→publish→catalog。该命令涉及网络和数据发布，只在用户明确要求完整接入时使用；`--build-projections` 也是显式选项。
 
 ## 批次通过标准
 
@@ -60,3 +62,4 @@
 | DOI 命中低 | 进入标题检索链，不得以 DOI-only 结束 |
 | 官方数量不一致 | 默认 warning 并解释口径；发布政策要求时再启用 strict |
 | 评估报告旧 | 用 `tools.evaluate status` 检测 stale，重新运行离线套件 |
+| sidecar/policy/源指纹变化 | 冻结批次并重新 prepare/reconcile，禁止跳过或手改报告 |

@@ -277,3 +277,14 @@
 - 审计：DBLP `Balancing the Blend: An Experimental Analysis of Trade-offs in Hybrid Search` 与 PVLDB 同名条目仅相差末尾冒号，标题相似度 0.993，8 位作者逐一对应（DBLP disambiguation 后缀除外）。
 - 修复：确定性 title key 统一忽略末尾出版标点 `.`、`:`、`;`；DBLP 匹配恢复为 77，新增回归测试。
 - 成功 collect manifest：`artifacts/runs/20260807T045545Z-e15dda5c/manifest.json`；发布结果见 PF-011。
+
+### PF-014 — `CODE_DEFECT` — doctor 只读诊断修改生产 Chroma 容器
+
+- 时间：2026-08-07 16:23（Asia/Shanghai）
+- 阶段：最终生产数据哈希回验
+- 命令：`./.venv/bin/python -m tools.doctor --profile query`、`./.venv/bin/python -m tools.doctor --profile ops`
+- 预期：doctor 为严格只读诊断，生产 `data/vectors/chroma` 聚合 SHA-256 保持基线 `eec71c30baa282fd3b2eee0a2e9379819271e79233dcf4e4639c51da50a2276d`。
+- 实际：旧实现通过 `chromadb.PersistentClient` 打开生产集合，`chroma.sqlite3` 的 mtime 更新为本轮诊断时刻，目录聚合 SHA-256 变为 `55ef270f6081b06b3f7930002c83a875ef585142f05dd9c8202a490e22e4a524`；HNSW 索引文件 mtime 均未变化，集合仍为 124,683 条。
+- 处置：doctor 改为直接以 SQLite `mode=ro&immutable=1` 读取集合、paper ID 和必要元数据，不再实例化 PersistentClient。定向测试 3/3 通过；修复后的生产 query doctor 前后 `chroma.sqlite3` SHA-256 均为 `f8a4a5d28154a0e0a75bb85bd330400be82583561a12afeee6fa1cf8a57324a8`，mtime 保持不变。
+- 生产数据：未执行重建、覆盖或回滚。由于没有实施前 `chroma.sqlite3` 副本，无法证明或恢复原始容器字节；为避免破坏语义数据，不做猜测性回滚。
+- 当前状态：`RESOLVED_WITH_RESIDUAL_RISK`；后续只读诊断已修复，既有一次性容器字节漂移保留为明确验收例外。

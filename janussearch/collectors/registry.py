@@ -95,25 +95,25 @@ def parse_years(raw: str) -> List[int]:
 _SPECS: tuple[CollectorSpec, ...] = (
     CollectorSpec(
         ("AAAI",),
-        "tools.aaai_collect",
+        "janussearch.collectors.aaai",
         "aaai_ojs",
         extra_args=("--no-openreview-fallback",),
     ),
-    CollectorSpec(("ACL",), "tools.acl_collect", "acl_anthology"),
-    CollectorSpec(("AISTATS",), "tools.aistats_collect", "pmlr"),
+    CollectorSpec(("ACL",), "janussearch.collectors.acl", "acl_anthology"),
+    CollectorSpec(("AISTATS",), "janussearch.collectors.aistats", "pmlr"),
     CollectorSpec(
         ("CVPR", "ICCV"),
-        "tools.cvpr_collect",
+        "janussearch.collectors.cvpr",
         "cvf",
         venue_option="--venue",
         extra_args=("--source", "openaccess"),
     ),
-    CollectorSpec(("IJCAI",), "tools.ijcai_collect", "ijcai"),
-    CollectorSpec(("KDD",), "tools.kdd_collect", "dblp_openalex"),
-    CollectorSpec(("TPAMI",), "tools.tpami_collect", "dblp_openalex"),
+    CollectorSpec(("IJCAI",), "janussearch.collectors.ijcai", "ijcai"),
+    CollectorSpec(("KDD",), "janussearch.collectors.kdd", "dblp_openalex"),
+    CollectorSpec(("TPAMI",), "janussearch.collectors.tpami", "dblp_openalex"),
     CollectorSpec(
         ("ICDE", "SIGIR", "ACMMM", "WWW"),
-        "tools.dblp_expand_collect",
+        "janussearch.collectors.dblp_expand",
         "dblp_openalex",
         venue_option="--venues",
     ),
@@ -123,7 +123,7 @@ _SPECS: tuple[CollectorSpec, ...] = (
         "official_virtual",
         mode="target",
     ),
-    CollectorSpec(("VLDB",), "tools.pvldb_collect", "pvldb_official"),
+    CollectorSpec(("VLDB",), "janussearch.collectors.pvldb", "pvldb_official"),
 )
 
 _BY_VENUE: Dict[str, CollectorSpec] = {

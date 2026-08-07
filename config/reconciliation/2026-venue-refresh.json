@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "targets": {
     "iclr/2026.json": {
       "allowed_removals": [
@@ -9,7 +9,7 @@
         "S2-5a4563f9431f4198",
         "S2-9f96e3eda349aef8"
       ],
-      "allow_fuzzy_retitle": false,
+      "retitle_mappings": [],
       "audit_note": "Five withdrawn OpenReview submissions absent from the official 2026 Conference event set."
     },
     "cvpr/2026.json": {
@@ -18,9 +18,1220 @@
         "S2-e1c41904257c967d",
         "S2-e3ab4968fd40e4f2"
       ],
-      "allow_fuzzy_retitle": true,
-      "expected_retitle_matches": 242,
-      "audit_note": "Final CVF OpenAccess is authoritative; three virtual-only records are approved removals."
+      "retitle_mappings": [
+        {
+          "old_paper_id": "S2-fe01d6ba0789df13",
+          "old_title": "3D Gaussian Splatting at Arbitrary Resolution with Compact Proxy Anchors",
+          "new_title": "3D Gaussian Splatting at Arbitrary Resolutions with Compact Proxy Anchors"
+        },
+        {
+          "old_paper_id": "S2-88a17ca380f811a3",
+          "old_title": "3D Gaussian Splatting with Self-Constrained Prior for High Fidelity Surface Reconstruction",
+          "new_title": "3D Gaussian Splatting with Self-Constrained Priors for High Fidelity Surface Reconstruction"
+        },
+        {
+          "old_paper_id": "S2-ae2884cb64497ecc",
+          "old_title": "3DrawAgent: Teaching LLM to Draw in 3D with early relative experience",
+          "new_title": "3DrawAgent: Teaching LLM to Draw in 3D with Early Contrastive Experience"
+        },
+        {
+          "old_paper_id": "S2-9fe4e4f667cd7c5e",
+          "old_title": "Enhancing Vision Language Models for 4D Perception",
+          "new_title": "4DP-QA: Scalable QA for 4D Perception in Vision Language Models"
+        },
+        {
+          "old_paper_id": "S2-c3eca4f2d7da5e30",
+          "old_title": "4D Primitive-Mâché: Glueing Primitives for Persistent 4D Scene Reconstruction",
+          "new_title": "4D Primitive-Mache: Glueing Primitives for Persistent 4D Scene Reconstruction"
+        },
+        {
+          "old_paper_id": "S2-ca1073f69e028717",
+          "old_title": "$\\textit{4DSurf}$: High-Fidelity Dynamic Scene Surface Reconstruction",
+          "new_title": "4DSurf: High-Fidelity Dynamic Scene Surface Reconstruction"
+        },
+        {
+          "old_paper_id": "S2-2911b7b53ffd9ce6",
+          "old_title": "A³: Towards Advertising Aesthetic Assessment",
+          "new_title": "A3: Towards Advertising Aesthetic Assessment"
+        },
+        {
+          "old_paper_id": "S2-8cce9417841acb81",
+          "old_title": "ARCache: Mitigating Error Accumulation for Caching-based Acceleration in Autoregressive Video Diffusion Models",
+          "new_title": "Accelerating Autoregressive Video Diffusion via History-Guided Cache and Residual Correction"
+        },
+        {
+          "old_paper_id": "S2-f0e3a931680bbf36",
+          "old_title": "Accelerating Streaming Video Understanding via Hierarchical Token Compression",
+          "new_title": "Accelerating Streaming Video Large Language Models via Hierarchical Token Compression"
+        },
+        {
+          "old_paper_id": "S2-dc37d82495080491",
+          "old_title": "Adaptive 3D Perception Under Sparse Sampling via Reinforcement Learning",
+          "new_title": "Adaptive 3D Perception for Small Aerial Targets Under Sparse Sampling via Reinforcement Learning"
+        },
+        {
+          "old_paper_id": "S2-d6517edafee4fef0",
+          "old_title": "ASFormer: Adaptive Serialized Transformers for Monocular Semantic Scene Completion from Indoor Environments",
+          "new_title": "AdaSFormer: Adaptive Serialized Transformers for Monocular Semantic Scene Completion from Indoor Environments"
+        },
+        {
+          "old_paper_id": "S2-944d128bb8fcd339",
+          "old_title": "Adaptive Sparsity for Efficient Long-Video Understanding",
+          "new_title": "AdaSpark: Adaptive Sparsity for Efficient Long-Video Understanding"
+        },
+        {
+          "old_paper_id": "S2-d97c1bfd3b35ab36",
+          "old_title": "An Empirical Study on How Video-LLMs Answer Videos Questions",
+          "new_title": "An Empirical Study on How Video-LLMs Answer Video Questions"
+        },
+        {
+          "old_paper_id": "S2-35f7a3ec1ecac825",
+          "old_title": "AnimaMimic: Imitating 3D Animation from Video Priors",
+          "new_title": "AniMimic: Imitating 3D Animation from Video Priors"
+        },
+        {
+          "old_paper_id": "S2-a729c8fc6b864bef",
+          "old_title": "AR²-4FV: Anchored Referring and Re-identification for Long-Term Grounding in Fixed-View Videos",
+          "new_title": "AR2-4FV: Anchored Referring and Re-identification for Long-Term Grounding in Fixed-View Videos"
+        },
+        {
+          "old_paper_id": "S2-49eef1c3e4e3211b",
+          "old_title": "Personalized Audio-driven Whole-body Talking Avatars",
+          "new_title": "AudioAvatar: Personalized Audio-driven Whole-body Talking Avatars"
+        },
+        {
+          "old_paper_id": "S2-02cc4ea536f2ecf1",
+          "old_title": "BabyVLM v2: Toward Developmentally Grounded Vision–Language Models with Real Infant-View Data and Cognitive Evaluation Benchmarks",
+          "new_title": "BabyVLM-V2: Toward Developmentally Grounded Pretraining and Benchmarking of Vision Foundation Models"
+        },
+        {
+          "old_paper_id": "S2-b131be67d477aef2",
+          "old_title": "Text-Conditioned Contrastive Learning for Multi-Granular Vision-Language Alignment in CLIP",
+          "new_title": "b-CLIP: Text-Conditioned Contrastive Learning for Multi-Granular Vision-Language Alignment"
+        },
+        {
+          "old_paper_id": "S2-0a22af7bfd813ad3",
+          "old_title": "Beyond explicit language: plug-and-play visual-to-Linguistic modeling towards general object tracking",
+          "new_title": "Beyond Explicit Language: Plug-and-Play Visual-to-Linguistic Modeling Toward General Object Tracking"
+        },
+        {
+          "old_paper_id": "S2-994ab49a7e333ec3",
+          "old_title": "Bézier Degradation Modeling for LiDAR-based Human Motion Capture",
+          "new_title": "Bezier Degradation Modeling for LiDAR-based Human Motion Capture"
+        },
+        {
+          "old_paper_id": "S2-48db930710770da2",
+          "old_title": "BinaryAttention: One-Bit Attention for Vision and Diffusion Transformers",
+          "new_title": "BinaryAttention: One-Bit QK-Attention for Vision and Diffusion Transformers"
+        },
+        {
+          "old_paper_id": "S2-dd8b8498d299c165",
+          "old_title": "BiPreManip: Learning Affordance-Based Bimanual Pre-Manipulation through Anticipatory Collaboration",
+          "new_title": "BiPreManip: Learning Affordance-Based Bimanual Preparatory Manipulation through Anticipatory Collaboration"
+        },
+        {
+          "old_paper_id": "S2-7d367ab7e998bb39",
+          "old_title": "Boosting Visual Reprogramming for Vision-Language Models with Dual Granularity Alignment",
+          "new_title": "Boosting Visual Reprogramming for CLIP with Dual Granularity Alignment"
+        },
+        {
+          "old_paper_id": "S2-a56fa1e0a33a79a6",
+          "old_title": "Physical Adversarial Examples through Camera Power Signal Injection",
+          "new_title": "CamPI: Physical Adversarial Examples through Camera Power Signal Injection"
+        },
+        {
+          "old_paper_id": "S2-b39a35db06648385",
+          "old_title": "Captain Safari: A Real-time World Engine",
+          "new_title": "Captain Safari: A World Engine with Pose-Aligned 3D Memory"
+        },
+        {
+          "old_paper_id": "S2-80f76990c75387ed",
+          "old_title": "CaT-GS: Efficient 3DGS Rendering for Large Scale Scenes via Inter-frame Caching and Tile Scheduling",
+          "new_title": "CaT-GS: Efficient 3DGS Rendering for Large-Scale Scenes with Inter-frame Caching and Tile Scheduling"
+        },
+        {
+          "old_paper_id": "S2-f72b60c1a73f15bf",
+          "old_title": "CC-VQA: Conflict- and Correlatoin-Aware Method for Mitigating Knowledge Conflict in Knowledge-Based Visual Question Answering",
+          "new_title": "CC-VQA: Conflict- and Correlation-Aware Method for Mitigating Knowledge Conflict in Knowledge-Based Visual Question Answering"
+        },
+        {
+          "old_paper_id": "S2-810a0890b8e6e19a",
+          "old_title": "Chain-of-Models Pre-training: Rethinking Training Acceleration of CLIP Models",
+          "new_title": "Chain-of-Models Pre-Training: Rethinking Training Acceleration of Vision Foundation Models"
+        },
+        {
+          "old_paper_id": "S2-f4df0de7838c191a",
+          "old_title": "Charge: A Comprehensive Benchmark and Dataset for Dynamic Novel View Synthesis",
+          "new_title": "Charge: A Comprehensive Novel View Synthesis Benchmark and Dataset to Bind Them All"
+        },
+        {
+          "old_paper_id": "S2-1994db043252f269",
+          "old_title": "Continual Learning by Reuse, New, Adapt and Skip: A Hierarchical Exploration-Exploitation Approach",
+          "new_title": "CHEEM: Continual Learning by Reuse, New, Adapt and Skip - A Hierarchical Exploration-Exploitation Approach"
+        },
+        {
+          "old_paper_id": "S2-53a33b7a3da51864",
+          "old_title": "CHIRP dataset: towards long-term, individual-level, behavioural monitoring of bird populations in the wild",
+          "new_title": "CHIRP dataset: towards long-term, individual-level, behavioral monitoring of bird populations in the wild"
+        },
+        {
+          "old_paper_id": "S2-339306881bbebdff",
+          "old_title": "CineBrain: A Large-Scale Multi-Modal Brain Dataset During Naturalistic Audiovisual Narrative Processing",
+          "new_title": "CineBrain: A Large-Scale Multi-Modal Audiovisual Brain Dataset for Brain-Conditioned Video Generation"
+        },
+        {
+          "old_paper_id": "S2-67ed88f8c4439ea8",
+          "old_title": "Medical Video Diagnosis via Counterfactual Reasoning",
+          "new_title": "Clinically-Grounded Counterfactual Reasoning for Medical Video Diagnosis"
+        },
+        {
+          "old_paper_id": "S2-7dcce0027dcb1c74",
+          "old_title": "Clone Deterministic 3D Worlds",
+          "new_title": "Cloning Deterministic Worlds: The Critical Role of Latent Geometry in Long-Horizon World Models"
+        },
+        {
+          "old_paper_id": "S2-4c3e8250574d45a6",
+          "old_title": "CodePercept: Code-Grounded Visual STEM Perception for MLLM",
+          "new_title": "CodePercept: Code-Grounded Visual STEM Perception for MLLMs"
+        },
+        {
+          "old_paper_id": "S2-d5b0c878b0f09b72",
+          "old_title": "CA-LoRA: Concept-Aware LoRA for Domain-Aligned Segmentation Dataset Generation",
+          "new_title": "Concept-Aware LoRA for Domain-Aligned Segmentation Dataset Generation"
+        },
+        {
+          "old_paper_id": "S2-161bb88504e921fb",
+          "old_title": "WarpTracker: Tracking by Warping instead of Correlation",
+          "new_title": "CoWTracker: Tracking by Warping instead of Correlation"
+        },
+        {
+          "old_paper_id": "S2-776ae9566d4da4c9",
+          "old_title": "A Unified Benchmark for HOI Evaluation across Vision-Language Models and HOI-Specific Methods",
+          "new_title": "CrossHOI-Bench: A Unified Benchmark for HOI Evaluation across Vision-Language Models and HOI-Specific Methods"
+        },
+        {
+          "old_paper_id": "S2-b1bfe639b7f2b603",
+          "old_title": "Fingerprinting Diffusion models in the wild",
+          "new_title": "CSF: Black-box Fingerprinting via Compositional Semantics for Text-to-Image Models"
+        },
+        {
+          "old_paper_id": "S2-a52b75b713adff18",
+          "old_title": "CubeComposer: Spatio-Temporal Autoregressive 4K 360° Video Generation from Perspective Video",
+          "new_title": "CubeComposer: Spatio-Temporal Autoregressive 4K 360deg Video Generation from Perspective Video"
+        },
+        {
+          "old_paper_id": "S2-b3332d45c80f0eed",
+          "old_title": "D$^3$FER: Dual Channel and Dual Branch Network for Robust Facial Expression Recognition under Dual Noise",
+          "new_title": "D^3FER: Dual Channel and Dual Branch Network for Robust Facial Expression Recognition under Dual Challenges"
+        },
+        {
+          "old_paper_id": "S2-9c407ad3a648d736",
+          "old_title": "Dataset Distillation via Influence Matching",
+          "new_title": "Dataset Distillation by Influence Matching"
+        },
+        {
+          "old_paper_id": "S2-743643a6b3e00129",
+          "old_title": "Den-TP: Density-Balanced Data Curation and Evaluation Framework for Trajectory Prediction",
+          "new_title": "Den-TP: A Density-Balanced Data Curation and Evaluation Framework for Trajectory Prediction"
+        },
+        {
+          "old_paper_id": "S2-81f74db1ae6a4071",
+          "old_title": "Decomposed Spatio-Temporal Alignment for Exocentric Video and Ambient Sensors with Staged Learning",
+          "new_title": "DETACH : Decomposed Spatio-Temporal Alignment for Exocentric Video and Ambient Sensors with Staged Learning"
+        },
+        {
+          "old_paper_id": "S2-291c35660ec76b87",
+          "old_title": "Diagram2Structure: Unlocking LLMs' Diagram Comprehension through DiagramDiff, an Offline Diagram Structuring Framework",
+          "new_title": "Diagram2Structure: Unlocking LLMs' Diagram Comprehension through DiagramDiff, a Framework for Structuring Offline Diagrams"
+        },
+        {
+          "old_paper_id": "S2-9e5d146bab4cbb5d",
+          "old_title": "Domain-Aware Federated Learning via Fisher-Guided Pruning",
+          "new_title": "Domain Sensitive Federated Learning with Fisher-Informed Pruning"
+        },
+        {
+          "old_paper_id": "S2-fd2432bb10c50c7a",
+          "old_title": "DriveCTR: Benchmarking Compositional Traffic Rule Reasoning in Autonomous Driving",
+          "new_title": "DriveCombo: Benchmarking Compositional Traffic Rule Reasoning in Autonomous Driving"
+        },
+        {
+          "old_paper_id": "S2-8b7d03bb14932bf6",
+          "old_title": "Dropping Anchor and Spherical Harmonics for Gaussian Splatting",
+          "new_title": "Dropping Anchor and Spherical Harmonics for Sparse-view Gaussian Splatting"
+        },
+        {
+          "old_paper_id": "S2-a66a1bb52eaebb08",
+          "old_title": "Dual Band Video Thermography: Separating Time-Varying Reflection and Emission Near Ambient Conditions",
+          "new_title": "Dual Band Thermal Videography: Separating Time-Varying Reflection and Emission Near Ambient Conditions"
+        },
+        {
+          "old_paper_id": "S2-61f9acf103b1577a",
+          "old_title": "DuetGen: Towards General Purpose Interleaved Multimodal Generation",
+          "new_title": "DuoGen: Towards Autonomous Interleaved Multimodal Generation"
+        },
+        {
+          "old_paper_id": "S2-5bae2a826ebd31fb",
+          "old_title": "DVGT: Visual Geometry Transformer for Autonomous Driving",
+          "new_title": "DVGT: Driving Visual Geometry Transformer"
+        },
+        {
+          "old_paper_id": "S2-a2f5daa435018de3",
+          "old_title": "DyaDiT: A Multi-Modal Diffusion Transformer for Socially-Aware Dyadic Gesture Generation",
+          "new_title": "DyaDiT: A Multi-Modal Diffusion Transformer for Socially Favorable Dyadic Gesture Generation"
+        },
+        {
+          "old_paper_id": "S2-880b85f79b4714a9",
+          "old_title": "Δynamics: Language-Based Representation for Inferring Rigid-Body Dynamics From Videos",
+          "new_title": "Dynamics: Language-Based Representation for Inferring Rigid-Body Dynamics From Videos"
+        },
+        {
+          "old_paper_id": "S2-e2d07f64f7016b8e",
+          "old_title": "DynFusion: Rethinking Condition Fusion for Adaptive Multi-condition Text-to-Image Generation",
+          "new_title": "DynFusion: Rethinking Condition Fusion for Adaptive Multi-Conditional Text-to-Image Generation"
+        },
+        {
+          "old_paper_id": "S2-d1a4b9e38bf4396d",
+          "old_title": "EasyOmnimatte: Taming Pretrained Inpainting Diffusion Models for End-to-End Video Layered Decomposition",
+          "new_title": "EasyOmnimatte: Taming Pretrained Inpainting Diffusion Models for End-to-End Video Layered Decompositio"
+        },
+        {
+          "old_paper_id": "S2-fabef00327f70cd7",
+          "old_title": "EchoVDiff: Cardiac-Cycle Echocardiography Video Generation from Arbitrary Frame",
+          "new_title": "EchoVDiff: Cardiac-Cycle Echocardiography Video Generation from Arbitrary Single Frame"
+        },
+        {
+          "old_paper_id": "S2-9f560f8dcfd0bd4c",
+          "old_title": "Efﬁcient and Training-Free Single-Image Diffusion Models",
+          "new_title": "Efficient and Training-Free Single-Image Diffusion Models"
+        },
+        {
+          "old_paper_id": "S2-52a140700cc01634",
+          "old_title": "Ego2Web: A Web Agent Benchmark Grounded on Egocentric Videos",
+          "new_title": "Ego2Web: A Web Agent Benchmark Grounded in Egocentric Videos"
+        },
+        {
+          "old_paper_id": "S2-f93aad6e1e8eb8ca",
+          "old_title": "Knowing Thyself: Ego-Grounding for Personalized Question-Answering in Egocentric Videos",
+          "new_title": "Ego-Grounding for Personalized Question-Answering in Egocentric Videos"
+        },
+        {
+          "old_paper_id": "S2-b0a80a8b993c466c",
+          "old_title": "XR-Poser: Accurate Egocentric Human Motion Estimation for AR/VR",
+          "new_title": "EgoPoseFormer v2: Accurate Egocentric Human Motion Estimation for AR/VR"
+        },
+        {
+          "old_paper_id": "S2-39489f97c787ba0a",
+          "old_title": "Controllable Stereo Video Conversion with Guided Latent Decoding",
+          "new_title": "Elastic3D: Controllable Stereo Video Conversion with Guided Latent Decoding"
+        },
+        {
+          "old_paper_id": "S2-6fbcfeb457757838",
+          "old_title": "Enabling Supervised Learning of Generative Signatures for Generalized Synthetic Image Detection",
+          "new_title": "Enabling Supervised Learning of Generative Signatures for Generalized AI-Generated Images Detection"
+        },
+        {
+          "old_paper_id": "S2-bdeda0d65fb2a7b4",
+          "old_title": "Enhancing Video VLM with Visual-Audio Supersensing",
+          "new_title": "Enhancing Video Vision Language Model with Hippocampal Sensing"
+        },
+        {
+          "old_paper_id": "S2-f497d318b8523b13",
+          "old_title": "Evidential Transformation Network: Turning Pretrained Models into Evidential Models for Uncertainty Estimation",
+          "new_title": "Evidential Transformation Network: Turning Pretrained Models into Evidential Models for Post-hoc Uncertainty Estimation"
+        },
+        {
+          "old_paper_id": "S2-7fb0a251e22a1b8d",
+          "old_title": "EVObject: Learning Evolving Object-centric Representations for 3D Instance Segmentation without Scene Supervision",
+          "new_title": "EvObj: Learning Evolving Object-centric Representations for 3D Instance Segmentation without Scene Supervision"
+        },
+        {
+          "old_paper_id": "S2-dccccb784043083d",
+          "old_title": "EMR-SM: Explicit Mesh Reconstruction with Dynamic Topology Adaptation",
+          "new_title": "ExMesh: EXplicit Mesh Reconstruction with Topology Adaptation"
+        },
+        {
+          "old_paper_id": "S2-6b99e2da15546e24",
+          "old_title": "Scaling Spatial and Temporal Context for Robotic Imitation Learning Policies With Scene Graphs",
+          "new_title": "Expanding Spatial and Temporal Context for Robotic Imitation Learning With Scene Graphs"
+        },
+        {
+          "old_paper_id": "S2-3c000a2a5b12b6fa",
+          "old_title": "From Remember to Transfer: Interpretable Open-World Reasoning in MLLMs",
+          "new_title": "Experience Transfer for Multimodal LLM Agents in Minecraft Game"
+        },
+        {
+          "old_paper_id": "S2-f30f56a8f0fdd9ab",
+          "old_title": "$\\text{F}^2\\text{HDR}$: Two-Stage HDR Video Reconstruction via Flow Adapter and Physical Motion Modeling",
+          "new_title": "F^2HDR: Two-Stage HDR Video Reconstruction via Flow Adapter and Physical Motion Modeling"
+        },
+        {
+          "old_paper_id": "S2-0fa0e11675fb6742",
+          "old_title": "$\\textbf{FailureAtlas}$: Mapping the Failure Landscape of T2I Models via Active Exploration",
+          "new_title": "FailureAtlas: Mapping the Failure Landscape of T2I Models via Active Exploration"
+        },
+        {
+          "old_paper_id": "S2-e2d98c68a35943dc",
+          "old_title": "Fast SceneScript: Accurate and Efficient Structured Language Model via Multi-Token Prediction",
+          "new_title": "Fast SceneScript: Fast and Accurate Language-Based 3D Scene Understanding via Multi-Token Prediction"
+        },
+        {
+          "old_paper_id": "S2-676d16de2d47b501",
+          "old_title": "VGGTracker: Fast Spatial Tracking with Visual Geometry Transformer",
+          "new_title": "Fast Spatial Tracking with Visual Geometry Transformer"
+        },
+        {
+          "old_paper_id": "S2-2df619d5e478f026",
+          "old_title": "Beyond Generation: Advancing Image Editing Priors for Depth and Normal Estimation",
+          "new_title": "FE2E: From Editor to Dense Geometry Estimator"
+        },
+        {
+          "old_paper_id": "S2-f4b7c300a1762a78",
+          "old_title": "FilterGS: Traversal-Free Parallel Filtering and Adaptive Shrinkage for Large-scale LoD 3D Gaussian Splatting",
+          "new_title": "FilterGS: Traversal-Free Parallel Filtering and Adaptive Shrinking for Large-Scale LoD 3D Gaussian Splatting"
+        },
+        {
+          "old_paper_id": "S2-64a14a47f8707204",
+          "old_title": "FlashPortrait: 6$\\times$ Faster Infinite Portrait Animation with Adaptive Latent Prediction",
+          "new_title": "FlashPortrait: 6x Faster Infinite Portrait Animation with Adaptive Latent Prediction"
+        },
+        {
+          "old_paper_id": "S2-d42fe4b4efc5da08",
+          "old_title": "Flow3r: Factored Flow Prediction for Visual Geometry Learning",
+          "new_title": "Flow3r: Factored Flow Prediction for Scalable Visual Geometry Learning"
+        },
+        {
+          "old_paper_id": "S2-89e1de59664f56e1",
+          "old_title": "FMPose: 3D Pose Estimation via Flow Matching",
+          "new_title": "FMPose3D: monocular 3D pose estimation via flow matching"
+        },
+        {
+          "old_paper_id": "S2-2a6534678c81b48f",
+          "old_title": "FM-Steer: Enhance Generalist Policies with Value-Guided Cascaded Denosing",
+          "new_title": "FM-Steer: Enhance Generalist Policies with Value-Guided Cascaded Denoising"
+        },
+        {
+          "old_paper_id": "S2-157c0db69aaec5d9",
+          "old_title": "FoleyDirector: Directing Temporal Controllable Video-to-Audio Generation via Fine-Grained Temporal Scripts",
+          "new_title": "FoleyDirector: Fine-Grained Temporal Steering for Video-to-Audio Generation via Structured Scripts"
+        },
+        {
+          "old_paper_id": "S2-a1fe9a17bec0e6b2",
+          "old_title": "Foca-VLA: Unleashing Hybrid Force-Position Control with Force Awareness for Contact-Rich Manipulation",
+          "new_title": "ForceVLA2: Unleashing Hybrid Force-Position Control with Force Awareness for Contact-Rich Manipulation"
+        },
+        {
+          "old_paper_id": "S2-0c1c3c272eb7b876",
+          "old_title": "Plan, Imagine, then Act: Steering Your VLA with Efficient Visually Grounded Planning",
+          "new_title": "ForeAct: Steering Your VLA with Efficient Visual Foresight Planning"
+        },
+        {
+          "old_paper_id": "S2-3da4b561f1aa695e",
+          "old_title": "Foundation Encoders are All You Need for Personalized Image Generation",
+          "new_title": "Foundation Encoders Are All You Need for Preference-Aware Personalization"
+        },
+        {
+          "old_paper_id": "S2-bf2cc243bc70e751",
+          "old_title": "FPSBench: A Benchmark for Video Understanding at High Frame Rates",
+          "new_title": "FPS-Bench: A Benchmark for High Frame-Rate Video Understanding"
+        },
+        {
+          "old_paper_id": "S2-983644e6a5d5ebef",
+          "old_title": "FVGen: Scaling 3D Scene Datasets with Certainty-Aware Free-View Generation from Scene Geometry Reconstruction",
+          "new_title": "FreeScale: Scaling 3D Scenes via Certainty-Aware Free-View Generation"
+        },
+        {
+          "old_paper_id": "S2-eee7137e61665a4c",
+          "old_title": "Reconstructing Functional 3D Scenes from Egocentric Interaction Videos",
+          "new_title": "FUN REC * Reconstructing Functional 3D Scenes from Egocentric Interaction Videos"
+        },
+        {
+          "old_paper_id": "S2-fc7f2a9cd3eeee53",
+          "old_title": "Fusion of Depth and Semantic for Probabilistic Floorplan Localization",
+          "new_title": "Fusion of Depth and Semantics for Probabilistic Floorplan Localization"
+        },
+        {
+          "old_paper_id": "S2-78ec6bbf5c7ce443",
+          "old_title": "FusionRegister: Every Infrared and Visible Image Fusion Deserves Registrtaion",
+          "new_title": "FusionRegister: Every Infrared and Visible Image Fusion Deserves Registration"
+        },
+        {
+          "old_paper_id": "S2-6440185503a2dcca",
+          "old_title": "Visual Autoregressive Modeling via Next Focus Prediction",
+          "new_title": "FVAR: Next-Focus Prediction for Visual Autoregressive Modeling"
+        },
+        {
+          "old_paper_id": "S2-e066fe5fd25f140b",
+          "old_title": "GaussFusion: Improving 3D Reconstruction in the Wild with Geometry-Informed Video Generator",
+          "new_title": "GaussFusion: Improving 3D Reconstruction in the Wild with A Geometry-Informed Video Generator"
+        },
+        {
+          "old_paper_id": "S2-66f61863fb17a4a0",
+          "old_title": "GaussianDWM: Driving World Model using Language-aligned 3D Gaussians for Scene Understanding and Multi-modal Generation",
+          "new_title": "GaussianDWM: 3D Gaussian Driving World Model for Unified Scene Understanding and Multi-Modal Generation"
+        },
+        {
+          "old_paper_id": "S2-744fe839fe5b0491",
+          "old_title": "GazeOnce360: Fisheye-Based 360° Multi-Person Gaze Estimation with Global–Local Feature Fusion",
+          "new_title": "GazeOnce360: Fisheye-Based 360deg Multi-Person Gaze Estimation with Global-Local Feature Fusion"
+        },
+        {
+          "old_paper_id": "S2-164cce10c4133edb",
+          "old_title": "Gaze Target Estimation with Concepts",
+          "new_title": "Gaze Target Estimation Anywhere with Concepts"
+        },
+        {
+          "old_paper_id": "S2-e16c1c6094c3f441",
+          "old_title": "Generalized-CVO: Fast and Correspondence-Free Point Cloud Registration in RKHS with Second Order Riemannian Optimization",
+          "new_title": "Generalized-CVO: Fast and Correspondence-Free Local Point Cloud Registration with Second Order Riemannian Optimization"
+        },
+        {
+          "old_paper_id": "S2-f1ca4c45865e9d8d",
+          "old_title": "Generative Point Tracking and Trajectory Forecasting",
+          "new_title": "Generative Point Tracking and Forecasting"
+        },
+        {
+          "old_paper_id": "S2-9a654053a8389477",
+          "old_title": "Geo$^\\textbf{2}$: Geometry-Guided Cross-view Geo-Localization and Image Synthesis",
+          "new_title": "Geo2: Geometry-Guided Cross-view Geo-Localization and Image Synthesis"
+        },
+        {
+          "old_paper_id": "S2-e552b89bd3b5e233",
+          "old_title": "GeoRelight: Learning Joint Geometrical Reconstruction and Relighting with Flexible Multi-Modal Diffusion Transformers",
+          "new_title": "GeoRelight: Learning Joint Geometrical Relighting and Reconstruction with Flexible Multi-Modal Diffusion Transformers"
+        },
+        {
+          "old_paper_id": "S2-a9b5ea33a8ae0302",
+          "old_title": "Globally Optimal Pose from Silhouettes",
+          "new_title": "Globally Optimal Pose from Orthographic Silhouettes"
+        },
+        {
+          "old_paper_id": "S2-d3ad305d187b52a7",
+          "old_title": "GMT: Effective Global Framework for Multi-Target Multi-Camera Tracking",
+          "new_title": "GMT: Effective Global Framework for Multi-Camera Multi-Target Tracking"
+        },
+        {
+          "old_paper_id": "S2-c53e73e2c5db17ef",
+          "old_title": "GP-4DGS: Probabilistic Analysis of 4D Gaussian Splattings for Monocular Video Reconstruction via Variational Gaussian Processes",
+          "new_title": "GP-4DGS: Probabilistic 4D Gaussian Splatting from Monocular Video via Variational Gaussian Processes"
+        },
+        {
+          "old_paper_id": "S2-89ad4e23ff7b93a3",
+          "old_title": "GraspALL: Adaptive Structural Compensation from Luminance Variation for Robotic Garment Grasping in Any Low-Light Conditions",
+          "new_title": "GraspALL: Adaptive Structural Compensation from Illumination Variation for Robotic Garment Grasping in Any Low-Light Conditions"
+        },
+        {
+          "old_paper_id": "S2-12ca7c667709dc37",
+          "old_title": "Graph-Guided Online Concept Erasure for Text-to-Image Diffusion Models",
+          "new_title": "GrOCE : Graph-Guided Online Concept Erasure for Text-to-Image Diffusion Models"
+        },
+        {
+          "old_paper_id": "S2-f5305b1ee8fbb555",
+          "old_title": "HandX+: Scaling Up Text-Conditioned Bimanual Motion Generation",
+          "new_title": "HandX: Scaling Bimanual Motion and Interaction Generation"
+        },
+        {
+          "old_paper_id": "S2-3a9eb7711b9cba45",
+          "old_title": "Efficient Decentralized Diffusion with Heterogeneous Training Objectives",
+          "new_title": "Heterogeneous Decentralized Diffusion Models"
+        },
+        {
+          "old_paper_id": "S2-977b47c786af1cd4",
+          "old_title": "High-Fidelity Generation of Lane Scenes under Adverse Weather and Lighting Conditions without Re-annotation",
+          "new_title": "HG-Lane: High-Fidelity Generation of Lane Scenes under Adverse Weather and Lighting Conditions without Re-annotation"
+        },
+        {
+          "old_paper_id": "S2-9e7665b26db525cf",
+          "old_title": "HiFi-Brep: High-Fidelity B-Rep Latent Representation and Robust Generation",
+          "new_title": "HiFi-BRep: High-Fidelity Latent Representation for Robust B-Rep Generation"
+        },
+        {
+          "old_paper_id": "S2-035d1e6e6e911873",
+          "old_title": "Towards Hierarchical 3D Spatial Understanding in Vision-Language Models",
+          "new_title": "HiSpatial: Taming Hierarchical 3D Spatial Understanding in Vision-Language Models"
+        },
+        {
+          "old_paper_id": "S2-16e8af56e26ee8a5",
+          "old_title": "Humanoid Generative Pre-Training for Zero-Shot Motion Tracker",
+          "new_title": "Humanoid Generative Pre-Training for Zero-Shot Motion Tracking"
+        },
+        {
+          "old_paper_id": "S2-5e183c65eae45257",
+          "old_title": "HTC-VLM: Disentangled Hybrid Token Compression for Vision-Language Models",
+          "new_title": "Hybrid Token Compression for Vision-Language Models"
+        },
+        {
+          "old_paper_id": "S2-27a0b2916cccd230",
+          "old_title": "A Polarized Reflection and Material Dataset of Real World Objects",
+          "new_title": "ICTPolarReal: A Polarized Reflection and Material Dataset of Real World Objects"
+        },
+        {
+          "old_paper_id": "S2-eabf47934f48dc6b",
+          "old_title": "Interpretable Motion-Attentive Maps: Spatio-Temporally Localizing Concepts in Video Diffusion Transformers",
+          "new_title": "I'm a Map! Interpretable Motion-Attentive Maps: Spatio-Temporally Localizing Concepts in Video Diffusion Transformers"
+        },
+        {
+          "old_paper_id": "S2-86bf8ac134c5be97",
+          "old_title": "Inconsistency-aware Multimodal Schrödinger Bridge for Deepfake Localization",
+          "new_title": "Inconsistency-aware Multimodal Schrodinger Bridge for Deepfake Localization"
+        },
+        {
+          "old_paper_id": "S2-c9abf1dc28748a63",
+          "old_title": "InterPrior: A Scalable Motion Prior for Physics-Based Human-Object Interactions",
+          "new_title": "InterPrior: Scaling Generative Control for Physics-Based Human-Object Interactions"
+        },
+        {
+          "old_paper_id": "S2-fe3c01aac552b56d",
+          "old_title": "WeatherDiffusion: Controllable Weather Editing in Intrinsic Space",
+          "new_title": "IntrinsicWeather: Controllable Weather Editing in Intrinsic Space"
+        },
+        {
+          "old_paper_id": "S2-da96f70c733cc249",
+          "old_title": "Survive the 1001$^{st}$ Night: Interactive Physical Reasoning",
+          "new_title": "IPR-1: Interactive Physical Reasoner"
+        },
+        {
+          "old_paper_id": "S2-89d1c132c46d2602",
+          "old_title": "3D Instance Models are Implicit Generalizable Spatial Learners",
+          "new_title": "I-Scene: 3D Instance Models are Implicit Generalizable Spatial Learners"
+        },
+        {
+          "old_paper_id": "S2-2162b4b0afbfadec",
+          "old_title": "Just-in-Time: Tuning-Free Spatial Acceleration for Diffusion Transformers",
+          "new_title": "Just-in-Time: Training-Free Spatial Acceleration for Diffusion Transformers"
+        },
+        {
+          "old_paper_id": "S2-821c7c0177655011",
+          "old_title": "K$\\alpha$LOS finds Consensus: A Meta-Algorithm for Evaluating Inter-Annotator Agreement in Complex Vision Tasks",
+          "new_title": "KaLOS finds Consensus: A Meta-Algorithm for Evaluating Inter-Annotator Agreement in Complex Vision Tasks"
+        },
+        {
+          "old_paper_id": "S2-9aef04b3c4b17bd5",
+          "old_title": "Latent Action Pretraining Meets Pose Estimation",
+          "new_title": "LA-Pose: Latent Action Pretraining Meets Pose Estimation"
+        },
+        {
+          "old_paper_id": "S2-06e76f83948c6170",
+          "old_title": "Latent Chain-of-Thought World Modeling for End-to-End Driving",
+          "new_title": "Latent Chain-of-Thought World Modeling for End-to-End Autonomous Driving"
+        },
+        {
+          "old_paper_id": "S2-f01adda4e141f797",
+          "old_title": "Latent Visual Reasoning",
+          "new_title": "Latent Implicit Visual Reasoning"
+        },
+        {
+          "old_paper_id": "S2-774e682bcd16c389",
+          "old_title": "LaVR: Latent Space Conditioned Video Re-rendering using Large 4D Reconstruction Models",
+          "new_title": "LaVR: Scene Latent Conditioned Generative Video Trajectory Re-Rendering using Large 4D Reconstruction Models"
+        },
+        {
+          "old_paper_id": "S2-1e48e33a098559ee",
+          "old_title": "Learnability-Driven Submodular Optimization for Active Roadside BEV Perception",
+          "new_title": "Learnability-Driven Submodular Optimization for Active Roadside 3D Detection"
+        },
+        {
+          "old_paper_id": "S2-418e36a60e9bd64f",
+          "old_title": "Synthetic Knowledge-Guided Learning via Target-Region Gradients",
+          "new_title": "Learning from Synthetic Data via Provenance-Based Input Gradient Guidance"
+        },
+        {
+          "old_paper_id": "S2-6958b8fffe569150",
+          "old_title": "Learn to Learn Weight Generation via Local Consistency Diffusion",
+          "new_title": "Learning to Learn Weight Generation via Local Consistency Diffusion"
+        },
+        {
+          "old_paper_id": "S2-45c2c01a43c8b760",
+          "old_title": "Lifting Unlabeled Internet-scale Data for 3D Scene Understanding",
+          "new_title": "Lifting Unlabeled Internet-level Data for 3D Scene Understanding"
+        },
+        {
+          "old_paper_id": "S2-13f859db0278f220",
+          "old_title": "Lightmover: Towards Precise and Efficient Control for Light Movement",
+          "new_title": "LightMover: Generative Light Movement with Color and Intensity Controls"
+        },
+        {
+          "old_paper_id": "S2-80c8de0fd49a52e3",
+          "old_title": "LinVideo: A Post-Training Framework towards $\\mathcal{O}(n)$ Attention in Efficient Video Generation",
+          "new_title": "LinVideo: A Post-Training Framework towards O(n) Attention in Efficient Video Generation"
+        },
+        {
+          "old_paper_id": "S2-343720f2becf7425",
+          "old_title": "LoPrune: Efficient Data Pruning for LoRA-based Fine-Tuning of Vision Transformers",
+          "new_title": "LoPrune: Efficient Data Pruning for LoRA-Based Fine-Tuning of Vision Transformer"
+        },
+        {
+          "old_paper_id": "S2-641d4044e63e083c",
+          "old_title": "Tokenizing Vector Animation for Autoregresive Generation",
+          "new_title": "LottieGPT: Tokenizing Vector Animation for Autoregressive Generation"
+        },
+        {
+          "old_paper_id": "S2-edf0ed5245d66ec6",
+          "old_title": "M⁴-SAM: Multi-modal Mixture-of-Experts with Memory-Augmented SAM for RGB-D Video Salient Object Detection",
+          "new_title": "M4-SAM: Multi-Modal Mixture-of-Experts with Memory-Augmented SAM for RGB-D Video Salient Object Detection"
+        },
+        {
+          "old_paper_id": "S2-00308ad454e2867d",
+          "old_title": "MeanFuser: Fast One-Step Multi-Modal Trajectory Generation and Adaptive Reconstruction via MeanFlow for End-to-End Driving",
+          "new_title": "MeanFuser: Fast One-Step Multi-Modal Trajectory Generation and Adaptive Reconstruction via MeanFlow for End-to-End Autonomous Driving"
+        },
+        {
+          "old_paper_id": "S2-adae35a1c6bef401",
+          "old_title": "Memory-Efficient Fine-Tuning Diffusion Transformer via Dynamic Patch Sampling and Block Skipping",
+          "new_title": "Memory-Efficient Fine-Tuning Diffusion Transformers via Dynamic Patch Sampling and Block Skipping"
+        },
+        {
+          "old_paper_id": "S2-75dea19fb4a53b50",
+          "old_title": "MeshFlow: Efficient Artistic Mesh Generation via MeshVAE and Flow-based DiTs",
+          "new_title": "MeshFlow: Efficient Artistic Mesh Generation via MeshVAE and Flow-based Diffusion Transformer"
+        },
+        {
+          "old_paper_id": "S2-8e93e671b5fe5d45",
+          "old_title": "Ego-STAR: Spatiotemporal Hints for Egocentric Video Understanding",
+          "new_title": "Minerva-Ego: Spatiotemporal Hints for Egocentric Video Understanding"
+        },
+        {
+          "old_paper_id": "S2-333bfb2014e4d94b",
+          "old_title": "Divide and Conquer: Object Co-occurrence Helps Mitigate Simplicity Bias in OOD Detection",
+          "new_title": "Mitigating Simplicity Bias in OOD Detection through Object Co-occurrence Analysis"
+        },
+        {
+          "old_paper_id": "S2-28cc42404d76b26d",
+          "old_title": "MMFace-DiT: A Dual-Stream Diffusion Transformer for Multimodal Face Generation",
+          "new_title": "MMFace-DiT: A Dual-Stream Diffusion Transformer for High-Fidelity Multimodal Face Generation"
+        },
+        {
+          "old_paper_id": "S2-64b5afa0e16309da",
+          "old_title": "M${^2}$SeR: Multimodal Self-Refinement for Lightweight Image Captioning",
+          "new_title": "MM-SeR: Multimodal Self-Refinement for Lightweight Image Captioning"
+        },
+        {
+          "old_paper_id": "S2-c8ae2dd9bb65dd44",
+          "old_title": "BiTAgent: A Task-Aware Modular Framework for Bidirectional Coupling between Multimodal Large Language Models and World Models",
+          "new_title": "ModularAgent: A Task-Aware Modular Framework for Joint Optimization of Multimodal Large Language Models and World Models"
+        },
+        {
+          "old_paper_id": "S2-4c2bb85c423f5fc1",
+          "old_title": "$\\texttt{MonoVLM}$: Monocular 3D Visual Grounding with Vision Language Models",
+          "new_title": "MonoVLM: Monocular 3D Visual Grounding with Vision Language Models"
+        },
+        {
+          "old_paper_id": "S2-5a9e09f539798e43",
+          "old_title": "MoRe: Motion-aware Feed-forward 4D Reconstruction Transrformer",
+          "new_title": "MoRe: Motion-aware Feed-forward 4D Reconstruction Transformer"
+        },
+        {
+          "old_paper_id": "S2-82e755135d989361",
+          "old_title": "MotionCrafter: Repurposing Video Generators for Dense Geometry and Motion Reconstruction",
+          "new_title": "MotionCrafter: Dense Geometry and Motion Reconstruction with a 4D VAE"
+        },
+        {
+          "old_paper_id": "S2-10e203940d888fc8",
+          "old_title": "Multi-Scale Gaussian-Language Map for Embodied Navigation and Reasoning",
+          "new_title": "Multi-Scale Gaussian-Language Map for Zero-shot Embodied Navigation and Reasoning"
+        },
+        {
+          "old_paper_id": "S2-42904c3aa2bd3b93",
+          "old_title": "Multi-Scale Speculative Decoding",
+          "new_title": "Multi-Scale Local Speculative Decoding for Image Generation"
+        },
+        {
+          "old_paper_id": "S2-015a65faf7ba96a0",
+          "old_title": "μVLM: A Vision Language Model for μNPUs",
+          "new_title": "mVLM: A Vision Language Model for mNPUs"
+        },
+        {
+          "old_paper_id": "S2-a2788b862e3d18d1",
+          "old_title": "Zero-Shot Feature Upsampling via Neighborhood Attention Filtering.",
+          "new_title": "NAF: Zero-Shot Feature Upsampling via Neighborhood Attention Filtering"
+        },
+        {
+          "old_paper_id": "S2-c9b9edb116dfdcb7",
+          "old_title": "NEAF: Natural Image Editing with Attention Fusion for Generalizable Tuning-Free Text-Guided Image Editing",
+          "new_title": "NEAF: Natural Image Editing with Attention Fusion for Generalizable Test-time Optimization in Text-Guided Image Editing"
+        },
+        {
+          "old_paper_id": "S2-2fe13d637ba3cb11",
+          "old_title": "NERFIFY: Multi Agent Framework for Turning NeRF Papers into code",
+          "new_title": "NERFIFY: A Multi-Agent Framework for Turning NeRF Papers into Code"
+        },
+        {
+          "old_paper_id": "S2-5c1155a466160271",
+          "old_title": "Open-Med-Reasoner: Data Recipes for Multimodal Medical Reasoning",
+          "new_title": "OctoMed: Data Recipes for State-of-the-Art Multimodal Medical Reasoning"
+        },
+        {
+          "old_paper_id": "S2-f02ad5b96d6ead3d",
+          "old_title": "Helios: Stable Latent Image Modeling for Multimodal Earth Observation",
+          "new_title": "OlmoEarth: Stable Latent Image Modeling for Multimodal Earth Observation"
+        },
+        {
+          "old_paper_id": "S2-50dbc3f061c4b913",
+          "old_title": "Omni2Sound: A Fundamental Study on Dataset, Base Model, and Benchmark for Unified Video-Text-to-Audio Generation",
+          "new_title": "Omni2Sound: Towards Unified Video-Text-to-Audio Generation"
+        },
+        {
+          "old_paper_id": "S2-099f4480971f2af2",
+          "old_title": "Omni-Attribute: Open-vocabulary Image Attribute Encoder for Visual Disentanglement and Composition",
+          "new_title": "Omni-Attribute: Open-vocabulary Attribute Encoder for Visual Concept Personalization"
+        },
+        {
+          "old_paper_id": "S2-552c9a862f440db3",
+          "old_title": "ORPO: Orthogonal Panel-Relative Operators for Panel-Aware In-Context Image Generation",
+          "new_title": "OPRO: Orthogonal Panel-Relative Operators for Panel-Aware In-Context Image Generation"
+        },
+        {
+          "old_paper_id": "S2-f933f80c10acbc77",
+          "old_title": "ORBIT: Benchmarking SfM in the Wild with 360° Video",
+          "new_title": "ORBIT: Benchmarking SfM in the Wild with 360deg Video"
+        },
+        {
+          "old_paper_id": "S2-6c213fe57cd49c6b",
+          "old_title": "PanDA: Panoptic Domain Adaptation for Multimodal Perception in Autonomous Driving",
+          "new_title": "PanDA: Unsupervised Domain Adaptation for Multimodal 3D Panoptic Segmentation in Autonomous Driving"
+        },
+        {
+          "old_paper_id": "S2-11a30121b3f6c3d4",
+          "old_title": "Pantheon360: Taming Digital Twin Generation via 3D-Aware 360° Video Diffusion",
+          "new_title": "Pantheon360: Taming Digital Twin Generation via 3D-Aware 360deg Video Diffusion"
+        },
+        {
+          "old_paper_id": "S2-f6bc544dc8c92e3e",
+          "old_title": "Catch Me if You Can: Active Mapping of Moving 3D Objects",
+          "new_title": "Paparazzo: Active Mapping of Moving 3D Objects"
+        },
+        {
+          "old_paper_id": "S2-94ddacc572bd1113",
+          "old_title": "Long-Term Personalized Multimodal LLMs",
+          "new_title": "PersonaVLM: Long-Term Personalized Multimodal LLMs"
+        },
+        {
+          "old_paper_id": "S2-653180a541678375",
+          "old_title": "PointTPA: Test-Time Parameter Adaptation for 3D Scene Understanding",
+          "new_title": "PointTPA: Dynamic Network Parameter Adaptation for 3D Scene Understanding"
+        },
+        {
+          "old_paper_id": "S2-bc6f79b21d8a2f37",
+          "old_title": "FaceDirector: A Hierarchical Disentanglement Framework for Controllable and Real-time Facial Reenactment",
+          "new_title": "PortraitDirector: A Hierarchical Disentanglement Framework for Controllable and Real-time Facial Reenactment"
+        },
+        {
+          "old_paper_id": "S2-29e7e41cbc265c3a",
+          "old_title": "PoseAnything: Universal Pose-guided Video Generation with Part-aware Temporal Coherence",
+          "new_title": "PoseAnything: General Pose-guided Video Generation with Part-aware Temporal Coherence"
+        },
+        {
+          "old_paper_id": "S2-716eff2011df24fc",
+          "old_title": "PowerCLIP: Powerset Alignment for Fine-Grained Contrastive Pre-Training",
+          "new_title": "PowerCLIP: Powerset Alignment for Contrastive Pre-Training"
+        },
+        {
+          "old_paper_id": "S2-c613777e263eec92",
+          "old_title": "Alternative Reprogramming for Service Models",
+          "new_title": "Prime Once, then Reprogram Locally: An Efficient Alternative to Black-Box Service Model Adaptation"
+        },
+        {
+          "old_paper_id": "S2-1457373e0e3c465c",
+          "old_title": "PROMPTMINER: Black-Box Prompt Stealing against Text-to-Image Generative Models via Reinforcement Learning and Fuzz Optimization",
+          "new_title": "PROMPTMINER: Black-Box Prompt Stealing against Text-to-Image Generative Models via Reinforcement Learning and VLM-Guided Optimization"
+        },
+        {
+          "old_paper_id": "S2-04f7933f21a73a3c",
+          "old_title": "ProSoftArena: Evaluating Hierarchical Capabilities of Multimodal Agents in Professional Software Environments",
+          "new_title": "ProSoftArena: Benchmarking Hierarchical Capabilities of Multi-modal Agents in Professional Software Environments"
+        },
+        {
+          "old_paper_id": "S2-db603682c7a790cb",
+          "old_title": "Protect to Adapt: Subspace-Constrained Adaptation with Ranked Negative Prompt Feedback for Few-Shot Action Recognition",
+          "new_title": "Protect to Adapt: Orthogonal Subspace Control with Ranked Negative-Prompt Curriculum for Few-Shot Action Recognition"
+        },
+        {
+          "old_paper_id": "S2-8f29af225dda698d",
+          "old_title": "R-4B: Incentivizing General-Purpose Auto-Thinking Capability in MLLMs via Bi-Mode Annealing and Reinforce Learning",
+          "new_title": "R-4B: Incentivizing General-Purpose Auto-Thinking in MLLMs via Bi-Mode Annealing and Reinforce Learning"
+        },
+        {
+          "old_paper_id": "S2-428dab3e0ba1c0f9",
+          "old_title": "Erasing Invisible Watermarks via Novel View Synthesis",
+          "new_title": "RAVEN: Erasing Invisible Watermarks via Novel View Synthesis"
+        },
+        {
+          "old_paper_id": "S2-ed2e7af285459b1c",
+          "old_title": "RAYNOVA: Geometry-Free Auto-Regressive 4D World Modeling with Unified Spatio-Temporal Representation",
+          "new_title": "RAYNOVA: Scale-Temporal Autoregressive World Modeling in Ray Space"
+        },
+        {
+          "old_paper_id": "S2-56b4c2dc045f3036",
+          "old_title": "C$^3$R: Cross-Modal Cycle Consistency Rewards Improve Multimodal Reasoning",
+          "new_title": "R-C2: Cycle-Consistent Reinforcement Learning Improves Multimodal Reasoning"
+        },
+        {
+          "old_paper_id": "S2-09d0917c64dc542b",
+          "old_title": "Explicit Recovery Behaivor for Diffusion Policies",
+          "new_title": "REACH: Explicit Recovery Behavior for Diffusion Policies"
+        },
+        {
+          "old_paper_id": "S2-f79f74b8b047c944",
+          "old_title": "Reasoning Diffusion for Unpaired Text-Image to Video Generation",
+          "new_title": "Reasoning Diffusion for Unpaired Test Time Out-of-distribution Text-Image to Video Generation"
+        },
+        {
+          "old_paper_id": "S2-56374ecced06ba1c",
+          "old_title": "ContourVertex: Bridging Semantics and Geometry for Referring Remote Sensing Interpretation",
+          "new_title": "RECS4R: Bridging Semantics and Geometry for Referring Remote Sensing Interpretation"
+        },
+        {
+          "old_paper_id": "S2-ecbb1c472ef245d8",
+          "old_title": "Refaçade: Editing Object with Given Reference Texture",
+          "new_title": "Refacade: Editing Object with Given Reference Texture"
+        },
+        {
+          "old_paper_id": "S2-4ab761898bdcdc5f",
+          "old_title": "Refer-Agent: A Collaborative Multi-Agent System for Referring Video Object Segmentation with Reasoning and Reflection",
+          "new_title": "Refer-Agent: A Collaborative Multi-Agent System with Reasoning and Reflection for Referring Video Object Segmentation"
+        },
+        {
+          "old_paper_id": "S2-ec60f85c722544b1",
+          "old_title": "RefTON: Person-to-Person Virtual Try-On with Unpaired Visual References",
+          "new_title": "RefTon: Reference person shot assist virtual Try-on"
+        },
+        {
+          "old_paper_id": "S2-ed3b0e4edb836504",
+          "old_title": "Residual Connections Harm Self-Supervised Abstract Feature Learning",
+          "new_title": "Residual Connections Harm Generative Representation Learning"
+        },
+        {
+          "old_paper_id": "S2-00022980c8b37d11",
+          "old_title": "Rewis3d: Reconstruction for Weakly-Supervised Semantic Segmentation",
+          "new_title": "Rewis3d: Reconstruction Improves Weakly-Supervised Semantic Segmentation"
+        },
+        {
+          "old_paper_id": "S2-b88e71eb0cf9409a",
+          "old_title": "RiskProp: Collision-Anchored Self-supervised Temporal Constraints for Early Accident Anticipation",
+          "new_title": "RiskProp: Collision-Anchored Self-Supervised Risk Propagation For Early Accident Anticipation"
+        },
+        {
+          "old_paper_id": "S2-9527ee0c7ba1a978",
+          "old_title": "RL‑ScanIQA: Reinforcement-Learned Scanpaths for Blind 360° Image Quality Assessment",
+          "new_title": "RL-ScanIQA: Reinforcement-Learned Scanpaths for Blind 360deg Image Quality Assessment"
+        },
+        {
+          "old_paper_id": "S2-79f602e14ebd4d52",
+          "old_title": "RNED: Rotary Number Encoding and Decoding for Quantitative Medical VLM Analysis",
+          "new_title": "RNED: Rotary Number Encoding and Decoding for Medical VLMs"
+        },
+        {
+          "old_paper_id": "S2-4481fe539aeb20ff",
+          "old_title": "Chaining Basic Capabilities for Embodied Task Planning",
+          "new_title": "RoboAgent: Chaining Basic Capabilities for Embodied Task Planning"
+        },
+        {
+          "old_paper_id": "S2-1e19efac3735d3af",
+          "old_title": "Roots Beneath the Cut: Uncovering the Risk of Concept Recovery in Pruning-Based Unlearning for Diffusion Models",
+          "new_title": "Roots Beneath the Cut: Uncovering the Risk of Concept Revival in Pruning-Based Unlearning for Diffusion Models"
+        },
+        {
+          "old_paper_id": "S2-906017679e693c9d",
+          "old_title": "Spatially Consistent 3D Universal Adversarial Objects for BEV Detectors",
+          "new_title": "SABER: Spatially Consistent 3D Universal Adversarial Objects for BEV Detectors"
+        },
+        {
+          "old_paper_id": "S2-e62c941b4db8afe1",
+          "old_title": "MOSAIC3D:Modular Scene Assembly for Real-Time 3D Segment Anything",
+          "new_title": "SAMosaic3D: Modular Scene Assembly for Real-Time 3D Segment Anything"
+        },
+        {
+          "old_paper_id": "S2-6519d587a06bb9f9",
+          "old_title": "SaPaVe: Towards Active Perception and Manipulation in Vision-Language Action Models for Robot",
+          "new_title": "SaPaVe: Towards Active Perception and Manipulation in Vision-Language Action Models for Robotics"
+        },
+        {
+          "old_paper_id": "S2-e529afbb33b1d480",
+          "old_title": "Scal3R: Scalable Test-Time Training for Feed-forward Large-Scale 3D Reconstruction",
+          "new_title": "Scal3R: Scalable Test-Time Training for Large-Scale 3D Reconstruction"
+        },
+        {
+          "old_paper_id": "S2-7f969ff33900227d",
+          "old_title": "AutoMoMa: Scalable Coordinated Mobile Manipulation Trajectory Generation",
+          "new_title": "Scalable Trajectory Generation for Whole-Body Mobile Manipulation"
+        },
+        {
+          "old_paper_id": "S2-7c7c397243ee8632",
+          "old_title": "SceMoS: Local Scene-Aware Human Motion Synthesis by Planning with Geometry-Grounded Tokens",
+          "new_title": "SceMoS: Scene-Aware 3D Human Motion Synthesis by Planning with Geometry-Grounded Tokens"
+        },
+        {
+          "old_paper_id": "S2-27f1dcaf8b4b4cf3",
+          "old_title": "Seeing Clearly, Reasoning Confidently: Plug-and-Play Remedies for Vision Langugae Model Blindness",
+          "new_title": "Seeing Clearly, Reasoning Confidently: Plug-and-Play Remedies for Vision Language Model Blindness"
+        },
+        {
+          "old_paper_id": "S2-bcbffee3b41e258c",
+          "old_title": "SemLayer: Semantic Generative Segmentation and Layer Reconstruction for Vector Icons",
+          "new_title": "SemLayer: Semantic-aware Generative Segmentation and Layer Construction for Abstract Icons"
+        },
+        {
+          "old_paper_id": "S2-74f25a257149281e",
+          "old_title": "ShowUI-π: Flow-based Generative Models as GUI Dexterous Hands",
+          "new_title": "ShowUI-p: Flow-based Generative Models as GUI Dexterous Hands"
+        },
+        {
+          "old_paper_id": "S2-45d2e28fa2ff89ae",
+          "old_title": "AMoE: Agglomerative Mixture-of-Experts Vision Foundation Model",
+          "new_title": "SigLino: Efficient Multi-Teacher Distillation for Agglomerative Vision Foundation Models"
+        },
+        {
+          "old_paper_id": "S2-ab44bc666910c188",
+          "old_title": "SIGMA: A Physics-Informed Benchmark for Gas Chimney Understanding in Seismic Images",
+          "new_title": "SIGMA: A Physics-Based Benchmark for Gas Chimney Understanding in Seismic Images"
+        },
+        {
+          "old_paper_id": "S2-ca4a12367702f76c",
+          "old_title": "Learning to Drive via Real-World Simulation at Scale",
+          "new_title": "SimScale: Learning to Drive via Real-World Simulation at Scale"
+        },
+        {
+          "old_paper_id": "S2-41535337cdf58b3f",
+          "old_title": "SJD++: Accelerating Speculative Jacobi Decoding for Text-to-Image Models via Multi-Drafting and Enhanced Rejection Stability",
+          "new_title": "SJD-PAC: Accelerating Speculative Jacobi Decoding via Proactive Drafting and Adaptive Continuation"
+        },
+        {
+          "old_paper_id": "S2-bdfc29f6c53581dd",
+          "old_title": "Sparse-LaViDa: Sparse Multimodal Discrete Diffusion Models",
+          "new_title": "Sparse-LaViDa: Sparse Multimodal Discrete Diffusion Language Models"
+        },
+        {
+          "old_paper_id": "S2-6bd939f8774e95f4",
+          "old_title": "SparseVAR: Exploring Sparsity in Visual AutoRegressive Modeling for Training-Free Acceleration",
+          "new_title": "SparVAR: Exploring Sparsity in Visual AutoRegressive Modeling for Training-Free Acceleration"
+        },
+        {
+          "old_paper_id": "S2-f4afccfd0f0a925a",
+          "old_title": "SpatialStack: Layered Geometry-Semantic Fusion for 3D VLM Spatial Reasoning",
+          "new_title": "SpatialStack: Layered Geometry-Language Fusion for 3D VLM Spatial Reasoning"
+        },
+        {
+          "old_paper_id": "S2-1c11e0f7a3a10a49",
+          "old_title": "VAE-REPA: Variational Autoencoder Representation Alignment for Efficient Diffusion Training",
+          "new_title": "SRA 2: Variational Autoencoder Self-Representation Alignment for Efficient Diffusion Training"
+        },
+        {
+          "old_paper_id": "S2-375695f15f4642f9",
+          "old_title": "Implicit-Knowledge Visual Question Answering with Structured Reasoning Traces",
+          "new_title": "StaR-KVQA: Structured Reasoning Traces for Implicit-Knowledge Visual Question Answering"
+        },
+        {
+          "old_paper_id": "S2-cf81ee47ed4ec81c",
+          "old_title": "Stereo World Model",
+          "new_title": "Stereo World Model: Camera-Guided Stereo Video Generation"
+        },
+        {
+          "old_paper_id": "S2-02dcb8648149a9b2",
+          "old_title": "MIM Representations Encode Non-Semantic Noise: Post-Hoc Suppression Boosts Zero-Shot Performance",
+          "new_title": "Suppressing Non-Semantic Noise in Masked Image Modeling Representations"
+        },
+        {
+          "old_paper_id": "S2-d0cba33ccf21bdfc",
+          "old_title": "Learning Distribution-wise Foundation Prior Consistency and Instance-wise Style Calibration for Medical Image Generalization",
+          "new_title": "TANGO: Learning Distribution-wise Foundation Prior Consistency and Instance-wise Style Calibration for Medical Image Generalization"
+        },
+        {
+          "old_paper_id": "S2-022d83721dfcb69d",
+          "old_title": "TC-Padé: Trajectory-Consistent Padé Approximation for Diffusion Acceleration",
+          "new_title": "TC-Pade: Trajectory-Consistent Pade Approximation for Diffusion Acceleration"
+        },
+        {
+          "old_paper_id": "S2-05dc6af6ad4fbafd",
+          "old_title": "Temporal Representation Enhancement (TRE): Learning to Forget Dominant Patterns for More Discriminative Spiking Features",
+          "new_title": "Temporal Representation Enhancement (TRE): Learning to Forget Dominant Patterns for Enhanced Temporal Spiking Features"
+        },
+        {
+          "old_paper_id": "S2-e40c2a343df50ddc",
+          "old_title": "TerraSeg: Self-Supervised LiDAR Foundation Model for Ground Segmentation",
+          "new_title": "TerraSeg: Self-Supervised Ground Segmentation for Any LiDAR"
+        },
+        {
+          "old_paper_id": "S2-45a2ae1526220884",
+          "old_title": "Think 360°: Evaluating the Width-centric Reasoning Capability of MLLMs Beyond Depth",
+          "new_title": "Think 360deg: Beyond Depth: Evaluating the Width-centric Reasoning Capability of MLLMs"
+        },
+        {
+          "old_paper_id": "S2-769e3a75bfc8d2db",
+          "old_title": "Thinking in 360°: Humanoid Visual Search in the Wild",
+          "new_title": "Thinking in 360deg: Humanoid Visual Search in the Wild"
+        },
+        {
+          "old_paper_id": "S2-94f383699bf664c5",
+          "old_title": "PANDA: Pretraining for vision ANd language with Dense Alignment",
+          "new_title": "TIPSv2: Advancing Vision-Language Pretraining with Enhanced Patch-Text Alignment"
+        },
+        {
+          "old_paper_id": "S2-8b02484460a4336f",
+          "old_title": "Towards Open Environments: General Vision-Language Navigation via Fast-Slow Interactive Reasoning",
+          "new_title": "Towards Open Environments and Instructions: General Vision-Language Navigation via Fast-Slow Interactive Reasoning"
+        },
+        {
+          "old_paper_id": "S2-88a13ee13692263d",
+          "old_title": "Universal Computational Aberration Correction: A Comprehensive Benchmark Analysis",
+          "new_title": "Towards Universal Computational Aberration Correction in Photographic Cameras: A Comprehensive Benchmark Analysis"
+        },
+        {
+          "old_paper_id": "S2-00c4e93543663b67",
+          "old_title": "CrossAgent: Bridging Cross-level Actions into One Agentic Model via Reinforcement Learning",
+          "new_title": "Training One Model to Master Cross-Level Agentic Actions via Reinforcement Learning"
+        },
+        {
+          "old_paper_id": "S2-8805913f5d167fcc",
+          "old_title": "TrajTok: Learning Trajectory Tokens enables better Video Understanding",
+          "new_title": "TrajTok: Learning Trajectory Tokens Enhances Video Understanding"
+        },
+        {
+          "old_paper_id": "S2-e0c0d1d3e0077dde",
+          "old_title": "TSTM: Temporal Segmentation for Task-related Mask in Visual Reinforcement Learning Generalization",
+          "new_title": "TSTM: Temporal Segmentation for Task-relevant Mask in Visual Reinforcement Learning Generalization"
+        },
+        {
+          "old_paper_id": "S2-0ad402a2c81d78c5",
+          "old_title": "TAPFormer: Robust Arbitrary Point Tracking via Transient Asynchronous Fusion of Frames and Events",
+          "new_title": "TTAPFormer: Robust Arbitrary Point Tracking via Transient Asynchronous Fusion of Frames and Events"
+        },
+        {
+          "old_paper_id": "S2-1952f2025dfd0e41",
+          "old_title": "Uika: Universal Head Avatar from Pose-Free Images",
+          "new_title": "UIKA: Fast Universal Head Avatar from Pose-Free Images"
+        },
+        {
+          "old_paper_id": "S2-d46250112bc22bad",
+          "old_title": "UniCorn: Unified Correspondence Transformer Across 2D and 3D",
+          "new_title": "UniCorrn: Unified Correspondence Transformer Across 2D and 3D"
+        },
+        {
+          "old_paper_id": "S2-41d4942b26f83af1",
+          "old_title": "Rethinking the Semantic-based Autoencoder",
+          "new_title": "Unified Latent Space for Understanding and Generation via Semantic Auto-encoder"
+        },
+        {
+          "old_paper_id": "S2-a276f2ec41d4dbc0",
+          "old_title": "Unified Spherical Frontend: Learning Rotation-Equivariant Representations of Any Camera",
+          "new_title": "Unified Spherical Frontend: Learning Rotation-Equivariant Representations of Spherical Images from Any Camera"
+        },
+        {
+          "old_paper_id": "S2-568b9471b5fa6015",
+          "old_title": "Benchmarking Unified Any-to-Any Interleaved Multimodal Learning",
+          "new_title": "UniM: A Unified Any-to-Any Interleaved Multimodal Benchmark"
+        },
+        {
+          "old_paper_id": "S2-640a56905f19e965",
+          "old_title": "Unleashing Vision-Language Semantics for Video Deepfake Detection",
+          "new_title": "Unleashing Vision-Language Semantics for Deepfake Video Detection"
+        },
+        {
+          "old_paper_id": "S2-e4a065ac11a7acaa",
+          "old_title": "Unpaired Deep Image Deraining Using Reward-Guided Self-Reinforcement Learning",
+          "new_title": "Unpaired Image Deraining Using Reward-Guided Self-Reinforcement Strategy"
+        },
+        {
+          "old_paper_id": "S2-2a5ad2263e883fc0",
+          "old_title": "VA-$\\boldsymbol{\\pi}$: Variational Policy Alignment for Pixel-Aware Autoregressive Generation",
+          "new_title": "VA-p: Variational Policy Alignment for Pixel-Aware Autoregressive Generation"
+        },
+        {
+          "old_paper_id": "S2-fca0f995f2a9a5a4",
+          "old_title": "V-DPM: Video Reconstruction with Dynamic Point Maps",
+          "new_title": "V-DPM: 4D Video Reconstruction with Dynamic Point Maps"
+        },
+        {
+          "old_paper_id": "S2-6ad661e7696d6be3",
+          "old_title": "VGGT-$\\Omega$",
+          "new_title": "VGGT-Ω"
+        },
+        {
+          "old_paper_id": "S2-3c7e8dc6f0078059",
+          "old_title": "VideoAutoThink: Video Auto Reasoning via Thinking Once, Answering Twice",
+          "new_title": "VideoAuto-R1: Video Auto Reasoning via Thinking Once, Answering Twice"
+        },
+        {
+          "old_paper_id": "S2-ff49485e53c78904",
+          "old_title": "Unified Video Editing as Temporal Reasoner",
+          "new_title": "VideoCoF: Unified Video Editing with Temporal Reasoner"
+        },
+        {
+          "old_paper_id": "S2-4c6c8aa82f7f9621",
+          "old_title": "Agentic Learner with Grow-and-Refine Multimodal Semantic Memory",
+          "new_title": "ViLoMem: Agentic Learner with Grow-and-Refine Multimodal Semantic Memory"
+        },
+        {
+          "old_paper_id": "S2-66dc4717c45cf4a0",
+          "old_title": "Visual Sim-to-Real at Scale for Humanoid Loco-Manipulation",
+          "new_title": "VIRAL: Visual Sim-to-Real at Scale for Humanoid Loco-Manipulation"
+        },
+        {
+          "old_paper_id": "S2-23663d584fc25da2",
+          "old_title": "Physics-Based Decomposition of Reflectance and Shading using a Single Visible-Thermal Image Pair",
+          "new_title": "VT-Intrinsic: Physics-Based Decomposition of Reflectance and Shading using a Single Visible-Thermal Image Pair"
+        },
+        {
+          "old_paper_id": "S2-940fe078b47d4ee8",
+          "old_title": "VVS: Accelerating Speculative Decoding for Visual Autoregressive Model via Partial Verification Skipping",
+          "new_title": "VVS: Accelerating Speculative Decoding for Visual Autoregressive Generation via Partial Verification Skipping"
+        },
+        {
+          "old_paper_id": "S2-72a918a983449522",
+          "old_title": "DFM-Drive: Parallel Coarse-to-Fine Motion Planning via Discrete Flow Matching for Autonomous Driving",
+          "new_title": "WAM-Flow: Parallel Coarse-to-Fine Motion Planning via Discrete Flow Matching for Autonomous Driving"
+        },
+        {
+          "old_paper_id": "S2-9d04ffcc3905d415",
+          "old_title": "Weaver: Decoupled Training for Interleaved Multi-modal Generation",
+          "new_title": "Wan-Weaver: Interleaved Multi-modal Generation via Decoupled Training"
+        },
+        {
+          "old_paper_id": "S2-63251c12e4a8b48f",
+          "old_title": "WebGym: Scaling Training Environments for Long-Horizon Visual Web Agents with A Million Realistic Tasks",
+          "new_title": "WebGym: Scaling Training Environments for Long-Horizon Visual Web Agents with Realistic Tasks"
+        },
+        {
+          "old_paper_id": "S2-29bfb14ffbe7d704",
+          "old_title": "Weight Space Representation Learning with Neural Fields",
+          "new_title": "Weight Space Representation Learning via Neural Field Adaptation"
+        },
+        {
+          "old_paper_id": "S2-1693cbfdd63d7b62",
+          "old_title": "From Global Alignment to Local Semantics: Understanding Visual Representations Structures in Multimodal LLMs",
+          "new_title": "What Do Visual Tokens Really Encode? Uncovering Sparsity and Redundancy in Multimodal Large Language Models"
+        },
+        {
+          "old_paper_id": "S2-36bb9f6a2a16aac3",
+          "old_title": "MSAG: A Multispectral Aerial–Ground Benchmark for Any-Scenario Person Re-Identification",
+          "new_title": "WHU-MARS: A Multispectral Aerial-Ground Benchmark Towards Any-Scenario Person Re-Identification"
+        },
+        {
+          "old_paper_id": "S2-093a07de2832e746",
+          "old_title": "WildCap: Facial Appearance Capture in the Wild via Hybrid Inverse Rendering",
+          "new_title": "WildCap: Facial Albedo Capture in the Wild via Hybrid Inverse Rendering"
+        },
+        {
+          "old_paper_id": "S2-190afc83afa4b56f",
+          "old_title": "Rare-E2E: Rare Events Dataset for End-to-End Driving in Challenging Long-tail Scenarios",
+          "new_title": "WOD-E2E: Waymo Open Dataset for End-to-End Driving in Challenging Long-tail Scenarios"
+        },
+        {
+          "old_paper_id": "S2-0eb3864d1e08accf",
+          "old_title": "WorldStereo: Bridging Controllable Video Generation and Scene Reconstruction via 3D Geometric Memories",
+          "new_title": "WorldStereo: Bridging Camera-Guided Video Generation and Scene Reconstruction via 3D Geometric Memories"
+        },
+        {
+          "old_paper_id": "S2-01dff411f6cb097f",
+          "old_title": "Your Classifier Can Do More: Towards Bridging the Gaps in Classification, Robustness, and Generation",
+          "new_title": "Your Classifier Can Do More: Towards Balancing the Gaps in Classification, Robustness, and Generation"
+        },
+        {
+          "old_paper_id": "S2-34c88b70321abe5e",
+          "old_title": "FRM: Linear-Time 3D Reconstruction via Test-Time Training",
+          "new_title": "ZipMap: Linear-Time Stateful 3D Reconstruction via Test-Time Training"
+        }
+      ],
+      "audit_note": "Final CVF OpenAccess is authoritative; three virtual-only records are approved removals.",
+      "source_sha256": "84a5edbae27c65e7d62399d7c06ef6ac5b09510d09d5baf4196a71bdfc049d05"
     },
     "icml/2026.json": {
       "allowed_removals": [
@@ -33,7 +1244,7 @@
         "S2-7e2948a9d88c1fe3",
         "S2-603471b7c28526e3"
       ],
-      "allow_fuzzy_retitle": false,
+      "retitle_mappings": [],
       "audit_note": "Eight OpenReview IDs absent from the approved pinned snapshot."
     }
   }

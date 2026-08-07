@@ -1,107 +1,79 @@
-# JanusSearch 审查问题修复进度
+# JanusSearch 未解决问题逐项修复台账
 
 更新时间：2026-08-07
 
-## 范围约束
+## 本轮边界
 
-- [x] 按用户要求排除“工作区明文保存真实 API 凭据”；不读取、不修改、不删除 `.codex/.env`。
-- [x] 修改仅覆盖上一轮审查报告中的其余问题，并补充针对性测试与门禁。
-- [x] 修改过程中保留无关用户改动；不提交、不推送、不创建 PR。
+- 只修复代码、契约、架构和验证缺陷，不完善论文数据库。
+- 不修改 `data/raw`、`data/papers.db`、生产 Chroma、topic、cache 或正式评估报告。
+- `.codex/.env` 只规范变量名并保留现有密钥；禁止在日志、报告或台账中记录密钥。
+- 保留 `problem-finding.md` 历史证据；只有新的终态失败才追加记录。
+- 不提交、不推送、不创建 PR。
 
-## TODO
+## 生产数据冻结基线
 
-- [x] M2：把全量重建改为临时数据库构建、校验后原子替换，失败时保留旧运行库。
-- [x] M4：抽样查询必须验证返回论文属于目标 topic/subtopic，而不只是检查非空和字段结构。
-- [x] CVPR/ICCV/ECCV：修复 OpenAccess 路径返回未定义 `provider` 的运行时错误。
-- [x] Chroma：修复当前 `embedding_fulltext_search` FTS5 索引，并把 SQLite 完整性检查加入 M3 validate。
-- [x] M1：只有目标缺失字段实际修复后才标记 `repaired`、计入 `updated_records`。
-- [x] ACL：HTTP 4xx/5xx 必须触发 curl 失败与重试，禁止写出伪成功空结果。
-- [x] AAAI：OpenReview 相对 PDF 路径必须使用 OpenReview 域名。
-- [x] canonical provenance：将 `field_provenance` 纳入 M2 必填/验证，并迁移现有缺失记录。
-- [x] 测试：为上述失败路径补充回归测试。
-- [x] 验证：运行针对性测试、全量测试、数据契约检查、SQLite 完整性检查和最终 diff 审查。
+| 对象 | SHA-256 聚合值 |
+|---|---|
+| `data/raw/**/*.json` | `8324fa1f42e86e0e8f6ae1cb99fe257aac5827d3bfb4fa0d0e93f92c1dcabce9` |
+| `data/papers.db` | `f15465eafa75d3e28437d6ff51b6e119ba635f6868adc90c05dfedc3ffcfc339` |
+| `data/vectors/chroma` | `eec71c30baa282fd3b2eee0a2e9379819271e79233dcf4e4639c51da50a2276d` |
+| `artifacts/m3` | `5cb266d48c3514f5ef74fe24b65f0ff3fec31d5c7b19270ec19d889a5f6e0168` |
+| cache roots | `637feda011757b47a538f0ebc73a929e08ce30b57bbc7cacb3ee701d9e2e6eed` |
 
-## 进度记录
+## 顺序 TODO
 
-| 时间 | 状态 | 事项 | 证据/备注 |
+| ID | 严重级别 | 状态 | 问题 | 验收条件 |
+|---|---:|---|---|---|
+| R-000 | P1 | DONE | 台账与 LLM/Embed 配置不统一 | 两份台账按约定重置；六个 `JANUS_*` 配置生效且不泄露密钥 |
+| R-001 | P1 | DONE | publish 未覆盖额外 staging 文件 | reconciliation v2 精确覆盖 staging 文件集合并拒绝非法路径 |
+| R-002 | P1 | DONE | reconciliation 未复核完整契约和指纹 | publish 复核 policy、collection sidecar、源文件、canonical 和输出哈希 |
+| R-003 | P1 | DONE | CVPR fuzzy 改题可被数量门禁自动放行 | 仅接受逐条版本化映射；拒绝未知、重复或歧义映射 |
+| R-004 | P2 | DONE | 作者集合索引被拆成单个作者 | 完整作者签名作为一个键参与唯一匹配 |
+| R-005 | P1 | DONE | ICML 固定快照 fallback 范围过宽 | 仅批准的第二页分页不完整可 fallback |
+| R-006 | P2 | DONE | virtual collector 可能生成裸站点 URL | 空路径不生成 URL，真实 paper URL 不被覆盖 |
+| R-007 | P1 | DONE | collection sidecar 非通用、非原子且作用域弱 | v2 sidecar 覆盖全部注册 collector，校验 venue/years/files/hashes |
+| R-008 | P2 | DONE | 缺失 presentation 被归类为 poster | 会议缺失为 unknown，期刊为 not_applicable；不迁移生产数据 |
+| R-009 | P1 | DONE | query doctor 对不完整向量库误报 PASS | 精确核对非 placeholder ID 与必要元数据，当前生产库应正确 FAIL |
+| R-010 | P2 | DONE | PVLDB 生产逻辑位于 CLI 层 | 实现迁入 `janussearch.collectors`，旧命令只保留适配层 |
+| R-011 | P1 | DONE | M1～M4 能力层仍反向依赖 `tools` | `janussearch/**` 不导入 `tools/**`，旧入口保持兼容 |
+| R-012 | P2 | DONE | 文档 SOP 缺少 reconcile 和新门禁 | AGENTS 与核心文档流程和实际 CLI 一致 |
+| R-013 | P1 | BLOCKED | 全局与真实服务验证 | 全量测试、隔离 Embed/LLM smoke、哈希与安全审计完成；生产哈希全部保持基线 |
+| R-014 | P1 | DONE | doctor 只读诊断触发 Chroma SQLite 字节写入 | doctor 仅以 SQLite `mode=ro&immutable=1` 读取，重复诊断不改变文件哈希或 mtime |
+
+## 非代码缺陷与明确延期
+
+- ACMMM、AISTATS、ICDE、IJCAI 2026 尚未发布属于外部来源状态，不作为代码修复项。
+- 生产向量、topic、cache 和评估报告保持 stale；本轮只要求 doctor 正确暴露，不执行数据完善。
+
+## 进度证据
+
+| 时间 | ID | 状态 | 证据 |
 |---|---|---|---|
-| 2026-08-06 | 已完成 | 建立修复台账 | 初始 TODO 来自上一轮全库审查；Git 工作区基线干净。 |
-| 2026-08-06 | 已完成 | 修复三个会议采集器缺陷 | OpenAccess 返回 `venue_provider`；ACL curl 增加 `--fail-with-body`；AAAI OpenReview PDF 改用 OpenReview 基址。`tests.test_collectors` 3 项通过。 |
-| 2026-08-06 | 已完成 | 修复 M1 回填状态语义 | 元数据变化但摘要仍为空时保留原状态，并计入 `failed_records`；增加 provenance 原子迁移入口。`tests.test_m1_pipeline` 11 项通过。 |
-| 2026-08-06 | 已完成 | M2 原子重建与 provenance 门禁 | 使用同目录临时数据库完整构建后原子替换；失败回归验证旧库及哨兵数据不变。输入记录和数据库 JSON 均验证 provenance 契约；M2 及关联模块 42 项测试通过。 |
-| 2026-08-06 | 已完成 | M4 抽样相关性判定 | 从 `topic_assignments.json` 构建 topic/subtopic 论文集合；抽样结果至少命中一篇目标集合论文才通过。结构正确但无关、真实成员命中两条路径均有回归测试；M4 10 项通过。 |
-| 2026-08-06 | 已完成 | Chroma 完整性门禁与 FTS5 修复 | M3 validate 新增只读 `PRAGMA quick_check` 门禁；健康索引单测通过。确认无相关写进程后重建 `embedding_fulltext_search`（124,683 行，18.597 秒）；修复后 `quick_check` 与 `integrity_check` 均为 `ok`。 |
-| 2026-08-06 | 已完成 | canonical provenance 迁移 | 85 文件、128,403 条记录完成检查；81 文件共 113,245 条记录补齐 provenance。迁移前后论文 ID 数量与 SHA-256 一致，逐文件对比确认非 provenance 字段 0 处变化，provenance 契约及字段顺序错误均为 0。 |
-| 2026-08-06 | 已完成 | 最终回归与运行面验证 | 全量单元测试 61/61 通过；M2 最终版本全量重建成功且 `all_pass=true`；M3 validate 全部 6 项通过（含 Chroma 完整性）；FTS 检索冒烟返回 220 条。`git diff --check` 与 16 个变更 Python 文件 AST 解析通过。 |
-| 2026-08-06 | 已记录 | 范围外既有门禁状态 | M1 validate 对 85 文件完成扫描，但 NeurIPS 2021–2025 共 5 个文件的既有官方数量对齐失败，且沙箱阻止在线刷新；本次迁移已证明所有非 provenance 字段不变。M4 仅检查既有状态报告（2026-05-06 PASS），未使用凭据重跑在线套件。 |
-
-## 截至 2026-08-06 的剩余风险（历史记录）
-
-- canonical provenance 产生 81 个数据文件、759,672 行新增差异；自动逐字段核对已确认非 provenance 值不变，但人工审阅成本仍较高。
-- M1 当前仍有 NeurIPS 2021–2025 五个既有数量对齐失败；它不属于上一轮审查列出的修复项，本次未扩大范围去重采集数据。
-- M4 新相关性语义已有离线正反回归测试，但未调用外部 embedding 服务重跑在线套件；当前 `status` 指向 2026-05-06 的旧 PASS 报告。
-
-## 2026-08-07 能力化架构重构
-
-详细的设计决策、逐项 TODO、验证证据和剩余风险记录在 [`architecture-refactor-progress.md`](architecture-refactor-progress.md)。本节保留总进度，防止后续任务丢失上下文。
-
-| 项目 | 状态 | 结果 |
-|---|---|---|
-| M1～M4 主抽象替换 | 已完成 | 主流程改为 `corpus → catalog → projections → evaluate`，查询独立为 `search`，诊断统一为 `doctor` |
-| 正式代码分层 | 已完成 | 新增 `janussearch/domain`、`application`、`collectors`、`infrastructure` |
-| Skill 重构 | 已完成 | 原两个 Skill 替换为 `janussearch`、`janus-query`、`janus-corpus`、`janus-ops` 四个职责单一 Skill |
-| 兼容迁移 | 已完成 | M1～M4 模块保留并提示新入口；旧采集器脚本路径保留薄 shim |
-| 数据安全 | 已完成 | staging 失败不发布 canonical；SQLite 失败保留旧库；评估状态检查配置指纹和新鲜度 |
-| 最终验证 | 已完成 | 78/78 测试、四个 Skill 校验、三组前向复核、compileall 与 diff 检查通过 |
-| GitHub 100 MB 检查 | 已完成 | Git 历史和当前非忽略候选文件均无超限文件；4 个本地超限运行数据文件全部被忽略 |
-
-### 本轮 TODO
-
-- [x] 建立能力优先的软件架构并保留兼容入口。
-- [x] 把通用采集器生产代码移出 Skill，建立 17 个 venue 的注册表。
-- [x] 建立运行 manifest、配置指纹、统一退出码和 doctor。
-- [x] 将官方数量、track、presentation 对齐改为默认警告、显式严格失败。
-- [x] 建立四个新 Skill，并删除两个旧 Skill 的可发现元数据。
-- [x] 补充复杂查询的确定性候选并集与必需维度交集导出。
-- [x] 更新 README、AGENTS 和核心规范文档。
-- [x] 完成故障安全、兼容性、Skill、真实数据只读门禁和全量回归验证。
-
-### 仍需外部条件的验证
-
-- [ ] 在有网络且用户明确提供执行条件时，运行一次真实会议采集 smoke。
-- [ ] 在不暴露凭据的前提下，显式运行 online evaluation；默认离线评估已经通过。
-
-按用户范围要求，工作区明文 API 凭据问题仍排除在修改范围外；本轮未读取、修改或删除 `.codex/.env`。
-
-## 2026-08-07 七个 Venue 顺序修复与安全发布
-
-范围：严格按 AAAI → ICLR → NeurIPS → ECCV → CVPR → ICML → VLDB 顺序执行。每个 venue 完成代码修复、测试、独立 snapshot、差异审计、门禁和台账更新后，才进入下一个；未知删除一律冻结。全程不读取或修改 `.codex/.env`，不构建 Chroma/topic/cache，不调用 embedding/LLM，不提交、不推送。
-
-### TODO
-
-- [x] 公共能力：统一 HTTP 响应解码、virtual collector、版本化采集结果、`NO_UPDATE`/不完整来源语义。
-- [x] 安全发布：新增 `tools.corpus reconcile`，继承稳定 ID，逐条审计删除，并在 publish 前复核 staging 哈希。
-- [x] 1. AAAI 2026：修复无 `Content-Encoding` 的 gzip 响应，重读 Technical Track issue，完成终态记录。
-- [x] 2. ICLR 2026：合并官方 events/abstracts，只保留 Conference，审计 5 个撤回项，完成终态记录。
-- [x] 3. NeurIPS 2026：确认官方空源，写 `NO_UPDATE` manifest，不生成 canonical 空文件。
-- [x] 4. ECCV 2026：改用官方 virtual 端点确认未发布，写 `NO_UPDATE` manifest，不生成 canonical 空文件。
-- [x] 5. CVPR 2026：以 CVF OpenAccess 为准，对账改题、删除和新增，完成安全发布。
-- [x] 6. ICML 2026：验证固定快照提交与 SHA-256，仅保留 Conference/Position Track，完成部分批次发布。
-- [x] 7. VLDB 2026：解析 PVLDB Volume 19 Next.js 数据，排除 Front Matter，并用 DBLP 补充标识。
-- [x] Skill：精简更新 `janus-corpus` 及 collector reference，并通过 `skill-creator` 快速校验。
-- [x] 全局验收：仅重建一次 SQLite/FTS Catalog，运行全量测试、doctor、固定查询、diff/sensitive/100MB 检查。
-
-### 进度
-
-| 顺序 | Venue/事项 | 状态 | 证据/备注 |
-|---:|---|---|---|
-| 0 | 建立本轮台账 | 已完成 | 基线 `HEAD=1ade624f`；78/78 测试通过；`doctor --profile corpus` 通过（89 个 canonical 文件）；raw 汇总哈希 `ae217022…`，SQLite 哈希 `938e36c…`。 |
-| 1 | AAAI 2026 | `UPDATED` | OJS 实际 43 个 Technical Track issue、4,149 篇、详情失败 0；新增/删除均为 0，1 个摘要扩展、1 个标题拼写修正；质量门禁通过并安全发布。 |
-| 2 | ICLR 2026 | `UPDATED` | 5,691 个官方事件过滤/合并为 5,353 篇；5,353 个 ID 继承，5 个已批准撤回，未知删除 0；作者/摘要 100%，安全发布。 |
-| 3 | NeurIPS 2026 | `NO_UPDATE` | 官方 virtual `count=0`、实际 0；仅写 collection sidecar，无论文 JSON、无 canonical 变化。 |
-| 4 | ECCV 2026 | `NO_UPDATE` | 官方 virtual `count=0`、实际 0；仅写 collection sidecar，不再从旧年份 ECVA 总页写空快照。 |
-| 5 | CVPR 2026 | `UPDATED` | CVF 4,068 篇；242 个改题映射、3 个批准删除、1 个正式新增、未知删除 0；详情与质量门禁 100%，安全发布。 |
-| 6 | ICML 2026 | `UPDATED_PARTIAL` | 官方分页第二页 403；固定提交/SHA 精确匹配，6,559 ID 均为 canonical 子集；8 个批准删除、未知删除/第三方新增均为 0，安全发布。 |
-| 7 | VLDB 2026 | `UPDATED_PARTIAL` | PVLDB Volume 19 排除 8 个 Front Matter 后为 135 篇；作者/摘要 100%，DBLP 77 条只补标识；新增 canonical 并安全发布。 |
-| 8 | Skill 验收 | 已完成 | `janus-corpus` 与 collector reference 已加入 `NO_UPDATE`、来源完整性、reconcile 和固定快照规则；`skill-creator` `quick_validate.py` 返回 `Skill is valid!`。 |
-| 9 | 全局验收 | 已完成 | Catalog 仅实际重建一次；90 个源文件、135,489 篇，FTS 135,489 行且 `all_pass=true`；92/92 测试、corpus doctor、固定查询、`git diff --check`、精确凭据扫描及 Git 100 MB 检查均通过。Chroma/topic/cache 未重建，相关投影保持 stale。 |
+| 2026-08-07 | R-000 | IN_PROGRESS | 已冻结生产数据哈希；实施前 92/92 单元测试通过。 |
+| 2026-08-07 | R-000 | DONE | `architecture-refactor-progress.md` 为 0 字节；新台账已建立；`.codex/.env` 使用六个规范变量；配置解析测试 4/4 通过。 |
+| 2026-08-07 | R-001 | IN_PROGRESS | 开始升级 reconciliation 文件集合和路径校验。 |
+| 2026-08-07 | R-001 | DONE | reconciliation report 升级为 v2；额外文件和路径穿越回归 2/2 通过。 |
+| 2026-08-07 | R-002 | IN_PROGRESS | 开始记录并复核 policy、采集结果和源输入指纹。 |
+| 2026-08-07 | R-002 | DONE | prepare metadata v2 记录源文件/sidecar 哈希；publish 复核 metadata、policy、source、canonical 和 output；源漂移回归通过。 |
+| 2026-08-07 | R-003 | IN_PROGRESS | 开始移除 fuzzy 自动批准并升级显式映射 policy。 |
+| 2026-08-07 | R-003 | DONE | policy v2 固化 242 条唯一 CVPR 映射和来源哈希；未批准改题阻断、显式映射继承 ID 回归通过。 |
+| 2026-08-07 | R-004 | IN_PROGRESS | 开始修复 tuple 作者签名被展开的问题。 |
+| 2026-08-07 | R-004 | DONE | tuple 作为原子键，set/list 作为多键；多作者和单作者签名回归通过。 |
+| 2026-08-07 | R-005 | IN_PROGRESS | 开始区分 ICML 首屏失败、分页失败和解析失败。 |
+| 2026-08-07 | R-005 | DONE | 新增批准分页异常；第二页 403 可 fallback，首屏 403 不调用固定快照；3/3 回归通过。 |
+| 2026-08-07 | R-006 | IN_PROGRESS | 开始修复空 virtual 路径的 URL 合成。 |
+| 2026-08-07 | R-006 | DONE | 空 virtual 路径不再生成站点根 URL，paper/OpenReview URL 优先；回归通过。 |
+| 2026-08-07 | R-007 | DONE | sidecar v2 使用 venue/years/files/hashes，原子替换并校验范围；注册采集编排统一补齐契约，移除 legacy reason；相关 44 项测试通过。 |
+| 2026-08-07 | R-008 | IN_PROGRESS | 开始扩展 presentation 语义且保持生产数据冻结。 |
+| 2026-08-07 | R-008 | DONE | presentation 扩展为 unknown/not_applicable；ICLR、TPAMI、VLDB fixture 回归通过，生产 canonical 未迁移。 |
+| 2026-08-07 | R-009 | IN_PROGRESS | 开始让 query doctor 核对候选 ID 集合和向量元数据。 |
+| 2026-08-07 | R-009 | DONE | 等量错误 ID fixture 被拦截；生产 query doctor 正确 FAIL：缺失 6,597、多余 17、旧元数据 118,116。未重建向量。 |
+| 2026-08-07 | R-010 | IN_PROGRESS | 开始迁移 PVLDB 实现并保留旧模块兼容。 |
+| 2026-08-07 | R-010 | DONE | PVLDB 与 DBLP 依赖迁入正式 collector 包；旧模块仅兼容别名；parser/registry 回归通过。 |
+| 2026-08-07 | R-011 | DONE | M1～M4、search 和 venue collectors 已迁入正式分层；生产包对 `tools` 导入为 0；五个旧帮助命令 exit 0；106/106 测试通过。 |
+| 2026-08-07 | R-012 | IN_PROGRESS | 开始同步 AGENTS 与核心 SOP。 |
+| 2026-08-07 | R-012 | DONE | AGENTS、pipeline、expansion、architecture 已同步 reconcile v2、sidecar v2、向量门禁和六项服务变量。 |
+| 2026-08-07 | R-013 | IN_PROGRESS | 开始全量、隔离真实 API、哈希与安全验收。 |
+| 2026-08-07 | R-014 | IN_PROGRESS | 哈希回验发现生产 `chroma.sqlite3` 在旧 doctor 诊断后 mtime 与 SHA-256 改变；HNSW 文件未变化。 |
+| 2026-08-07 | R-014 | DONE | doctor 已移除 `PersistentClient` 只读路径，改用 SQLite `mode=ro&immutable=1`；3/3 定向测试通过，生产 query doctor 前后 SQLite SHA-256 均为 `f8a4a5d28154a0e0a75bb85bd330400be82583561a12afeee6fa1cf8a57324a8` 且 mtime 未变。既有字节漂移不可无基线副本安全回滚，记录于 PF-014。 |
+| 2026-08-07 | R-013 | BLOCKED | 107/107 单元测试与 compileall 通过；corpus doctor PASS；query/ops doctor 按预期因既有向量缺口和旧元数据 FAIL；隔离真实服务 smoke 成功（Embed 3/3、4096 维；LLM topic JSON 含 name/description）；`git diff --check`、真实密钥字面量、Git 100MB 可达对象/候选检查均通过。raw、SQLite、artifacts/m3、cache 哈希保持基线，但 Chroma 聚合哈希为 `55ef270f6081b06b3f7930002c83a875ef585142f05dd9c8202a490e22e4a524`，不等于冻结基线，故不得标记 DONE。 |

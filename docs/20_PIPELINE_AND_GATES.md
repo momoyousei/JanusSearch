@@ -10,13 +10,18 @@
 ./.venv/bin/python -m tools.corpus prepare \
   --input-glob 'artifacts/runs/<run_id>/collected/*.json' \
   --staging-root 'artifacts/runs/<run_id>/staging'
+./.venv/bin/python -m tools.corpus reconcile \
+  --staging-root 'artifacts/runs/<run_id>/staging' \
+  --output-root 'artifacts/runs/<run_id>/reconciled'
 ./.venv/bin/python -m tools.corpus validate \
-  --input-glob 'artifacts/runs/<run_id>/staging/*/*.json'
+  --input-glob 'artifacts/runs/<run_id>/reconciled/*/*.json'
 ./.venv/bin/python -m tools.corpus publish \
-  --staging-root 'artifacts/runs/<run_id>/staging'
+  --staging-root 'artifacts/runs/<run_id>/reconciled'
 ```
 
 需要补齐缺失字段时，在 `prepare` 中显式加入 `--enrich --enable-arxiv-title`。采集、补源和发布均不得臆造字段或手工篡改统计。
+
+采集批次必须带 `.janus-collection.json` v2，记录 venue、years、来源、结果文件及 SHA-256。`reconcile` 使用 policy v2 的逐条改题/删除许可并生成完整输入指纹；publish 会重新核对报告文件集合、policy、sidecar、源输入、canonical 基线和输出哈希。
 
 ### 硬门禁
 
@@ -75,7 +80,7 @@
 
 向量保持 `paper_id` 级增量：缺失、文本 hash 变化、模型配置变化或无法验证的 legacy metadata 才重算。全量非抽样构建可以删除当前 DB 候选集中不存在的 stale vectors。只有明确要求时使用 `--force-rebuild-vectors`。
 
-需要 embedding/LLM 的命令从环境变量读取凭据，不得写入参数记录或报告明文。
+需要 embedding/LLM 的命令读取 `JANUS_EMBED_BASE_URL`、`JANUS_EMBED_MODEL`、`JANUS_EMBED_API_KEY`、`JANUS_LLM_BASE_URL`、`JANUS_LLM_MODEL`、`JANUS_LLM_API_KEY`，不得写入参数记录或报告明文。
 
 ## 5. Evaluate：离线默认、在线显式
 
@@ -101,7 +106,7 @@
 ./.venv/bin/python -m tools.doctor --profile ops
 ```
 
-Doctor 不执行修复。先定位最早失败的依赖，再由用户明确要求最小修复。
+Doctor 不执行修复。query/ops profile 会按非 placeholder paper ID 集合和向量 metadata 契约检查 Chroma；数量相同但 ID 不同仍是失败。先定位最早失败的依赖，再由用户明确要求最小修复。
 
 ## 兼容入口
 

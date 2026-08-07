@@ -17,7 +17,7 @@ from janussearch.application.catalog import execute as execute_catalog
 from janussearch.domain.errors import ConfigurationError
 from janussearch.domain.run import ExitCode
 from janussearch.infrastructure.manifests import RunManifest
-from tools.m1_pipeline import (
+from janussearch.application.corpus_pipeline import (
     DEFAULT_ABSTRACT_THRESHOLD,
     DEFAULT_AUTHORS_THRESHOLD,
     PAPERS_COOL_DEFAULT_POLICY,

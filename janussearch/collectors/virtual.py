@@ -34,6 +34,10 @@ VENUE_HOSTS = {
     "ECCV": "eccv.ecva.net",
 }
 
+
+class ApprovedPaginationIncomplete(RuntimeError):
+    """A supported source returned a first page but forbade a later page."""
+
 def utc_now_iso() -> str:
     """Return an ISO-8601 UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
@@ -83,7 +87,14 @@ def fetch_complete_events(
         if (urlparse(current_url).hostname or "").lower() != origin_host:
             raise RuntimeError(f"Cross-origin pagination URL rejected: {current_url}")
         seen_urls.add(current_url)
-        payload = fetch_json(current_url, timeout=timeout, retries=retries)
+        try:
+            payload = fetch_json(current_url, timeout=timeout, retries=retries)
+        except HttpFetchError as exc:
+            if results and exc.status_code == 403:
+                raise ApprovedPaginationIncomplete(
+                    f"Pagination forbidden after {len(seen_urls) - 1} complete pages: {exc}"
+                ) from exc
+            raise
         if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
             raise RuntimeError(f"Virtual endpoint has no results list: {current_url}")
         if declared_count is None and isinstance(payload.get("count"), int):
@@ -191,10 +202,10 @@ def build_record(
     sourceurl = normalize_text(item.get("sourceurl"))
     track, track_display, track_group = _track(sourceurl)
     openreview_id = _openreview_id(item)
-    virtual_url = urljoin(
-        f"https://{VENUE_HOSTS[venue]}",
-        normalize_text(item.get("virtualsite_url") or item.get("virtual_url") or item.get("oral_url")),
+    virtual_path = normalize_text(
+        item.get("virtualsite_url") or item.get("virtual_url") or item.get("oral_url")
     )
+    virtual_url = urljoin(f"https://{VENUE_HOSTS[venue]}", virtual_path) if virtual_path else ""
     paper_url = normalize_text(item.get("paper_url") or item.get("openreview_url"))
     pdf_url = normalize_text(item.get("paper_pdf_url") or item.get("pdf_url"))
     event_id = normalize_text(item.get("id"))
@@ -230,7 +241,7 @@ def build_record(
         "track_group": track_group,
         "openreview_id": openreview_id or None,
         "doi": None,
-        "url": virtual_url or paper_url or None,
+        "url": paper_url or virtual_url or None,
         "external_url": pdf_url or paper_url or None,
         "venue": venue,
         "year": year,
@@ -389,7 +400,7 @@ def collect_target(
         abstracts = fetch_json(abstracts_url, timeout=timeout, retries=retries)
         events = merge_abstracts(events, abstracts)
         provider = "official"
-    except (HttpFetchError, RuntimeError) as exc:
+    except ApprovedPaginationIncomplete as exc:
         official_error = exc
         if venue != "ICML" or year != 2026:
             sidecar = write_collection_result(
@@ -425,6 +436,17 @@ def collect_target(
         page_metrics["official_incomplete"] = str(official_error)
         page_metrics["pinned_snapshot"] = pinned_metrics
         provider = "icml_virtual_pinned_snapshot"
+    except (HttpFetchError, RuntimeError) as exc:
+        sidecar = write_collection_result(
+            output.parent,
+            outcome="incomplete_source",
+            venue=venue,
+            year=year,
+            sources=sources,
+            reason=str(exc),
+            metrics=page_metrics,
+        )
+        raise RuntimeError(f"Incomplete official virtual source; sidecar={sidecar}: {exc}") from exc
 
     filtered = filter_allowed(venue, events, year=year)
     collected_at = utc_now_iso()

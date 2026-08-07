@@ -16,7 +16,11 @@ import yaml
 from janussearch.application.evaluation import execute, status
 from janussearch.domain.run import ExitCode
 from janussearch.infrastructure.manifests import RunManifest
-from tools import m4_validate as legacy
+from janussearch.infrastructure.service_config import (
+    embed_base_url as configured_embed_base_url,
+    embed_model as configured_embed_model,
+)
+from janussearch.application import evaluation_pipeline as legacy
 
 LOGGER = logging.getLogger("janussearch.evaluate")
 DEFAULT_OUTPUT_JSON = Path("artifacts/evaluate/eval_report.json")
@@ -44,8 +48,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     run = subparsers.add_parser("run", help="Run an offline, online, or complete suite")
     _add_common(run)
     run.add_argument("--suite", choices=("offline", "online", "all"), default="offline")
-    run.add_argument("--embed-base-url", default=os.getenv("JANUS_EMBED_BASE_URL", legacy.DEFAULT_EMBED_BASE_URL))
-    run.add_argument("--embed-model", default=legacy.DEFAULT_EMBED_MODEL)
+    run.add_argument("--embed-base-url", default=configured_embed_base_url(legacy.DEFAULT_EMBED_BASE_URL))
+    run.add_argument("--embed-model", default=configured_embed_model(legacy.DEFAULT_EMBED_MODEL))
     run.add_argument("--embed-api-key", default=os.getenv("JANUS_EMBED_API_KEY") or os.getenv("JANUS_LLM_API_KEY"))
     run.add_argument("--sample-topics", type=int, default=legacy.DEFAULT_SAMPLE_TOPICS)
     run.add_argument("--sample-per-topic", type=int, default=legacy.DEFAULT_SAMPLE_PER_TOPIC)
