@@ -1018,6 +1018,17 @@ def main() -> int:
         config = VENUE_CONFIG[venue]
         items: List[Dict[str, Any]] = []
         for year in years:
+            if venue == "ICDE" and year == 2026:
+                from janussearch.collectors.icde import collect_2026
+
+                items.append(
+                    collect_2026(
+                        output_root=output_root,
+                        timeout=args.timeout,
+                        retries=args.retries,
+                    )
+                )
+                continue
             items.append(
                 collect_one_year(
                     venue=venue,

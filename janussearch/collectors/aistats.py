@@ -19,6 +19,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
 
+from janussearch.collectors.outcomes import write_collection_result
+
 LOGGER = logging.getLogger("aistats_collect")
 
 PMLR_HOME_URL = "https://proceedings.mlr.press/"
@@ -503,18 +505,79 @@ def main() -> int:
     collections_root = index_root / "collections"
     collections_root.mkdir(parents=True, exist_ok=True)
 
-    year_volume_map = resolve_year_volume_map(
-        years=years,
-        timeout=args.timeout,
-        retries=args.retries,
-        min_interval=args.min_interval,
+    pmlr_years = [year for year in years if year != 2026]
+    year_volume_map = (
+        resolve_year_volume_map(
+            years=pmlr_years,
+            timeout=args.timeout,
+            retries=args.retries,
+            min_interval=args.min_interval,
+        )
+        if pmlr_years
+        else {}
     )
-    missing_years = [year for year in years if year not in year_volume_map]
+    missing_years = [year for year in pmlr_years if year not in year_volume_map]
     if missing_years:
         raise RuntimeError(f"Failed to resolve AISTATS PMLR volumes for years: {missing_years}")
 
     summary: List[Dict[str, Any]] = []
     for year in years:
+        if year == 2026:
+            from janussearch.collectors.virtual import collect_official_catalog
+
+            output_path = output_root / "AISTATS-26.json"
+            try:
+                result = collect_official_catalog(
+                    "AISTATS",
+                    year,
+                    output_path,
+                    timeout=args.timeout,
+                    retries=args.retries,
+                    canonical_root=Path("data/raw"),
+                    workers=args.workers,
+                )
+            except Exception as exc:
+                write_collection_result(
+                    output_root,
+                    outcome="incomplete_source",
+                    venue="AISTATS",
+                    year=year,
+                    sources=[
+                        "https://openreview.net/group?id=aistats.org/AISTATS/2026/Conference",
+                        "https://virtual.aistats.org/virtual/2026/papers.html?filter=titles",
+                    ],
+                    reason=f"official_final_presentation_types_unavailable:{exc}",
+                    metrics={
+                        "expected_catalog_count": 609,
+                        "group_coverage": {
+                            "expected_accept_groups": [
+                                "Accept (Oral)",
+                                "Accept (Spotlight)",
+                                "Accept (Poster)",
+                            ],
+                            "covered_accept_groups": [],
+                            "catalog_title_count": 609,
+                            "presentation_type_complete": False,
+                        },
+                        "fallback_reason": "official_virtual_catalog_lacks_final_openreview_accept_type",
+                    },
+                )
+                raise
+            summary.append(
+                {
+                    "year": year,
+                    "volume": None,
+                    "official_url": "https://virtual.aistats.org/virtual/2026/papers.html",
+                    "official_paper_count": int(result["count"]),
+                    "collected_paper_count": int(result["count"]),
+                    "missing_vs_official": 0,
+                    "missing_abstract_count": 0,
+                    "output_file": str(output_path),
+                    "generated_at_utc": utc_now_iso(),
+                    "source_provider": "official_virtual_catalog",
+                }
+            )
+            continue
         volume = year_volume_map[year]
         summary.append(
             collect_one_year(
@@ -532,10 +595,10 @@ def main() -> int:
     total_collected = sum(int(item["collected_paper_count"]) for item in summary)
     report = {
         "generated_at_utc": utc_now_iso(),
-        "provider": "pmlr",
+        "provider": "official_mixed" if 2026 in years else "pmlr",
         "venue": "AISTATS",
         "years": years,
-        "year_volume_map": {str(year): year_volume_map[year] for year in years},
+        "year_volume_map": {str(year): year_volume_map[year] for year in pmlr_years},
         "total_official": total_official,
         "total_collected": total_collected,
         "official_vs_collected_aligned": total_official == total_collected,

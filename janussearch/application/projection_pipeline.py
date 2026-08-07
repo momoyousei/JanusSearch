@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import hashlib
 import json
 import logging
@@ -17,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Sequence, Tuple
+from urllib.parse import urlparse
 
 from janussearch.infrastructure.service_config import (
     embed_base_url as configured_embed_base_url,
@@ -71,6 +73,7 @@ DEFAULT_LLM_BASE_URL = "https://api.siliconflow.cn/v1"
 DEFAULT_LLM_MODEL = "Qwen/Qwen3-8B"
 DEFAULT_RANDOM_SEED = 42
 DEFAULT_PRIMARY_TOPIC_COUNT = 40
+DEFAULT_LABEL_WORKERS = 5
 
 
 @dataclass
@@ -477,6 +480,16 @@ def make_llm_client(base_url: str, api_key: str | None = None) -> Any:
         ) from exc
 
     normalized_base = normalize_openai_base_url(base_url)
+    parsed_base = urlparse(normalized_base)
+    hostname = ensure_str(parsed_base.hostname).lower().rstrip(".")
+    if parsed_base.scheme != "https" or hostname in {
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    } or hostname.endswith(".local"):
+        raise ValueError(
+            "Local LLM endpoints are prohibited; use a remote HTTPS JANUS_LLM_BASE_URL."
+        )
     key = ensure_str(api_key) or ensure_str(os.getenv("JANUS_LLM_API_KEY"))
     if not key:
         raise ValueError(
@@ -1069,6 +1082,52 @@ def _load_vector_items(collection: Any) -> List[VectorItem]:
     return items
 
 
+def vector_input_fingerprint(items: Sequence[VectorItem]) -> str:
+    """Fingerprint the complete logical input used by topic clustering."""
+    digest = hashlib.sha256()
+    for item in sorted(items, key=lambda value: value.paper_id):
+        metadata = item.metadata if isinstance(item.metadata, dict) else {}
+        row = {
+            "paper_id": item.paper_id,
+            "embedding_text_sha256": ensure_str(metadata.get("embedding_text_sha256")),
+            "embed_model": ensure_str(metadata.get("embed_model")),
+            "embed_base_url": ensure_str(metadata.get("embed_base_url")),
+            "vector_schema_version": metadata.get("vector_schema_version"),
+        }
+        digest.update(
+            json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def collection_input_fingerprint(collection: Any) -> str:
+    """Fingerprint a Chroma collection without loading embeddings into memory."""
+    count = int(collection.count())
+    items: List[VectorItem] = []
+    for offset in range(0, count, VECTOR_STALE_SCAN_CHUNK_SIZE):
+        payload = collection.get(
+            include=["metadatas"],
+            limit=VECTOR_STALE_SCAN_CHUNK_SIZE,
+            offset=offset,
+        )
+        ids = payload.get("ids", []) or []
+        metadatas = payload.get("metadatas", []) or []
+        for index, paper_id in enumerate(ids):
+            metadata = metadatas[index] if index < len(metadatas) else {}
+            items.append(
+                VectorItem(
+                    paper_id=ensure_str(paper_id),
+                    embedding=[],
+                    document="",
+                    metadata=metadata if isinstance(metadata, dict) else {},
+                )
+            )
+    return vector_input_fingerprint(items)
+
+
 def _titles_from_items(items: Sequence[VectorItem], limit: int = 18) -> List[str]:
     """Extract representative titles from vector items."""
     titles: List[str] = []
@@ -1099,10 +1158,12 @@ def _build_topic_progress_seed(
     llm_base_url: str,
     llm_model: str,
     random_seed: int,
+    vector_fingerprint: str,
+    primary_topic_count: int,
 ) -> Dict[str, Any]:
     """Build a new empty topic naming progress payload."""
     return {
-        "version": 1,
+        "version": 2,
         "generated_at_utc": utc_now_iso(),
         "updated_at_utc": utc_now_iso(),
         "status": "in_progress",
@@ -1113,6 +1174,8 @@ def _build_topic_progress_seed(
             "model": llm_model,
         },
         "random_seed": random_seed,
+        "vector_input_fingerprint": vector_fingerprint,
+        "primary_topic_count": primary_topic_count,
         "summary": {
             "resolved_topic_labels": 0,
             "resolved_subtopic_labels": 0,
@@ -1175,6 +1238,8 @@ def _load_or_init_topic_progress(
     llm_base_url: str,
     llm_model: str,
     random_seed: int,
+    vector_fingerprint: str,
+    primary_topic_count: int,
 ) -> Dict[str, Any]:
     """Load resume checkpoint for topic naming, or initialize a new one."""
     seed = _build_topic_progress_seed(
@@ -1183,6 +1248,8 @@ def _load_or_init_topic_progress(
         llm_base_url=llm_base_url,
         llm_model=llm_model,
         random_seed=random_seed,
+        vector_fingerprint=vector_fingerprint,
+        primary_topic_count=primary_topic_count,
     )
     if not progress_path.exists():
         return seed
@@ -1199,6 +1266,8 @@ def _load_or_init_topic_progress(
         "llm_base_url": normalize_openai_base_url(llm_base_url),
         "llm_model": llm_model,
         "random_seed": int(random_seed),
+        "vector_input_fingerprint": vector_fingerprint,
+        "primary_topic_count": int(primary_topic_count),
     }
     actual = {
         "vectors_root": ensure_str(payload.get("vectors_root")),
@@ -1206,6 +1275,8 @@ def _load_or_init_topic_progress(
         "llm_base_url": ensure_str((payload.get("llm") or {}).get("base_url")),
         "llm_model": ensure_str((payload.get("llm") or {}).get("model")),
         "random_seed": int(payload.get("random_seed") or -1),
+        "vector_input_fingerprint": ensure_str(payload.get("vector_input_fingerprint")),
+        "primary_topic_count": int(payload.get("primary_topic_count") or -1),
     }
     if actual != expected:
         LOGGER.warning(
@@ -1237,13 +1308,14 @@ def run_build_topics(
 ) -> Dict[str, Any]:
     """Build primary/subtopic assignments from vectors using KMeans + LLM naming."""
     collection = load_chroma_collection(vectors_root=vectors_root, collection_name=collection_name)
-    items = _load_vector_items(collection)
+    items = sorted(_load_vector_items(collection), key=lambda item: item.paper_id)
     if not items:
         raise RuntimeError("No vectors found. Run `build-vectors` first.")
 
     embeddings = [item.embedding for item in items]
     total = len(embeddings)
     primary_k = max(1, min(DEFAULT_PRIMARY_TOPIC_COUNT, total))
+    input_fingerprint = vector_input_fingerprint(items)
 
     primary_labels = _cluster_labels(
         embeddings,
@@ -1283,6 +1355,8 @@ def run_build_topics(
         llm_base_url=llm_base_url,
         llm_model=llm_model,
         random_seed=random_seed,
+        vector_fingerprint=input_fingerprint,
+        primary_topic_count=primary_k,
     )
     progress_topics = progress_payload.get("topics")
     if not isinstance(progress_topics, dict):
@@ -1349,6 +1423,8 @@ def run_build_topics(
         if not isinstance(subtopic_sizes, dict):
             subtopic_sizes = {}
             topic_progress["subtopic_sizes"] = subtopic_sizes
+        pending_subtopics: List[Tuple[str, str, List[int], Sequence[str]]] = []
+        ordered_subtopics: List[Tuple[int, str, str, List[int], Sequence[str]]] = []
         for sub_order, sub_label in enumerate(sorted(by_sub), start=1):
             sub_indexes = by_sub[sub_label]
             sub_items = [items[idx] for idx in sub_indexes]
@@ -1356,28 +1432,54 @@ def run_build_topics(
             sub_id = f"{topic_id}_s{sub_order:02d}"
             subtopic_sizes[sub_id] = len(sub_indexes)
             sub_cached = _progress_label_tuple(subtopic_progress.get(sub_id))
-            if sub_cached is None:
-                sub_topic = generate_topic_label(
-                    client=llm_client,
-                    model=llm_model,
-                    level="subtopic",
-                    sample_titles=sub_titles,
-                    parent_topic=topic_name,
-                )
-                sub_name = ensure_str(sub_topic["name"])
-                sub_desc = ensure_str(sub_topic["description"])
-                sub_slug = slugify(sub_name)
-                subtopic_progress[sub_id] = {
-                    "name": sub_name,
-                    "description": sub_desc,
-                    "slug": sub_slug,
-                    "generated_at_utc": utc_now_iso(),
-                }
-                progress_topics[topic_id] = topic_progress
-                _write_topic_progress(progress_path, progress_payload)
-                LOGGER.info("Subtopic label checkpointed: %s", sub_id)
-            else:
+            ordered_subtopics.append((sub_order, sub_label, sub_id, sub_indexes, sub_titles))
+            if sub_cached is not None:
                 sub_name, sub_desc, sub_slug = sub_cached
+
+        pending_subtopics = [
+            (sub_id, topic_name, sub_indexes, sub_titles)
+            for _sub_order, _sub_label, sub_id, sub_indexes, sub_titles in ordered_subtopics
+            if _progress_label_tuple(subtopic_progress.get(sub_id)) is None
+        ]
+        if pending_subtopics:
+            try:
+                label_workers = int(os.getenv("JANUS_M3_LABEL_WORKERS", str(DEFAULT_LABEL_WORKERS)))
+            except ValueError:
+                label_workers = DEFAULT_LABEL_WORKERS
+            label_workers = max(1, min(label_workers, len(pending_subtopics)))
+            with ThreadPoolExecutor(max_workers=label_workers) as executor:
+                futures = {
+                    executor.submit(
+                        generate_topic_label,
+                        client=llm_client,
+                        model=llm_model,
+                        level="subtopic",
+                        sample_titles=sub_titles,
+                        parent_topic=parent_topic,
+                    ): sub_id
+                    for sub_id, parent_topic, _sub_indexes, sub_titles in pending_subtopics
+                }
+                for future in as_completed(futures):
+                    sub_id = futures[future]
+                    sub_topic = future.result()
+                    sub_name = ensure_str(sub_topic["name"])
+                    sub_desc = ensure_str(sub_topic["description"])
+                    sub_slug = slugify(sub_name)
+                    subtopic_progress[sub_id] = {
+                        "name": sub_name,
+                        "description": sub_desc,
+                        "slug": sub_slug,
+                        "generated_at_utc": utc_now_iso(),
+                    }
+                    progress_topics[topic_id] = topic_progress
+                    _write_topic_progress(progress_path, progress_payload)
+                    LOGGER.info("Subtopic label checkpointed: %s", sub_id)
+
+        for sub_order, sub_label, sub_id, sub_indexes, _sub_titles in ordered_subtopics:
+            sub_cached = _progress_label_tuple(subtopic_progress.get(sub_id))
+            if sub_cached is None:
+                raise RuntimeError(f"Missing subtopic label after generation: {sub_id}")
+            sub_name, sub_desc, sub_slug = sub_cached
             sub_payload = {
                 "subtopic_id": sub_id,
                 "subtopic_slug": sub_slug,
@@ -1426,6 +1528,8 @@ def run_build_topics(
         "generated_at_utc": utc_now_iso(),
         "vectors_root": str(vectors_root),
         "collection_name": collection_name,
+        "vector_input_fingerprint": input_fingerprint,
+        "primary_topic_count": primary_k,
         "progress_file": str(progress_path),
         "llm": {
             "base_url": normalize_openai_base_url(llm_base_url),
@@ -1513,6 +1617,67 @@ def _group_assignments(assignments: Sequence[Dict[str, Any]], key: str) -> Dict[
         value = ensure_str(item.get(key))
         grouped.setdefault(value, []).append(item)
     return grouped
+
+
+def _expected_cache_paths(
+    *,
+    master_index_path: Path,
+    topics_root: Path,
+    venues_root: Path,
+    subtopics_root: Path,
+    assignments: Sequence[Dict[str, Any]],
+    topics: Sequence[Dict[str, Any]],
+) -> set[Path]:
+    """Return the exact Markdown cache files owned by one projection build."""
+    expected = {master_index_path, topics_root / "_topic_index.md"}
+    for item in assignments:
+        venue = ensure_str(item.get("venue"))
+        year = item.get("year")
+        if venue and year is not None:
+            venue_slug = slugify(venue)
+            expected.add(venues_root / venue_slug / f"{venue_slug}_{int(year)}.md")
+    for topic in topics:
+        if not isinstance(topic, dict):
+            continue
+        topic_name = ensure_str(topic.get("topic_name"))
+        topic_slug = slugify(topic.get("topic_slug") or topic_name)
+        expected.add(topics_root / f"{topic_slug}.md")
+        expected.add(subtopics_root / topic_slug / "_overview.md")
+        for subtopic in topic.get("subtopics", []) or []:
+            if not isinstance(subtopic, dict):
+                continue
+            sub_name = ensure_str(subtopic.get("subtopic_name"))
+            sub_slug = slugify(subtopic.get("subtopic_slug") or sub_name)
+            expected.add(subtopics_root / topic_slug / f"{sub_slug}.md")
+    return expected
+
+
+def _remove_stale_cache_files(
+    *,
+    expected: set[Path],
+    roots: Sequence[Path],
+) -> List[str]:
+    """Remove only obsolete Markdown files from projection-owned cache roots."""
+    removed: List[str] = []
+    expected_resolved = {path.resolve() for path in expected}
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob("*.md")):
+            if path.resolve() in expected_resolved:
+                continue
+            path.unlink()
+            removed.append(str(path))
+        for directory in sorted(
+            (path for path in root.rglob("*") if path.is_dir()),
+            key=lambda path: len(path.parts),
+            reverse=True,
+        ):
+            try:
+                directory.rmdir()
+            except OSError:
+                pass
+    return removed
 
 
 def run_build_cache(
@@ -1744,6 +1909,19 @@ def run_build_cache(
             write_text(out_path, "\n".join(lines))
             subtopic_file_count += 1
 
+    expected_paths = _expected_cache_paths(
+        master_index_path=master_index_path,
+        topics_root=topics_root,
+        venues_root=venues_root,
+        subtopics_root=subtopics_root,
+        assignments=assignments,
+        topics=topics,
+    )
+    removed_stale_files = _remove_stale_cache_files(
+        expected=expected_paths,
+        roots=(venues_root, topics_root, subtopics_root),
+    )
+
     payload = {
         "generated_at_utc": utc_now_iso(),
         "summary": {
@@ -1752,8 +1930,10 @@ def run_build_cache(
             "topic_page_count": topic_file_count,
             "subtopic_overview_count": overview_file_count,
             "subtopic_page_count": subtopic_file_count,
+            "removed_stale_cache_file_count": len(removed_stale_files),
             "master_index_path": str(master_index_path),
-        }
+        },
+        "removed_stale_cache_files": removed_stale_files,
     }
     return payload
 
@@ -1768,61 +1948,36 @@ def _validate_cache_files(
     topics: Sequence[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """Check required cache files exist."""
-    missing: List[str] = []
-    existing = 0
-
-    required_static = [master_index_path, topics_root / "_topic_index.md"]
-    for path in required_static:
-        if path.exists():
-            existing += 1
-        else:
-            missing.append(str(path))
-
-    venue_year_pairs = {
-        (slugify(item.get("venue")), int(item.get("year")))
-        for item in assignments
-        if ensure_str(item.get("venue")) and item.get("year") is not None
+    expected = _expected_cache_paths(
+        master_index_path=master_index_path,
+        topics_root=topics_root,
+        venues_root=venues_root,
+        subtopics_root=subtopics_root,
+        assignments=assignments,
+        topics=topics,
+    )
+    missing = sorted(str(path) for path in expected if not path.exists())
+    existing = len(expected) - len(missing)
+    actual_generated = {
+        path.resolve()
+        for root in (venues_root, topics_root, subtopics_root)
+        if root.exists()
+        for path in root.rglob("*.md")
     }
-    for venue_slug, year in sorted(venue_year_pairs):
-        path = venues_root / venue_slug / f"{venue_slug}_{year}.md"
-        if path.exists():
-            existing += 1
-        else:
-            missing.append(str(path))
-
-    for topic in topics:
-        if not isinstance(topic, dict):
-            continue
-        topic_name = ensure_str(topic.get("topic_name"))
-        topic_slug = slugify(topic.get("topic_slug") or topic_name)
-        topic_file = topics_root / f"{topic_slug}.md"
-        if topic_file.exists():
-            existing += 1
-        else:
-            missing.append(str(topic_file))
-
-        overview = subtopics_root / topic_slug / "_overview.md"
-        if overview.exists():
-            existing += 1
-        else:
-            missing.append(str(overview))
-
-        for sub in topic.get("subtopics", []) or []:
-            if not isinstance(sub, dict):
-                continue
-            sub_name = ensure_str(sub.get("subtopic_name"))
-            sub_slug = slugify(sub.get("subtopic_slug") or sub_name)
-            path = subtopics_root / topic_slug / f"{sub_slug}.md"
-            if path.exists():
-                existing += 1
-            else:
-                missing.append(str(path))
+    expected_generated = {
+        path.resolve()
+        for path in expected
+        if any(root == path or root in path.parents for root in (venues_root, topics_root, subtopics_root))
+    }
+    unexpected = sorted(str(path) for path in actual_generated - expected_generated)
 
     return {
-        "expected_file_count": existing + len(missing),
+        "expected_file_count": len(expected),
         "existing_file_count": existing,
         "missing_file_count": len(missing),
         "missing_files": missing,
+        "unexpected_file_count": len(unexpected),
+        "unexpected_files": unexpected,
     }
 
 
@@ -1908,6 +2063,10 @@ def run_validate(
 
     collection = load_chroma_collection(vectors_root=vectors_root, collection_name=collection_name)
     vector_count = int(collection.count())
+    current_vector_fingerprint = collection_input_fingerprint(collection)
+    assignment_vector_fingerprint = ensure_str(
+        assignment_payload.get("vector_input_fingerprint")
+    )
 
     assigned_ids = [ensure_str(item.get("paper_id")) for item in assignments if ensure_str(item.get("paper_id"))]
     unique_assigned_ids = set(assigned_ids)
@@ -1937,6 +2096,12 @@ def run_validate(
     add_check("unique_assignment_count", len(assignments), len(unique_assigned_ids))
     add_check("assignment_missing_in_db", 0, len(missing_in_db))
     add_check("cache_missing_files", 0, cache_status["missing_file_count"])
+    add_check("cache_unexpected_files", 0, cache_status["unexpected_file_count"])
+    add_check(
+        "topic_vector_input_fingerprint",
+        current_vector_fingerprint,
+        assignment_vector_fingerprint,
+    )
     add_check("chroma_sqlite_integrity", True, bool(chroma_integrity["pass"]))
 
     report = {
@@ -1958,6 +2123,8 @@ def run_validate(
             "assignment_count": len(assignments),
             "unique_assignment_count": len(unique_assigned_ids),
             "missing_paper_ids_in_db": missing_in_db,
+            "current_vector_input_fingerprint": current_vector_fingerprint,
+            "assignment_vector_input_fingerprint": assignment_vector_fingerprint,
             "cache": cache_status,
             "chroma_sqlite_integrity": chroma_integrity,
         },

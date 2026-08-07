@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import logging
@@ -16,9 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from xml.etree import ElementTree as ET
+
+from janussearch.collectors.outcomes import write_collection_result
+from janussearch.infrastructure.http import HttpFetchError, fetch_response
 
 LOGGER = logging.getLogger("kdd_collect")
 
@@ -27,6 +31,173 @@ DBLP_KDD_XML_URL_TEMPLATE = "https://dblp.org/db/conf/kdd/kdd{tag}.xml"
 DBLP_REC_BASE = "https://dblp.org/rec/"
 OPENALEX_WORKS_URL = "https://api.openalex.org/works"
 CROSSREF_WORKS_URL = "https://api.crossref.org/works/"
+
+KDD_2026_OPENREVIEW_GROUPS: Tuple[str, ...] = (
+    "KDD.org/2026/ADS_Track_August",
+    "KDD.org/2026/ADS_Track_Cycle_2",
+    "KDD.org/2026/AI4Sciences_Track_February",
+    "KDD.org/2026/Blue_Sky_Ideas_Track",
+    "KDD.org/2026/Cup",
+    "KDD.org/2026/Datasets_and_Benchmark_Track_August",
+    "KDD.org/2026/Datasets_and_Benchmark_Track_Cycle_2",
+    "KDD.org/2026/Research_Track_August",
+    "KDD.org/2026/Research_Track_Cycle_2",
+    "KDD.org/2026/Workshop/Agent4IR",
+    "KDD.org/2026/Workshop/Agentic_AI_Evaluation_and_Trustworthiness",
+    "KDD.org/2026/Workshop/AgenticSE",
+    "KDD.org/2026/Workshop/AI_Agents",
+    "KDD.org/2026/Workshop/AIDataSci",
+    "KDD.org/2026/Workshop/epiDAMIK",
+    "KDD.org/2026/Workshop/FedKDD-FedMAS",
+    "KDD.org/2026/Workshop/GALOP",
+    "KDD.org/2026/Workshop/GMLLM",
+    "KDD.org/2026/Workshop/Integrity",
+    "KDD.org/2026/Workshop/PILA",
+    "KDD.org/2026/Workshop/RelSciFM",
+    "KDD.org/2026/Workshop/RespMultimodal",
+    "KDD.org/2026/Workshop/SciSoc_Agents_and_LLMs",
+    "KDD.org/2026/Workshop/SeT-LLM",
+    "KDD.org/2026/Workshop/TensorKDD",
+)
+
+# ACM Digital Library export snapshots captured from the official KDD '26
+# V.1/V.2 proceeding pages.  The collector deliberately reads only these
+# official snapshots; it does not fall back to OpenReview or third-party
+# mirrors for KDD 2026.
+KDD_2026_ACM_SNAPSHOT_ROOT = Path("archives/root_json")
+KDD_2026_ACM_V1_TRACK_MAP = "KDD-26-ACM-V1-track-map.json"
+KDD_2026_ACM_SPECS: Tuple[Dict[str, Any], ...] = (
+    {
+        "file": "KDD-26-ACM-V1.bib",
+        "volume": "V.1",
+        "proceedings_doi": "10.1145/3770854",
+        "section": "from_track_map",
+        "display": "V.1 (Research/ADS/Data & Benchmark)",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 256,
+    },
+    {
+        "file": "KDD-26-ACM-V2-research_track.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "research_track",
+        "display": "Research Track",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 599,
+    },
+    {
+        "file": "KDD-26-ACM-V2-ads_track.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "ads_track",
+        "display": "ADS Track",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 141,
+    },
+    {
+        "file": "KDD-26-ACM-V2-data_benchmark_track.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "data_benchmark_track",
+        "display": "Data & Benchmark Track",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 152,
+    },
+    {
+        "file": "KDD-26-ACM-V2-ai_for_sciences_track.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "ai_for_sciences_track",
+        "display": "AI for Sciences Track",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 237,
+    },
+    {
+        "file": "KDD-26-ACM-V2-blue_sky_ideas_track.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "blue_sky_ideas_track",
+        "display": "Blue Sky Ideas Track",
+        "track_group": "main",
+        "presentation_level": "poster",
+        "expected_count": 17,
+    },
+    {
+        "file": "KDD-26-ACM-V2-ads_invited_talks.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "ads_invited_talks",
+        "display": "ADS Invited Talks",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 2,
+    },
+    {
+        "file": "KDD-26-ACM-V2-special_day_talks.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "special_day_talks",
+        "display": "Special Day Talks",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 3,
+    },
+    {
+        "file": "KDD-26-ACM-V2-panel.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "panel",
+        "display": "Panel",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 1,
+    },
+    {
+        "file": "KDD-26-ACM-V2-hands_on_tutorials.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "hands_on_tutorials",
+        "display": "Hands-on Tutorials",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 9,
+    },
+    {
+        "file": "KDD-26-ACM-V2-lecture_style_tutorials.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "lecture_style_tutorials",
+        "display": "Lecture-Style Tutorials",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 23,
+    },
+    {
+        "file": "KDD-26-ACM-V2-workshop_summaries.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "workshop_summaries",
+        "display": "Workshop Summaries",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 30,
+    },
+    {
+        "file": "KDD-26-ACM-V2-late_additions.bib",
+        "volume": "V.2",
+        "proceedings_doi": "10.1145/3770855",
+        "section": "late_additions",
+        "display": "Late Additions",
+        "track_group": "program",
+        "presentation_level": "not_applicable",
+        "expected_count": 1,
+    },
+)
 
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
 DEFAULT_INDEX_ROOT = Path("artifacts")
@@ -126,6 +297,153 @@ def normalize_doi(value: str | None) -> str | None:
         raw = raw[4:]
     normalized = normalize_spaces(raw).lower()
     return normalized or None
+
+
+def _bibtex_entries(text: str) -> List[str]:
+    """Split a BibTeX export into balanced entry strings."""
+    entries: List[str] = []
+    for match in re.finditer(r"@(?:inproceedings|conference|article)\s*\{", text, re.I):
+        start = match.start()
+        opening = text.find("{", match.start(), match.end())
+        depth = 0
+        for index in range(opening, len(text)):
+            char = text[index]
+            # ACM exports use brace-delimited values.  Count every brace;
+            # escaped quotes such as {\"o} must not enter a quoted mode.
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    entries.append(text[start : index + 1])
+                    break
+        else:
+            raise RuntimeError("Unbalanced BibTeX entry")
+    return entries
+
+
+def _bibtex_value(text: str, start: int) -> Tuple[str, int]:
+    """Read one BibTeX value and return value plus next cursor position."""
+    while start < len(text) and text[start].isspace():
+        start += 1
+    if start >= len(text):
+        return "", start
+    if text[start] == "{":
+        depth = 1
+        index = start + 1
+        while index < len(text) and depth:
+            if text[index] == "{":
+                depth += 1
+            elif text[index] == "}":
+                depth -= 1
+            index += 1
+        if depth:
+            raise RuntimeError("Unbalanced BibTeX field value")
+        return text[start + 1 : index - 1], index
+    if text[start] == '"':
+        index = start + 1
+        escaped = False
+        chars: List[str] = []
+        while index < len(text):
+            char = text[index]
+            if escaped:
+                chars.append(char)
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                return "".join(chars), index + 1
+            else:
+                chars.append(char)
+            index += 1
+        raise RuntimeError("Unbalanced quoted BibTeX field value")
+    index = start
+    while index < len(text) and text[index] not in ",\n":
+        index += 1
+    return text[start:index], index
+
+
+def _bibtex_fields(entry: str) -> Tuple[str, Dict[str, str]]:
+    """Parse BibTeX key and fields without relying on a third-party parser."""
+    opening = entry.find("{")
+    if opening < 0 or not entry.endswith("}"):
+        raise RuntimeError("Malformed BibTeX entry")
+    body = entry[opening + 1 : -1]
+    depth = 0
+    comma_index = -1
+    for index, char in enumerate(body):
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        elif char == "," and depth == 0:
+            comma_index = index
+            break
+    if comma_index < 0:
+        return normalize_spaces(body), {}
+    key = normalize_spaces(body[:comma_index])
+    fields: Dict[str, str] = {}
+    cursor = comma_index + 1
+    while cursor < len(body):
+        while cursor < len(body) and (body[cursor].isspace() or body[cursor] == ","):
+            cursor += 1
+        name_match = re.match(r"([A-Za-z][A-Za-z0-9_-]*)\s*=", body[cursor:])
+        if not name_match:
+            break
+        name = name_match.group(1).lower()
+        cursor += name_match.end()
+        value, cursor = _bibtex_value(body, cursor)
+        fields[name] = normalize_spaces(
+            html.unescape(value).replace("~", " ").replace("\\&", "&")
+        )
+    return key, fields
+
+
+def parse_acm_bibtex(text: str, *, source_file: str) -> List[Dict[str, Any]]:
+    """Parse one official ACM BibTeX export into normalized metadata."""
+    records: List[Dict[str, Any]] = []
+    for entry in _bibtex_entries(text):
+        key, fields = _bibtex_fields(entry)
+        doi = normalize_doi(fields.get("doi") or key)
+        title = normalize_spaces(fields.get("title", "")).strip("{}")
+        if not doi or not title:
+            raise RuntimeError(f"ACM BibTeX entry missing DOI/title: {source_file}")
+        author_text = fields.get("author", "").replace("{", "").replace("}", "")
+        authors = [
+            normalize_spaces(author)
+            for author in re.split(r"\s+and\s+", author_text, flags=re.I)
+            if normalize_spaces(author)
+        ]
+        abstract = fields.get("abstract", "").replace("{", "").replace("}", "")
+        abstract = normalize_spaces(re.sub(r"\\[A-Za-z]+\s*", "", abstract))
+        abstract = (
+            abstract.replace(r"\%", "%")
+            .replace(r"\&", "&")
+            .replace(r"\_", "_")
+            .replace(r"\#", "#")
+        )
+        keywords = [
+            normalize_spaces(item)
+            for item in re.split(r"[,;]", fields.get("keywords", ""))
+            if normalize_spaces(item)
+        ]
+        records.append(
+            {
+                "bib_key": key,
+                "doi": doi,
+                "title": title,
+                "authors": authors,
+                "abstract": abstract,
+                "keywords": keywords,
+                "pages": normalize_spaces(fields.get("pages", "")),
+                "year": normalize_spaces(fields.get("year", "")),
+                "category": normalize_spaces(fields.get("keywords", "")),
+                "source_file": source_file,
+            }
+        )
+    if not records:
+        raise RuntimeError(f"ACM BibTeX snapshot has no entries: {source_file}")
+    return records
 
 
 def extract_doi_from_ee(ee_values: Sequence[str]) -> str | None:
@@ -629,6 +947,580 @@ def build_payload(
     }
 
 
+def complete_failed_group_coverage(
+    coverage: Sequence[Dict[str, Any]], *, reason: str
+) -> List[Dict[str, Any]]:
+    """Return an auditable 25-row manifest after an early group failure."""
+    completed = [dict(item) for item in coverage]
+    seen = {ensure_str(item.get("group_id")) for item in completed}
+    completed.extend(
+        {
+            "group_id": group,
+            "status": "not_checked_due_prior_group_failure",
+            "accepted_count": 0,
+            "reason": reason,
+        }
+        for group in KDD_2026_OPENREVIEW_GROUPS
+        if group not in seen
+    )
+    return completed
+
+
+def _sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest of one official snapshot."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def collect_acm_2026(
+    *,
+    output_root: Path,
+    snapshot_root: Path = KDD_2026_ACM_SNAPSHOT_ROOT,
+) -> Dict[str, Any]:
+    """Collect all requested KDD 2026 ACM V.1/V.2 proceeding columns.
+
+    The ACM pages are protected from ordinary HTTP clients, so the official
+    browser exports are retained as immutable run inputs.  Missing files,
+    changed section counts, unknown V.1 DOI mappings, duplicate DOIs, and
+    title conflicts all fail closed and write an incomplete-source sidecar.
+    """
+    official_urls = [
+        "https://dl.acm.org/doi/proceedings/10.1145/3770854",
+        "https://dl.acm.org/doi/proceedings/10.1145/3770855",
+    ]
+    collected_at = utc_now_iso()
+    source_hashes: Dict[str, str] = {}
+    section_counts: Dict[str, int] = {}
+    section_expected: Dict[str, int] = {}
+    section_files: Dict[str, str] = {}
+    section_volumes: Dict[str, str] = {}
+    section_display: Dict[str, str] = {}
+    section_records: List[Dict[str, Any]] = []
+    try:
+        map_path = snapshot_root / KDD_2026_ACM_V1_TRACK_MAP
+        if not map_path.is_file():
+            raise RuntimeError(f"missing official ACM V.1 track map: {map_path}")
+        v1_map_payload = json.loads(map_path.read_text(encoding="utf-8"))
+        v1_map = v1_map_payload.get("records")
+        if not isinstance(v1_map, dict) or len(v1_map) != 256:
+            raise RuntimeError("official ACM V.1 track map must contain exactly 256 records")
+
+        for spec in KDD_2026_ACM_SPECS:
+            path = snapshot_root / ensure_str(spec["file"])
+            if not path.is_file():
+                raise RuntimeError(f"missing official ACM snapshot: {path}")
+            source_hashes[ensure_str(spec["file"])] = _sha256_file(path)
+            parsed = parse_acm_bibtex(
+                path.read_text(encoding="utf-8"), source_file=ensure_str(spec["file"])
+            )
+            if spec["section"] == "from_track_map":
+                for parsed_record in parsed:
+                    doi = ensure_str(parsed_record["doi"])
+                    mapping = v1_map.get(doi)
+                    if not isinstance(mapping, dict):
+                        raise RuntimeError(f"V.1 DOI has no official track mapping: {doi}")
+                    base_section = normalize_spaces(ensure_str(mapping.get("section")))
+                    section = f"v1_{base_section}"
+                    display = f"V.1 {normalize_spaces(ensure_str(mapping.get('display')))}"
+                    section_records.append(
+                        {
+                            **parsed_record,
+                            "volume": spec["volume"],
+                            "proceedings_doi": spec["proceedings_doi"],
+                            "section": section,
+                            "display": display,
+                            "track_group": spec["track_group"],
+                            "presentation_level": spec["presentation_level"],
+                        }
+                    )
+                    section_counts[section] = section_counts.get(section, 0) + 1
+                    section_files[section] = ensure_str(spec["file"])
+                    section_volumes[section] = ensure_str(spec["volume"])
+                    section_display[section] = display
+                for section, expected in (
+                    ("v1_research_track", 183),
+                    ("v1_ads_track", 44),
+                    ("v1_data_benchmark_track", 29),
+                ):
+                    section_expected[section] = expected
+            else:
+                section = ensure_str(spec["section"])
+                section_expected[section] = int(spec["expected_count"])
+                section_files[section] = ensure_str(spec["file"])
+                section_volumes[section] = ensure_str(spec["volume"])
+                section_display[section] = ensure_str(spec["display"])
+                section_counts[section] = len(parsed)
+                section_records.extend(
+                    {
+                        **parsed_record,
+                        "volume": spec["volume"],
+                        "proceedings_doi": spec["proceedings_doi"],
+                        "section": section,
+                        "display": spec["display"],
+                        "track_group": spec["track_group"],
+                        "presentation_level": spec["presentation_level"],
+                    }
+                    for parsed_record in parsed
+                )
+        if set(section_counts) != set(section_expected):
+            raise RuntimeError(
+                "ACM section manifest mismatch: "
+                f"actual={sorted(section_counts)} expected={sorted(section_expected)}"
+            )
+        for section, expected in section_expected.items():
+            actual = section_counts.get(section, 0)
+            if actual != expected:
+                raise RuntimeError(
+                    f"ACM section count changed for {section}: {actual} != {expected}"
+                )
+
+        seen_doi: Dict[str, str] = {}
+        seen_title: Dict[str, str] = {}
+        papers: List[Dict[str, Any]] = []
+        for item in section_records:
+            doi = normalize_doi(ensure_str(item.get("doi")))
+            title = normalize_spaces(ensure_str(item.get("title")))
+            if not doi or not title:
+                raise RuntimeError("ACM record missing DOI/title")
+            previous_title = seen_doi.get(doi)
+            if previous_title is not None and previous_title != title:
+                raise RuntimeError(f"ACM DOI maps to multiple titles: {doi}")
+            title_key = title.casefold()
+            previous_doi = seen_title.get(title_key)
+            if previous_doi is not None and previous_doi != doi:
+                raise RuntimeError(f"ACM duplicate title maps to two DOIs: {title}")
+            if doi in seen_doi:
+                continue
+            seen_doi[doi] = title
+            seen_title[title_key] = doi
+            authors = [
+                normalize_spaces(ensure_str(author))
+                for author in item.get("authors", [])
+                if normalize_spaces(ensure_str(author))
+            ]
+            abstract = normalize_spaces(ensure_str(item.get("abstract")))
+            keywords = [
+                normalize_spaces(ensure_str(keyword))
+                for keyword in item.get("keywords", [])
+                if normalize_spaces(ensure_str(keyword))
+            ]
+            quality_flags: List[str] = []
+            if not authors:
+                quality_flags.append("missing_authors")
+            if not abstract:
+                quality_flags.append("missing_abstract")
+            source_file = ensure_str(item.get("source_file"))
+            section = ensure_str(item.get("section"))
+            source_ids = {
+                "doi": doi,
+                "acm_bib_key": ensure_str(item.get("bib_key")),
+                "acm_proceedings_doi": ensure_str(item.get("proceedings_doi")),
+                "acm_volume": ensure_str(item.get("volume")),
+                "acm_section": section,
+                "acm_snapshot": source_file,
+            }
+            pages = normalize_spaces(ensure_str(item.get("pages")))
+            if pages:
+                source_ids["acm_pages"] = pages
+            papers.append(
+                {
+                    "paper_title": title,
+                    "title": title,
+                    "authors": authors,
+                    "institutions": [],
+                    "abstract": abstract,
+                    "keywords": keywords,
+                    "presentation_level": ensure_str(item.get("presentation_level"))
+                    or "poster",
+                    "openalex_id": None,
+                    "doi": doi,
+                    "track": section,
+                    "track_display_name": ensure_str(item.get("display")),
+                    "track_group": ensure_str(item.get("track_group")) or "main",
+                    "url": f"https://dl.acm.org/doi/{doi}",
+                    "external_url": f"https://doi.org/{doi}",
+                    "citation_count": None,
+                    "venue": "KDD",
+                    "year": 2026,
+                    "source_provider": "kdd_2026_official_acm",
+                    "collected_at": collected_at,
+                    "source_ids": source_ids,
+                    "record_status": "resolved" if authors and abstract else "placeholder",
+                    "quality_flags": quality_flags,
+                }
+            )
+        papers.sort(key=lambda item: normalize_spaces(ensure_str(item.get("title"))).casefold())
+        groups = [
+            {
+                "section": section,
+                "display": section_display[section],
+                "volume": section_volumes[section],
+                "source_file": section_files[section],
+                "expected_count": section_expected[section],
+                "raw_count": section_counts[section],
+                "unique_count": sum(
+                    1 for paper in papers if ensure_str(paper.get("track")) == section
+                ),
+                "status": "covered",
+            }
+            for section in section_expected
+        ]
+        raw_count = len(section_records)
+        payload = build_payload(
+            year=2026,
+            papers=papers,
+            collected_at=collected_at,
+            source_year_count_estimate=len(papers),
+        )
+        payload["query"] = {
+            "target": "KDD-26",
+            "venue_code": "KDD",
+            "year": 2026,
+            "provider": "kdd_2026_official_acm",
+            "api_key_used": False,
+            "work_filter_strategy": "official_acm_v1_v2_all_columns_except_external_workshop_papers",
+            "source_year_count_estimate": len(papers),
+        }
+        payload["source"] = {
+            "provider": "kdd_2026_official_acm",
+            "display_name": "Proceedings of the 32nd ACM SIGKDD Conference on Knowledge Discovery and Data Mining",
+            "source_type": "conference",
+            "official_url": official_urls[0],
+            "urls": official_urls,
+            "snapshot_hashes": source_hashes,
+        }
+        payload["group_coverage"] = {
+            "expected_group_count": len(section_expected),
+            "covered_group_count": len(groups),
+            "groups": groups,
+            "raw_track_count": raw_count,
+            "unique_track_count": len(papers),
+            "volume_counts": {
+                "V.1": sum(1 for item in section_records if item.get("volume") == "V.1"),
+                "V.2": sum(1 for item in section_records if item.get("volume") == "V.2"),
+            },
+            "fallback_reason": "official_acm_proceedings_chrome_export",
+            "external_workshop_scope": "ignored_by_user_request",
+        }
+        output_root.mkdir(parents=True, exist_ok=True)
+        output_path = output_root / "KDD-26.json"
+        output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        sidecar = write_collection_result(
+            output_root,
+            outcome="collected",
+            venue="KDD",
+            year=2026,
+            sources=official_urls,
+            reason="official_acm_proceedings_v1_v2_snapshot_complete",
+            metrics={
+                "group_coverage": payload["group_coverage"],
+                "paper_count": len(papers),
+                "raw_count": raw_count,
+                "unique_count": len(papers),
+                "authors_coverage": round(
+                    sum(1 for paper in papers if paper.get("authors")) / max(1, len(papers)) * 100,
+                    2,
+                ),
+                "abstract_coverage": round(
+                    sum(1 for paper in papers if paper.get("abstract")) / max(1, len(papers)) * 100,
+                    2,
+                ),
+                "snapshot_hashes": source_hashes,
+            },
+        )
+        return {
+            "year": 2026,
+            "provider": "kdd_2026_official_acm",
+            "official_entry_count": raw_count,
+            "official_unique_count": len(papers),
+            "collected_paper_count": len(papers),
+            "missing_vs_official_unique": 0,
+            "missing_openalex_count": 0,
+            "missing_abstract_count": sum(
+                1 for paper in papers if "missing_abstract" in (paper.get("quality_flags") or [])
+            ),
+            "crossref_patched_count": 0,
+            "group_coverage": payload["group_coverage"],
+            "output_file": str(output_path),
+            "sidecar": str(sidecar),
+            "generated_at_utc": collected_at,
+        }
+    except (OSError, RuntimeError, json.JSONDecodeError) as exc:
+        sidecar = write_collection_result(
+            output_root,
+            outcome="incomplete_source",
+            venue="KDD",
+            year=2026,
+            sources=official_urls,
+            reason=str(exc),
+            metrics={
+                "expected_section_count": len(KDD_2026_ACM_SPECS) + 2,
+                "section_counts": section_counts,
+                "section_expected": section_expected,
+                "snapshot_hashes": source_hashes,
+            },
+        )
+        raise RuntimeError(f"KDD 2026 ACM snapshot gate failed; sidecar={sidecar}: {exc}") from exc
+
+
+def collect_openreview_2026(
+    *,
+    output_root: Path,
+    timeout: float,
+    retries: int,
+) -> Dict[str, Any]:
+    """Collect the exact 25 KDD-owned 2026 content groups from OpenReview."""
+    from janussearch.collectors.generic import (
+        fetch_openreview_notes_for_venue,
+        openreview_note_to_record,
+    )
+
+    if len(KDD_2026_OPENREVIEW_GROUPS) != 25:
+        raise RuntimeError("KDD 2026 group manifest must contain exactly 25 groups")
+    collected_at = utc_now_iso()
+    group_coverage: List[Dict[str, Any]] = []
+    notes_by_stable_id: Dict[str, Dict[str, Any]] = {}
+    memberships: Dict[str, List[str]] = {}
+    sources = [f"https://openreview.net/group?id={group}" for group in KDD_2026_OPENREVIEW_GROUPS]
+    probe_group = KDD_2026_OPENREVIEW_GROUPS[0]
+    probe_url = "https://api2.openreview.net/notes?" + urlencode(
+        {"content.venueid": probe_group, "limit": "1", "details": "replies"}
+    )
+    try:
+        fetch_response(probe_url, timeout=timeout, retries=1)
+    except HttpFetchError as exc:
+        if exc.status_code != 403:
+            raise
+        group_coverage = [
+            {
+                "group_id": group,
+                "status": "forbidden" if group == probe_group else "not_checked_due_api_403",
+                "accepted_count": 0,
+                "reason": str(exc) if group == probe_group else "official_api_probe_forbidden",
+            }
+            for group in KDD_2026_OPENREVIEW_GROUPS
+        ]
+        sidecar = write_collection_result(
+            output_root,
+            outcome="incomplete_source",
+            venue="KDD",
+            year=2026,
+            sources=[*sources, probe_url],
+            reason="official_openreview_api_forbidden_and_ui_has_no_public_accept_lists",
+            metrics={
+                "expected_group_count": len(KDD_2026_OPENREVIEW_GROUPS),
+                "covered_group_count": 0,
+                "group_coverage": group_coverage,
+                "fallback_reason": "no_same_event_official_accepted_mirror",
+            },
+        )
+        raise RuntimeError(
+            f"KDD 2026 official OpenReview API is forbidden; sidecar={sidecar}"
+        ) from exc
+    for group in KDD_2026_OPENREVIEW_GROUPS:
+        try:
+            notes, meta = fetch_openreview_notes_for_venue(
+                group,
+                timeout=timeout,
+                retries=retries,
+                show_progress=False,
+            )
+        except RuntimeError as exc:
+            group_coverage.append(
+                {
+                    "group_id": group,
+                    "status": "forbidden" if "403" in str(exc) or "Forbidden" in str(exc) else "failed",
+                    "accepted_count": 0,
+                    "reason": str(exc),
+                }
+            )
+            group_coverage = complete_failed_group_coverage(
+                group_coverage, reason=f"prior_group_failed:{group}"
+            )
+            sidecar = write_collection_result(
+                output_root,
+                outcome="incomplete_source",
+                venue="KDD",
+                year=2026,
+                sources=sources,
+                reason=f"unverifiable_official_openreview_group:{group}",
+                metrics={
+                    "expected_group_count": len(KDD_2026_OPENREVIEW_GROUPS),
+                    "covered_group_count": sum(
+                        1 for item in group_coverage if item.get("status") == "covered"
+                    ),
+                    "group_coverage": group_coverage,
+                    "fallback_reason": "openreview_api_unavailable_and_no_same_event_official_mirror",
+                },
+            )
+            raise RuntimeError(
+                f"KDD 2026 official group is not verifiable: {group}; sidecar={sidecar}"
+            ) from exc
+        if not notes:
+            group_coverage.append(
+                {
+                    "group_id": group,
+                    "status": "empty",
+                    "accepted_count": 0,
+                    "query_meta": meta,
+                }
+            )
+            group_coverage = complete_failed_group_coverage(
+                group_coverage, reason=f"prior_group_empty:{group}"
+            )
+            sidecar = write_collection_result(
+                output_root,
+                outcome="incomplete_source",
+                venue="KDD",
+                year=2026,
+                sources=sources,
+                reason=f"official_openreview_group_has_no_public_accepted_records:{group}",
+                metrics={
+                    "expected_group_count": len(KDD_2026_OPENREVIEW_GROUPS),
+                    "covered_group_count": sum(
+                        1 for item in group_coverage if item.get("status") == "covered"
+                    ),
+                    "group_coverage": group_coverage,
+                    "fallback_reason": "no_same_event_official_accepted_mirror",
+                },
+            )
+            raise RuntimeError(
+                f"KDD 2026 group has no public accepted records: {group}; sidecar={sidecar}"
+            )
+        group_coverage.append(
+            {
+                "group_id": group,
+                "status": "covered",
+                "accepted_count": len(notes),
+                "query_meta": meta,
+            }
+        )
+        for note in notes:
+            stable_id = normalize_spaces(
+                ensure_str(note.get("forum") or note.get("id"))
+            )
+            if not stable_id:
+                raise RuntimeError(f"KDD OpenReview note in {group} has no stable id")
+            previous = notes_by_stable_id.get(stable_id)
+            if previous is not None:
+                previous_title = normalize_title(
+                    ensure_str((previous.get("content") or {}).get("title"))
+                )
+                current_title = normalize_title(
+                    ensure_str((note.get("content") or {}).get("title"))
+                )
+                if previous_title != current_title:
+                    raise RuntimeError(
+                        f"KDD stable id {stable_id} maps to multiple titles"
+                    )
+            else:
+                notes_by_stable_id[stable_id] = note
+            memberships.setdefault(stable_id, []).append(group)
+
+    papers: List[Dict[str, Any]] = []
+    seen_titles: Dict[str, str] = {}
+    for stable_id, note in notes_by_stable_id.items():
+        base = openreview_note_to_record(note, "poster", {})
+        title = normalize_title(ensure_str(base.get("paper_title")))
+        if not title:
+            raise RuntimeError(f"KDD OpenReview note {stable_id} has no title")
+        title_key = title.casefold()
+        previous_id = seen_titles.get(title_key)
+        if previous_id and previous_id != stable_id:
+            raise RuntimeError(
+                f"KDD duplicate title maps to two stable ids: {title}"
+            )
+        seen_titles[title_key] = stable_id
+        groups = sorted(set(memberships[stable_id]))
+        primary_group = groups[0]
+        group_suffix = primary_group.split("KDD.org/2026/", 1)[-1]
+        track = re.sub(r"[^a-z0-9]+", "_", group_suffix.lower()).strip("_")
+        authors = [ensure_str(value) for value in base.get("authors", []) if ensure_str(value)]
+        abstract = normalize_spaces(ensure_str(base.get("abstract")))
+        keywords = [ensure_str(value) for value in base.get("keywords", []) if ensure_str(value)]
+        institutions = [
+            ensure_str(value) for value in base.get("institutions", []) if ensure_str(value)
+        ]
+        flags: List[str] = []
+        if not authors:
+            flags.append("missing_authors")
+        if not abstract:
+            flags.append("missing_abstract")
+        if not institutions:
+            flags.append("missing_institutions")
+        if not keywords:
+            flags.append("missing_keywords")
+        papers.append(
+            {
+                **base,
+                "paper_title": title,
+                "title": title,
+                "openreview_id": stable_id,
+                "track": track,
+                "track_display_name": group_suffix.replace("_", " ").replace("/", " / "),
+                "track_group": "workshop" if "/Workshop/" in primary_group else "main",
+                "url": f"https://openreview.net/forum?id={stable_id}",
+                "external_url": None,
+                "citation_count": None,
+                "venue": "KDD",
+                "year": 2026,
+                "source_provider": "kdd_2026_official_openreview",
+                "collected_at": collected_at,
+                "source_ids": {
+                    "openreview_forum_id": stable_id,
+                    "kdd_group_ids": ",".join(groups),
+                },
+                "record_status": "resolved" if authors and abstract else "placeholder",
+                "quality_flags": flags,
+            }
+        )
+    papers.sort(key=lambda item: normalize_title(ensure_str(item.get("title"))).casefold())
+    payload = build_payload(
+        year=2026,
+        papers=papers,
+        collected_at=collected_at,
+        source_year_count_estimate=len(papers),
+    )
+    payload["query"]["provider"] = "kdd_2026_official_openreview"
+    payload["query"]["work_filter_strategy"] = "exact_25_kdd_owned_openreview_groups"
+    payload["source"] = {
+        "provider": "kdd_2026_official_openreview",
+        "openreview_venue_id": "KDD.org/2026",
+        "display_name": "KDD 2026",
+        "source_type": "conference",
+        "official_url": "https://openreview.net/group?id=KDD.org/2026",
+        "urls": sources,
+    }
+    payload["group_coverage"] = {
+        "expected_group_count": len(KDD_2026_OPENREVIEW_GROUPS),
+        "covered_group_count": len(group_coverage),
+        "groups": group_coverage,
+    }
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / "KDD-26.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {
+        "year": 2026,
+        "dblp_parts": [],
+        "dblp_xml_urls": [],
+        "official_entry_count": sum(item["accepted_count"] for item in group_coverage),
+        "official_unique_count": len(papers),
+        "collected_paper_count": len(papers),
+        "missing_vs_official_unique": 0,
+        "missing_openalex_count": 0,
+        "missing_abstract_count": sum(
+            1 for paper in papers if "missing_abstract" in (paper.get("quality_flags") or [])
+        ),
+        "crossref_patched_count": 0,
+        "group_coverage": payload["group_coverage"],
+        "output_file": str(output_path),
+        "generated_at_utc": collected_at,
+    }
+
+
 def collect_one_year(
     *,
     year: int,
@@ -642,6 +1534,10 @@ def collect_one_year(
     crossref_workers: int,
 ) -> Dict[str, Any]:
     """Collect one KDD year and write root_json."""
+    if year == 2026:
+        return collect_acm_2026(
+            output_root=output_root,
+        )
     collected_at = utc_now_iso()
     all_records: List[Dict[str, Any]] = []
     xml_urls: List[str] = []
@@ -800,11 +1696,16 @@ def main() -> int:
     collections_root = index_root / "collections"
     collections_root.mkdir(parents=True, exist_ok=True)
 
-    year_tags = resolve_kdd_year_tags(
-        years=years,
-        timeout=args.timeout,
-        retries=args.retries,
-        min_interval=args.min_interval,
+    dblp_years = [year for year in years if year != 2026]
+    year_tags = (
+        resolve_kdd_year_tags(
+            years=dblp_years,
+            timeout=args.timeout,
+            retries=args.retries,
+            min_interval=args.min_interval,
+        )
+        if dblp_years
+        else {}
     )
     summary: List[Dict[str, Any]] = []
     for year in years:
@@ -826,9 +1727,10 @@ def main() -> int:
 
     total_official_unique = sum(int(item["official_unique_count"]) for item in summary)
     total_collected = sum(int(item["collected_paper_count"]) for item in summary)
+    report_provider = "kdd_2026_official_acm" if years == [2026] else "dblp_openalex"
     report = {
         "generated_at_utc": utc_now_iso(),
-        "provider": "dblp_openalex",
+        "provider": report_provider,
         "venue": "KDD",
         "years": years,
         "total_official_unique": total_official_unique,

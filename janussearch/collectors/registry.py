@@ -109,7 +109,11 @@ _SPECS: tuple[CollectorSpec, ...] = (
         extra_args=("--source", "openaccess"),
     ),
     CollectorSpec(("IJCAI",), "janussearch.collectors.ijcai", "ijcai"),
-    CollectorSpec(("KDD",), "janussearch.collectors.kdd", "dblp_openalex"),
+    CollectorSpec(
+        ("KDD",),
+        "janussearch.collectors.kdd",
+        "kdd_official_acm_dblp_openalex",
+    ),
     CollectorSpec(("TPAMI",), "janussearch.collectors.tpami", "dblp_openalex"),
     CollectorSpec(
         ("ICDE", "SIGIR", "ACMMM", "WWW"),

@@ -5,28 +5,28 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
+import html
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import parse_qs, urljoin, urlparse, urlunparse
 
 from janussearch.collectors.outcomes import write_collection_result
-from janussearch.infrastructure.http import HttpFetchError, fetch_json
+from janussearch.infrastructure.http import (
+    HttpFetchError,
+    decode_response_body,
+    fetch_json,
+    fetch_response,
+)
 
 LOGGER = logging.getLogger("janussearch.virtual_collect")
 
-PINNED_ICML_COMMIT = "2cf625b555c51e61086a3b009c59d47e768466cf"
-PINNED_ICML_SHA256 = "73b6c52566255c85761977cc3f423739ef54deebc1befa7b8b79eb9f5cf3ac1a"
-PINNED_ICML_URL = (
-    "https://raw.githubusercontent.com/gisbi-kim/icml2026-explorer/"
-    f"{PINNED_ICML_COMMIT}/output/icml2026_papers.json"
-)
-
 VENUE_HOSTS = {
+    "AISTATS": "virtual.aistats.org",
     "ICLR": "iclr.cc",
     "ICML": "icml.cc",
     "NEURIPS": "neurips.cc",
@@ -34,6 +34,10 @@ VENUE_HOSTS = {
     "ECCV": "eccv.ecva.net",
 }
 
+OFFICIAL_CATALOG_EXPECTED_COUNTS = {
+    ("AISTATS", 2026): 609,
+    ("ICML", 2026): 6628,
+}
 
 class ApprovedPaginationIncomplete(RuntimeError):
     """A supported source returned a first page but forbade a later page."""
@@ -51,6 +55,290 @@ def normalize_text(value: Any) -> str:
 def normalize_title(value: Any) -> str:
     """Build a stable title key."""
     return normalize_text(value).casefold()
+
+
+def fetch_text(url: str, *, timeout: float, retries: int) -> str:
+    """Fetch one official HTML page with the shared retry policy."""
+    response = fetch_response(url, timeout=timeout, retries=retries)
+    return decode_response_body(response.body, response.headers).decode("utf-8", "replace")
+
+
+def strip_html(value: Any) -> str:
+    """Normalize one small trusted HTML fragment to plain text."""
+    text = re.sub(r"<br\s*/?>", " ", str(value or ""), flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return normalize_text(html.unescape(text))
+
+
+def parse_official_catalog(html_text: str, *, venue: str, year: int) -> list[dict[str, str]]:
+    """Parse the complete official virtual paper directory."""
+    pattern = re.compile(
+        rf'<li>\s*<a\s+href="(?P<path>/virtual/{year}/poster/(?P<id>\d+))"[^>]*>'
+        r"(?P<title>.*?)</a>\s*</li>",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    host = VENUE_HOSTS[venue]
+    records: dict[str, dict[str, str]] = {}
+    for match in pattern.finditer(html_text):
+        event_id = match.group("id")
+        title = strip_html(match.group("title"))
+        if not title:
+            raise RuntimeError(f"Official catalog has empty title for event {event_id}")
+        current = records.get(event_id)
+        if current and normalize_title(current["title"]) != normalize_title(title):
+            raise RuntimeError(f"Official catalog reuses event id {event_id} for two titles")
+        records[event_id] = {
+            "event_id": event_id,
+            "title": title,
+            "virtual_url": f"https://{host}{match.group('path')}",
+        }
+    return sorted(records.values(), key=lambda item: int(item["event_id"]))
+
+
+def parse_official_detail(html_text: str) -> dict[str, Any]:
+    """Parse title, authors, abstract and official links from a virtual detail page."""
+    json_ld_match = re.search(
+        r'<script\s+type="application/ld\+json">\s*(\{.*?\})\s*</script>',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not json_ld_match:
+        raise RuntimeError("Official virtual detail page has no CreativeWork JSON-LD")
+    json_ld = json.loads(json_ld_match.group(1))
+    authors = _names(json_ld.get("author"))
+    title = normalize_text(json_ld.get("name"))
+    abstract_match = re.search(
+        r'<div\s+class="abstract-text-inner">(.*?)</div>',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    abstract = strip_html(abstract_match.group(1)) if abstract_match else ""
+    openreview_match = re.search(
+        r'href="(https://openreview\.net/forum\?id=([A-Za-z0-9_-]+))"',
+        html_text,
+        flags=re.IGNORECASE,
+    )
+    event_type_match = re.search(
+        r'<span\s+class="event-type-badge">(.*?)</span>',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    keyword_match = re.search(
+        r'<meta\s+name="keywords"\s+content="([^"]*)"',
+        html_text,
+        flags=re.IGNORECASE,
+    )
+    keywords = []
+    if keyword_match:
+        keywords = [
+            normalize_text(value)
+            for value in html.unescape(keyword_match.group(1)).split(",")
+            if normalize_text(value)
+        ]
+    return {
+        "title": title,
+        "authors": authors,
+        "abstract": abstract,
+        "openreview_id": openreview_match.group(2) if openreview_match else "",
+        "paper_url": openreview_match.group(1) if openreview_match else "",
+        "event_type": strip_html(event_type_match.group(1)) if event_type_match else "Poster",
+        "keywords": keywords,
+    }
+
+
+def _canonical_by_virtual_event(
+    *, canonical_path: Path, venue: str
+) -> dict[str, dict[str, Any]]:
+    if not canonical_path.is_file():
+        return {}
+    payload = json.loads(canonical_path.read_text(encoding="utf-8"))
+    key = f"{venue.lower()}_virtual_event_id"
+    result: dict[str, dict[str, Any]] = {}
+    for record in payload.get("papers", []):
+        if not isinstance(record, dict):
+            continue
+        source_ids = record.get("source_ids")
+        event_id = normalize_text(source_ids.get(key)) if isinstance(source_ids, dict) else ""
+        if event_id:
+            result[event_id] = record
+    return result
+
+
+def collect_official_catalog(
+    venue: str,
+    year: int,
+    output: Path,
+    *,
+    timeout: float,
+    retries: int,
+    canonical_root: Path,
+    workers: int = 20,
+) -> dict[str, Any]:
+    """Collect a complete official HTML catalog and only fetch missing details."""
+    host = VENUE_HOSTS[venue]
+    catalog_url = f"https://{host}/virtual/{year}/papers.html?filter=titles"
+    catalog_html = fetch_text(catalog_url, timeout=timeout, retries=retries)
+    stubs = parse_official_catalog(catalog_html, venue=venue, year=year)
+    expected_count = OFFICIAL_CATALOG_EXPECTED_COUNTS.get((venue, year))
+    if expected_count is not None and len(stubs) != expected_count:
+        raise RuntimeError(
+            f"Official catalog count changed for {venue} {year}: {len(stubs)} != {expected_count}"
+        )
+
+    canonical = _canonical_by_virtual_event(
+        canonical_path=canonical_root / venue.lower() / f"{year}.json",
+        venue=venue,
+    )
+    detail_by_id: dict[str, dict[str, Any]] = {}
+    detail_stubs: list[dict[str, str]] = []
+    reused_count = 0
+    retitle_mappings: list[dict[str, str]] = []
+    for stub in stubs:
+        old = canonical.get(stub["event_id"])
+        if old:
+            reused_count += 1
+            if normalize_title(old.get("title")) != normalize_title(stub["title"]):
+                old_paper_id = normalize_text(old.get("paper_id"))
+                if not old_paper_id:
+                    raise RuntimeError(
+                        f"Canonical {venue} event {stub['event_id']} has no paper_id for retitle"
+                    )
+                retitle_mappings.append(
+                    {
+                        "source_event_id": stub["event_id"],
+                        "old_paper_id": old_paper_id,
+                        "old_title": normalize_text(old.get("title")),
+                        "new_title": stub["title"],
+                    }
+                )
+        else:
+            detail_stubs.append(stub)
+
+    failed: list[str] = []
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
+        futures = {
+            executor.submit(fetch_text, stub["virtual_url"], timeout=timeout, retries=retries): stub
+            for stub in detail_stubs
+        }
+        for future in as_completed(futures):
+            stub = futures[future]
+            try:
+                detail = parse_official_detail(future.result())
+                if normalize_title(detail.get("title")) != normalize_title(stub["title"]):
+                    raise RuntimeError("detail title does not match catalog")
+                detail_by_id[stub["event_id"]] = detail
+            except Exception as exc:  # noqa: BLE001
+                LOGGER.error("%s detail fetch failed for %s: %s", venue, stub["event_id"], exc)
+                failed.append(stub["event_id"])
+    if failed:
+        raise RuntimeError(
+            f"Official catalog detail coverage incomplete for {venue} {year}: failed={len(failed)}"
+        )
+
+    collected_at = utc_now_iso()
+    records: list[dict[str, Any]] = []
+    for stub in stubs:
+        event_id = stub["event_id"]
+        old = canonical.get(event_id)
+        if old:
+            record = dict(old)
+            record["title"] = stub["title"]
+            record["paper_title"] = stub["title"]
+            record["collected_at"] = collected_at
+            record["source_provider"] = "official_virtual_catalog"
+            source_ids = dict(record.get("source_ids") or {})
+            source_ids[f"{venue.lower()}_virtual_event_id"] = event_id
+            source_ids[f"{venue.lower()}_virtual_url"] = stub["virtual_url"]
+            record["source_ids"] = source_ids
+            records.append(record)
+            continue
+        detail = detail_by_id[event_id]
+        item = {
+            "id": event_id,
+            "name": stub["title"],
+            "authors": detail["authors"],
+            "abstract": detail["abstract"],
+            "keywords": detail["keywords"],
+            "paper_url": detail["paper_url"],
+            "openreview_id": detail["openreview_id"],
+            "virtualsite_url": stub["virtual_url"],
+            "eventtype": detail["event_type"],
+            "sourceurl": (
+                f"https://openreview.net/group?id=aistats.org/AISTATS/{year}/Conference"
+                if venue == "AISTATS"
+                else f"https://openreview.net/group?id={venue}.cc/{year}/Conference"
+            ),
+        }
+        records.append(
+            build_record(
+                item,
+                venue=venue,
+                year=year,
+                collected_at=collected_at,
+                provider="official_virtual_catalog",
+            )
+        )
+
+    records = dedupe_records(records)
+    if len(records) != len(stubs):
+        raise RuntimeError(
+            f"Official catalog title uniqueness failed for {venue} {year}: {len(records)} != {len(stubs)}"
+        )
+    uniform_poster_policy = venue == "AISTATS" and year == 2026
+    if uniform_poster_policy:
+        for record in records:
+            record["presentation_level"] = "poster"
+    payload = {
+        "query": {"venue_code": venue, "year": year, "provider": "official_virtual_catalog"},
+        "source": {"provider": "official_virtual_catalog", "urls": [catalog_url]},
+        "generated_at_utc": collected_at,
+        "reconciliation": {
+            "external_title_count": len(records),
+            "retitle_mappings": retitle_mappings,
+        },
+        "group_coverage": {
+            "expected_catalog_count": expected_count,
+            "catalog_count": len(stubs),
+            "canonical_records_reused": reused_count,
+            "retitle_mapping_count": len(retitle_mappings),
+            "detail_pages_fetched": len(detail_stubs),
+            "detail_pages_failed": len(failed),
+            "detail_pages_missing_abstract": sum(
+                not normalize_text(detail.get("abstract"))
+                for detail in detail_by_id.values()
+            ),
+            "detail_pages_missing_authors": sum(
+                not detail.get("authors") for detail in detail_by_id.values()
+            ),
+            "fallback_reason": (
+                "official_virtual_catalog_uniform_poster_policy"
+                if uniform_poster_policy
+                else "official_virtual_catalog"
+            ),
+        },
+        "papers": records,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    sidecar = write_collection_result(
+        output.parent,
+        outcome="collected",
+        venue=venue,
+        year=year,
+        sources=[catalog_url],
+        reason="official_virtual_catalog_complete",
+        metrics=payload["group_coverage"]
+        | {
+            "group_coverage": payload["group_coverage"],
+            "paper_count": len(records),
+        },
+    )
+    return {
+        "outcome": "collected",
+        "output": str(output),
+        "sidecar": str(sidecar),
+        "count": len(records),
+    }
 
 
 def _https_url(value: str) -> str:
@@ -135,7 +423,11 @@ def _names(authors: Any) -> list[str]:
     if not isinstance(authors, list):
         return result
     for author in authors:
-        name = normalize_text(author.get("fullname")) if isinstance(author, dict) else normalize_text(author)
+        name = (
+            normalize_text(author.get("fullname") or author.get("name"))
+            if isinstance(author, dict)
+            else normalize_text(author)
+        )
         if name and name.casefold() not in {value.casefold() for value in result}:
             result.append(name)
     return result
@@ -241,7 +533,7 @@ def build_record(
         "track_group": track_group,
         "openreview_id": openreview_id or None,
         "doi": None,
-        "url": paper_url or virtual_url or None,
+        "url": virtual_url or paper_url or None,
         "external_url": pdf_url or paper_url or None,
         "venue": venue,
         "year": year,
@@ -311,14 +603,6 @@ def filter_allowed(
     return [item for item in events if normalize_text(item.get("sourceurl")) in allowed]
 
 
-def pinned_paper_list(payload: Any) -> list[dict[str, Any]]:
-    """Extract papers from the pinned repository's versioned payload shape."""
-    records = payload.get("papers") if isinstance(payload, dict) else payload
-    if not isinstance(records, list):
-        raise RuntimeError("Pinned ICML snapshot has no papers list")
-    return [item for item in records if isinstance(item, dict)]
-
-
 def canonical_openreview_id(record: Mapping[str, Any]) -> str:
     """Read a canonical OpenReview id from either supported storage location."""
     direct = normalize_text(record.get("openreview_id"))
@@ -329,42 +613,6 @@ def canonical_openreview_id(record: Mapping[str, Any]) -> str:
         else ""
     )
     return direct or nested
-
-
-def load_icml_pinned_snapshot(
-    *, timeout: float, retries: int, canonical_path: Path
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    """Load the one approved ICML snapshot and verify its identity and subset rule."""
-    from janussearch.infrastructure.http import decode_response_body, fetch_response
-
-    response = fetch_response(PINNED_ICML_URL, timeout=timeout, retries=retries)
-    snapshot_bytes = decode_response_body(response.body, response.headers)
-    digest = hashlib.sha256(snapshot_bytes).hexdigest()
-    if digest != PINNED_ICML_SHA256:
-        raise RuntimeError(f"Pinned ICML snapshot SHA-256 mismatch: {digest}")
-    payload = json.loads(snapshot_bytes.decode("utf-8"))
-    filtered = filter_allowed("ICML", pinned_paper_list(payload), year=2026)
-    snapshot_ids = {_openreview_id(item) for item in filtered}
-    if "" in snapshot_ids:
-        raise RuntimeError("Pinned ICML snapshot contains a record without OpenReview id")
-    canonical = json.loads(canonical_path.read_text(encoding="utf-8"))
-    canonical_ids = {
-        canonical_openreview_id(record)
-        for record in canonical.get("papers", [])
-        if isinstance(record, dict) and canonical_openreview_id(record)
-    }
-    third_party_only = sorted(snapshot_ids - canonical_ids)
-    if third_party_only:
-        raise RuntimeError(f"Pinned ICML snapshot has {len(third_party_only)} non-canonical ids")
-    if len(snapshot_ids) != 6559:
-        raise RuntimeError(f"Pinned ICML filtered count changed: {len(snapshot_ids)} != 6559")
-    return filtered, {
-        "commit": PINNED_ICML_COMMIT,
-        "sha256": digest,
-        "filtered_count": len(filtered),
-        "unique_openreview_ids": len(snapshot_ids),
-        "third_party_only_ids": len(third_party_only),
-    }
 
 
 def collect_target(
@@ -400,9 +648,32 @@ def collect_target(
         abstracts = fetch_json(abstracts_url, timeout=timeout, retries=retries)
         events = merge_abstracts(events, abstracts)
         provider = "official"
-    except ApprovedPaginationIncomplete as exc:
+    except (ApprovedPaginationIncomplete, HttpFetchError, RuntimeError) as exc:
         official_error = exc
-        if venue != "ICML" or year != 2026:
+        if venue == "ICML" and year == 2026:
+            try:
+                return collect_official_catalog(
+                    venue,
+                    year,
+                    output,
+                    timeout=timeout,
+                    retries=retries,
+                    canonical_root=canonical_root,
+                )
+            except (HttpFetchError, RuntimeError, ValueError, OSError, json.JSONDecodeError) as catalog_error:
+                sidecar = write_collection_result(
+                    output.parent,
+                    outcome="incomplete_source",
+                    venue=venue,
+                    year=year,
+                    sources=[*sources, f"https://{VENUE_HOSTS[venue]}/virtual/{year}/papers.html"],
+                    reason=f"official_json={official_error}; official_catalog={catalog_error}",
+                    metrics=page_metrics,
+                )
+                raise RuntimeError(
+                    f"Official ICML JSON and catalog sources are unusable; sidecar={sidecar}"
+                ) from catalog_error
+        else:
             sidecar = write_collection_result(
                 output.parent,
                 outcome="incomplete_source",
@@ -413,40 +684,6 @@ def collect_target(
                 metrics=page_metrics,
             )
             raise RuntimeError(f"Incomplete official virtual source; sidecar={sidecar}: {exc}") from exc
-        try:
-            events, pinned_metrics = load_icml_pinned_snapshot(
-                timeout=timeout,
-                retries=retries,
-                canonical_path=canonical_root / "icml" / "2026.json",
-            )
-        except (HttpFetchError, RuntimeError, ValueError, OSError, json.JSONDecodeError) as pinned_error:
-            sidecar = write_collection_result(
-                output.parent,
-                outcome="incomplete_source",
-                venue=venue,
-                year=year,
-                sources=[*sources, PINNED_ICML_URL],
-                reason=f"official={official_error}; pinned={pinned_error}",
-                metrics=page_metrics,
-            )
-            raise RuntimeError(
-                f"Official and pinned ICML sources are unusable; sidecar={sidecar}"
-            ) from pinned_error
-        sources.append(PINNED_ICML_URL)
-        page_metrics["official_incomplete"] = str(official_error)
-        page_metrics["pinned_snapshot"] = pinned_metrics
-        provider = "icml_virtual_pinned_snapshot"
-    except (HttpFetchError, RuntimeError) as exc:
-        sidecar = write_collection_result(
-            output.parent,
-            outcome="incomplete_source",
-            venue=venue,
-            year=year,
-            sources=sources,
-            reason=str(exc),
-            metrics=page_metrics,
-        )
-        raise RuntimeError(f"Incomplete official virtual source; sidecar={sidecar}: {exc}") from exc
 
     filtered = filter_allowed(venue, events, year=year)
     collected_at = utc_now_iso()
@@ -484,6 +721,14 @@ def collect_target(
             "raw_event_count": len(events),
             "filtered_event_count": len(filtered),
         },
+        "group_coverage": {
+            "expected_group_count": len(allowed_sourceurls(venue, year) or sources),
+            "covered_group_count": len(allowed_sourceurls(venue, year) or sources),
+            "groups": sorted(allowed_sourceurls(venue, year) or sources),
+            "raw_event_count": len(events),
+            "filtered_event_count": len(filtered),
+            "unique_paper_count": len(records),
+        },
         "papers": records,
     }
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -493,13 +738,14 @@ def collect_target(
         venue=venue,
         year=year,
         sources=sources,
-        reason="official_virtual_complete" if official_error is None else "approved_pinned_snapshot_after_official_pagination_failure",
+        reason="official_virtual_complete",
         metrics={
             **page_metrics,
             "raw_events": len(events),
             "filtered_events": len(filtered),
             "paper_count": len(records),
             "source_provider": provider,
+            "group_coverage": payload["group_coverage"],
         },
     )
     return {"outcome": "collected", "output": str(output), "sidecar": str(sidecar), "count": len(records)}

@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 from unittest.mock import patch
 
 from tools.m2_db import run_load
+from janussearch.application.projection_pipeline import make_llm_client
 from tools.m3_pipeline import (
     check_chroma_sqlite_integrity,
     run_build_cache,
@@ -247,6 +248,10 @@ def build_payload() -> Dict[str, Any]:
 
 
 class TestM3Pipeline(unittest.TestCase):
+    def test_local_llm_endpoint_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Local LLM endpoints are prohibited"):
+            make_llm_client("http://127.0.0.1:11434/v1", api_key="test-key")
+
     """M3 pipeline behavior tests."""
 
     def setUp(self) -> None:
@@ -409,6 +414,68 @@ class TestM3Pipeline(unittest.TestCase):
         self.assertEqual(len({item["paper_id"] for item in assignments}), 3)
         self.assertGreaterEqual(topics_payload["summary"]["topic_count"], 1)
         self.assertGreaterEqual(topics_payload["summary"]["subtopic_count"], 1)
+
+    def test_topic_progress_is_invalidated_when_vector_input_changes(self) -> None:
+        patches = self._patch_m3()
+        for item in patches:
+            item.start()
+        try:
+            run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+            )
+            first = run_build_topics(
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                index_root=self.index_root,
+                llm_base_url="https://api.siliconflow.cn/v1",
+                llm_model="Qwen/Qwen3-8B",
+                llm_api_key="test-key",
+            )
+            labels_after_first = dict(self.label_counter)
+
+            payload = json.loads(self.raw_path.read_text(encoding="utf-8"))
+            payload["papers"][0]["abstract"] += " Updated input."
+            self.raw_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            run_load(input_root=self.input_root, db_path=self.db_path, index_root=self.index_root)
+            run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+            )
+            second = run_build_topics(
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                index_root=self.index_root,
+                llm_base_url="https://api.siliconflow.cn/v1",
+                llm_model="Qwen/Qwen3-8B",
+                llm_api_key="test-key",
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+
+        self.assertNotEqual(
+            first["vector_input_fingerprint"], second["vector_input_fingerprint"]
+        )
+        self.assertGreater(self.label_counter["topic"], labels_after_first["topic"])
+        self.assertGreater(self.label_counter["subtopic"], labels_after_first["subtopic"])
 
     def test_build_vectors_uses_source_file_marker_and_force_rebuild(self) -> None:
         patches = self._patch_m3()
@@ -615,6 +682,68 @@ class TestM3Pipeline(unittest.TestCase):
             self.assertTrue((self.subtopics_root / topic_slug / "_overview.md").exists())
 
         self.assertTrue(validate_payload["summary"]["all_pass"])
+
+    def test_build_cache_removes_and_validates_stale_markdown(self) -> None:
+        patches = self._patch_m3()
+        for item in patches:
+            item.start()
+        try:
+            run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+            )
+            run_build_topics(
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                index_root=self.index_root,
+                llm_base_url="https://api.siliconflow.cn/v1",
+                llm_model="Qwen/Qwen3-8B",
+                llm_api_key="test-key",
+            )
+            run_build_cache(
+                db_path=self.db_path,
+                index_root=self.index_root,
+                master_index_path=self.master_index_path,
+                venues_root=self.venues_root,
+                topics_root=self.topics_root,
+                subtopics_root=self.subtopics_root,
+            )
+            stale = self.topics_root / "obsolete_topic.md"
+            stale.write_text("obsolete\n", encoding="utf-8")
+            invalid = run_validate(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                index_root=self.index_root,
+                master_index_path=self.master_index_path,
+                venues_root=self.venues_root,
+                topics_root=self.topics_root,
+                subtopics_root=self.subtopics_root,
+                exclude_placeholder=True,
+            )
+            rebuilt = run_build_cache(
+                db_path=self.db_path,
+                index_root=self.index_root,
+                master_index_path=self.master_index_path,
+                venues_root=self.venues_root,
+                topics_root=self.topics_root,
+                subtopics_root=self.subtopics_root,
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+
+        self.assertFalse(invalid["summary"]["all_pass"])
+        self.assertEqual(invalid["details"]["cache"]["unexpected_file_count"], 1)
+        self.assertFalse(stale.exists())
+        self.assertEqual(rebuilt["summary"]["removed_stale_cache_file_count"], 1)
 
     def test_build_topics_hard_fail_when_llm_unavailable(self) -> None:
         patches = self._patch_m3()

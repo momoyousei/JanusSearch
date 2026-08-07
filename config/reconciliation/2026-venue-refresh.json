@@ -1235,17 +1235,14 @@
     },
     "icml/2026.json": {
       "allowed_removals": [
-        "S2-76250717a2b6e800",
-        "S2-5340253435edb211",
-        "S2-03a3f26b65b2abde",
-        "S2-f14172e6c40e9dba",
-        "S2-e37ec431263569e5",
-        "S2-60b38c10e3c3a2fa",
-        "S2-7e2948a9d88c1fe3",
-        "S2-603471b7c28526e3"
+        "S2-178163db226f5513",
+        "S2-f0e6e120212f6ecf",
+        "S2-092d850c9ce53a02",
+        "S2-dceb3acc221bfca5",
+        "S2-37def76fb074e4b1"
       ],
       "retitle_mappings": [],
-      "audit_note": "Eight OpenReview IDs absent from the approved pinned snapshot."
+      "audit_note": "The official ICML 2026 papers catalog is authoritative; five prior records are absent. Stable official event IDs preserve paper identity, and generated retitle_mappings audit final-title changes."
     }
   }
 }

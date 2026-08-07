@@ -20,18 +20,39 @@ from typing import Any, Dict, Iterable, List, Sequence, Tuple
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urljoin
 from urllib.request import Request, urlopen
+
+from janussearch.collectors.outcomes import write_collection_result
 from xml.etree import ElementTree as ET
 
 LOGGER = logging.getLogger("ijcai_collect")
 
 IJCAI_BASE_URL = "https://www.ijcai.org"
 IJCAI_PROCEEDINGS_URL_TEMPLATE = "https://www.ijcai.org/proceedings/{year}/"
+IJCAI_2026_ACCEPTED_URL = "https://2026.ijcai.org/accepted-papers/"
 DBLP_IJCAI_INDEX_URL = "https://dblp.org/db/conf/ijcai/"
 DBLP_IJCAI_XML_URL_TEMPLATE = "https://dblp.org/db/conf/ijcai/ijcai{tag}.xml"
 DBLP_REC_BASE = "https://dblp.org/rec/"
 OPENREVIEW_API2_URL = "https://api2.openreview.net"
 S2_BASE = "https://api.semanticscholar.org/graph/v1"
 S2_FIELDS = "paperId,title,abstract,authors,citationCount,url,externalIds"
+
+IJCAI_2026_TRACKS: Tuple[Tuple[str, str, int], ...] = (
+    ("main-track", "Main Track", 713),
+    ("special-track-on-ai-and-health", "Special Track on AI and Health", 47),
+    ("special-track-on-ai-and-robotics", "Special Track on AI and Robotics", 11),
+    ("special-track-on-ai-and-social-good", "Special Track on AI and Social Good", 52),
+    (
+        "special-track-on-ai4tech-ai-enabling-critical-technologies",
+        "Special Track on AI4Tech: AI Enabling Critical Technologies",
+        25,
+    ),
+    ("special-track-on-human-centred-ai", "Special Track on Human-Centred AI", 10),
+    ("journal-track", "Journal Track", 6),
+    ("sister-conferences-best-papers-track", "Sister Conferences Best Papers Track", 17),
+    ("survey-track", "Survey Track", 45),
+    ("early-career-spotlight", "Early Career Spotlight", 14),
+    ("demonstrations-track", "Demonstrations Track", 50),
+)
 
 DEFAULT_OUTPUT_ROOT = Path("archives/root_json")
 DEFAULT_INDEX_ROOT = Path("artifacts")
@@ -705,6 +726,226 @@ def build_payload(
     }
 
 
+def parse_accepted_2026_cards(page_html: str) -> List[Dict[str, Any]]:
+    """Parse the static IJCAI-ECAI 2026 accepted-paper cards."""
+    marker = '<li class="ij-paper"'
+    cards: List[Dict[str, Any]] = []
+    for chunk in page_html.split(marker)[1:]:
+        paper_id_match = re.search(r'class="ij-pid">#(.*?)</span>', chunk, flags=re.S | re.I)
+        title_match = re.search(r'class="ij-ptitle">(.*?)</h3>', chunk, flags=re.S | re.I)
+        if not paper_id_match or not title_match:
+            raise RuntimeError("IJCAI 2026 accepted-paper card lacks id or title")
+        authors = [
+            strip_tags(value)
+            for value in re.findall(r'class="ij-author">(.*?)</span>', chunk, flags=re.S | re.I)
+        ]
+        abstract_match = re.search(
+            r'class="ij-abstract">(.*?)</div>', chunk, flags=re.S | re.I
+        )
+        keywords = [
+            strip_tags(value)
+            for value in re.findall(
+                r'<span class="ij-kw"[^>]*title="([^"]+)"', chunk, flags=re.S | re.I
+            )
+        ]
+        cards.append(
+            {
+                "paper_id": strip_tags(paper_id_match.group(1)),
+                "title": strip_tags(title_match.group(1)),
+                "authors": dedupe_preserve(authors),
+                "abstract": strip_tags(abstract_match.group(1)) if abstract_match else "",
+                "keywords": dedupe_preserve(keywords),
+                "has_talk": "ij-when--talk" in chunk,
+                "has_poster": "ij-when--poster" in chunk,
+            }
+        )
+    return cards
+
+
+def collect_accepted_2026(
+    *,
+    output_root: Path,
+    timeout: float,
+    retries: int,
+    min_interval: float,
+) -> Dict[str, Any]:
+    """Collect all 2026 tracks and isolate official title placeholders."""
+    collected_at = utc_now_iso()
+    raw_records: List[Dict[str, Any]] = []
+    raw_track_counts: Dict[str, int] = {}
+    source_urls: List[str] = []
+    for track_slug, track_display, expected_count in IJCAI_2026_TRACKS:
+        url = f"{IJCAI_2026_ACCEPTED_URL}?ijtrack={track_slug}"
+        source_urls.append(url)
+        cards = parse_accepted_2026_cards(
+            fetch_text(
+                url=url,
+                timeout=timeout,
+                retries=retries,
+                min_interval=min_interval,
+            )
+        )
+        if len(cards) != expected_count:
+            raise RuntimeError(
+                f"IJCAI 2026 track count changed for {track_display}: "
+                f"{len(cards)} != {expected_count}"
+            )
+        raw_track_counts[track_slug] = len(cards)
+        for card in cards:
+            card["track"] = track_slug
+            card["track_display_name"] = track_display
+            raw_records.append(card)
+
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for card in raw_records:
+        paper_id = ensure_str(card.get("paper_id"))
+        previous = by_id.get(paper_id)
+        if previous is not None:
+            raise RuntimeError(
+                f"IJCAI 2026 paper id {paper_id} occurs in multiple accepted tracks"
+            )
+        by_id[paper_id] = card
+    if len(by_id) != 990:
+        raise RuntimeError(f"IJCAI 2026 accepted count changed: {len(by_id)} != 990")
+
+    held_records: List[Dict[str, Any]] = []
+    papers: List[Dict[str, Any]] = []
+    for card in by_id.values():
+        title = normalize_title(ensure_str(card.get("title")))
+        paper_id = ensure_str(card.get("paper_id"))
+        track = ensure_str(card.get("track"))
+        if normalize_title_key(title) == "title tbd":
+            held_records.append(
+                {
+                    "paper_id": paper_id,
+                    "title": title,
+                    "authors": list(card.get("authors") or []),
+                    "track": track,
+                    "track_display_name": ensure_str(card.get("track_display_name")),
+                    "reason": "official_title_placeholder",
+                }
+            )
+            continue
+        authors = dedupe_preserve(card.get("authors") or [])
+        abstract = normalize_spaces(ensure_str(card.get("abstract")))
+        keywords = dedupe_preserve(card.get("keywords") or [])
+        quality_flags = build_quality_flags(
+            authors=authors,
+            abstract=abstract,
+            institutions=[],
+            keywords=keywords,
+        )
+        source_url = f"{IJCAI_2026_ACCEPTED_URL}#paper-{paper_id}"
+        papers.append(
+            {
+                "paper_title": title,
+                "authors": authors,
+                "institutions": [],
+                "abstract": abstract,
+                "keywords": keywords,
+                "presentation_level": "oral" if card.get("has_talk") else "poster",
+                "openalex_id": None,
+                "doi": None,
+                "track": track,
+                "track_display_name": ensure_str(card.get("track_display_name")),
+                "track_group": "main" if track == "main-track" else track,
+                "title": title,
+                "url": source_url,
+                "external_url": None,
+                "citation_count": None,
+                "venue": "IJCAI",
+                "year": 2026,
+                "source_provider": "ijcai_2026_official_accepted",
+                "collected_at": collected_at,
+                "source_ids": {
+                    "ijcai_accepted_id": paper_id,
+                    "ijcai_accepted_url": IJCAI_2026_ACCEPTED_URL,
+                },
+                "record_status": (
+                    "resolved"
+                    if authors and abstract
+                    else "placeholder"
+                ),
+                "quality_flags": quality_flags,
+            }
+        )
+
+    held_records.sort(key=lambda item: ensure_str(item.get("paper_id")))
+    papers.sort(key=lambda item: normalize_title_key(ensure_str(item.get("title"))))
+    if len(held_records) != 8 or len(papers) != 982:
+        raise RuntimeError(
+            f"IJCAI 2026 hold split changed: published={len(papers)} held={len(held_records)}"
+        )
+    payload = build_payload(
+        year=2026,
+        papers=papers,
+        collected_at=collected_at,
+        source_year_count_estimate=len(by_id),
+    )
+    payload["query"]["provider"] = "ijcai_2026_official_accepted"
+    payload["query"]["work_filter_strategy"] = "official_accepted_papers_all_tracks"
+    payload["source"] = {
+        "provider": "ijcai_2026_official_accepted",
+        "display_name": "IJCAI-ECAI 2026 Accepted Papers",
+        "source_type": "conference",
+        "official_url": IJCAI_2026_ACCEPTED_URL,
+        "urls": source_urls,
+    }
+    payload["raw_track_counts"] = raw_track_counts
+    payload["unique_track_counts"] = count_field(papers, key="track", default="main-track")
+    payload["held_records"] = held_records
+    payload["group_coverage"] = {
+        "expected_track_count": len(IJCAI_2026_TRACKS),
+        "covered_track_count": len(raw_track_counts),
+        "official_raw_count": len(raw_records),
+        "official_unique_count": len(by_id),
+        "published_count": len(papers),
+        "held_count": len(held_records),
+    }
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_path = output_root / "IJCAI-26.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    write_collection_result(
+        output_root,
+        outcome="collected",
+        venue="IJCAI",
+        year=2026,
+        sources=source_urls,
+        reason="official_accepted_papers_all_tracks_complete",
+        metrics={
+            "group_coverage": payload["group_coverage"],
+            **payload["group_coverage"],
+            "raw_track_counts": raw_track_counts,
+            "unique_track_counts": payload["unique_track_counts"],
+            "held_records": held_records,
+        },
+    )
+    return {
+        "year": 2026,
+        "official_listing_url": IJCAI_2026_ACCEPTED_URL,
+        "official_entry_count": len(raw_records),
+        "official_raw_count": len(raw_records),
+        "official_unique_count": len(papers),
+        "official_accepted_unique_count": len(by_id),
+        "held_record_count": len(held_records),
+        "dblp_tags": [],
+        "dblp_xml_urls": [],
+        "dblp_inproceedings_count": 0,
+        "official_minus_dblp_delta": len(papers),
+        "openreview_count": 0,
+        "collected_paper_count": len(papers),
+        "detail_fetch_failed_count": 0,
+        "matched_dblp_count": 0,
+        "openreview_enriched_count": 0,
+        "s2_enriched_count": 0,
+        "missing_abstract_count": sum(
+            1 for paper in papers if "missing_abstract" in (paper.get("quality_flags") or [])
+        ),
+        "output_file": str(output_path),
+        "generated_at_utc": collected_at,
+    }
+
+
 def collect_one_year(
     *,
     year: int,
@@ -719,6 +960,13 @@ def collect_one_year(
     s2_min_interval: float,
 ) -> Dict[str, Any]:
     """Collect one IJCAI year and write root_json."""
+    if year == 2026:
+        return collect_accepted_2026(
+            output_root=output_root,
+            timeout=timeout,
+            retries=retries,
+            min_interval=min_interval,
+        )
     collected_at = utc_now_iso()
     proceedings_url = IJCAI_PROCEEDINGS_URL_TEMPLATE.format(year=year)
 
@@ -1133,11 +1381,16 @@ def main() -> int:
     collections_root = index_root / "collections"
     collections_root.mkdir(parents=True, exist_ok=True)
 
-    dblp_year_tags = resolve_dblp_year_tags(
-        years=years,
-        timeout=args.timeout,
-        retries=args.retries,
-        min_interval=args.min_interval,
+    dblp_years = [year for year in years if year != 2026]
+    dblp_year_tags = (
+        resolve_dblp_year_tags(
+            years=dblp_years,
+            timeout=args.timeout,
+            retries=args.retries,
+            min_interval=args.min_interval,
+        )
+        if dblp_years
+        else {}
     )
 
     summary: List[Dict[str, Any]] = []
