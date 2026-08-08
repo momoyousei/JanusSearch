@@ -749,16 +749,6 @@ def run_build_vectors(
                 exclude_placeholder=exclude_placeholder,
             )
         )
-        has_marker_config_match = (
-            not force_rebuild_vectors
-            and marker_config_matches(
-                marker_entry=marker_entry,
-                embed_model=embed_model,
-                embed_base_url=base_url,
-                exclude_placeholder=exclude_placeholder,
-            )
-        )
-
         candidate_rows: List[Tuple[VectorPaper, str, str]] = []
         skipped_empty_in_file = 0
         for paper in file_papers:
@@ -799,9 +789,26 @@ def run_build_vectors(
             collection,
             [paper.paper_id for paper, _text, _hash in candidate_rows],
         )
+        # A source-file marker is only a fast path when every existing vector
+        # still carries the per-paper fingerprint contract.  Older collections
+        # may have a matching file/config marker but lack text hashes (or have
+        # malformed metadata); trusting the marker in that case would silently
+        # preserve stale vectors.  Fall through to the per-paper checks so
+        # unverified vectors are re-embedded.
         if has_marker_hit and len(existing_metadatas) == len(candidate_rows):
-            files_skipped_by_marker += 1
-            continue
+            marker_vectors_verified = all(
+                existing_vector_matches(
+                    metadata=existing_metadatas.get(paper.paper_id, {}),
+                    text_hash=text_hash,
+                    embed_model=embed_model,
+                    embed_base_url=base_url,
+                    exclude_placeholder=exclude_placeholder,
+                )
+                for paper, _text, text_hash in candidate_rows
+            )
+            if marker_vectors_verified:
+                files_skipped_by_marker += 1
+                continue
 
         rows_for_embedding: List[Tuple[VectorPaper, str, str]] = []
         existing_in_file = 0
@@ -831,10 +838,9 @@ def run_build_vectors(
                 reembedded_changed_in_file += 1
                 rows_for_embedding.append((paper, text, text_hash))
                 continue
-            if has_marker_config_match:
-                skipped_legacy_in_file += 1
-                continue
-
+            # Metadata without an embedding text hash cannot be verified even
+            # when the source-file marker/config matches.  Re-embed it instead
+            # of carrying forward a legacy vector whose input is unknown.
             reembedded_unverified_in_file += 1
             rows_for_embedding.append((paper, text, text_hash))
 

@@ -192,26 +192,38 @@ def collect_official_catalog(
     detail_by_id: dict[str, dict[str, Any]] = {}
     detail_stubs: list[dict[str, str]] = []
     reused_count = 0
+    refreshed_count = 0
     retitle_mappings: list[dict[str, str]] = []
     for stub in stubs:
         old = canonical.get(stub["event_id"])
-        if old:
-            reused_count += 1
-            if normalize_title(old.get("title")) != normalize_title(stub["title"]):
-                old_paper_id = normalize_text(old.get("paper_id"))
-                if not old_paper_id:
-                    raise RuntimeError(
-                        f"Canonical {venue} event {stub['event_id']} has no paper_id for retitle"
-                    )
-                retitle_mappings.append(
-                    {
-                        "source_event_id": stub["event_id"],
-                        "old_paper_id": old_paper_id,
-                        "old_title": normalize_text(old.get("title")),
-                        "new_title": stub["title"],
-                    }
+        old_complete = bool(
+            old
+            and normalize_text(old.get("abstract"))
+            and bool(old.get("authors"))
+            and normalize_text(old.get("record_status")).casefold() != "placeholder"
+        )
+        if old and normalize_title(old.get("title")) != normalize_title(stub["title"]):
+            old_paper_id = normalize_text(old.get("paper_id"))
+            if not old_paper_id:
+                raise RuntimeError(
+                    f"Canonical {venue} event {stub['event_id']} has no paper_id for retitle"
                 )
+            retitle_mappings.append(
+                {
+                    "source_event_id": stub["event_id"],
+                    "old_paper_id": old_paper_id,
+                    "old_title": normalize_text(old.get("title")),
+                    "new_title": stub["title"],
+                }
+            )
+        if old_complete:
+            reused_count += 1
         else:
+            # Existing placeholder records must be refreshed from the
+            # authoritative detail page; reusing them would freeze the
+            # missing abstract/author fields forever.
+            if old:
+                refreshed_count += 1
             detail_stubs.append(stub)
 
     failed: list[str] = []
@@ -240,7 +252,13 @@ def collect_official_catalog(
     for stub in stubs:
         event_id = stub["event_id"]
         old = canonical.get(event_id)
-        if old:
+        old_complete = bool(
+            old
+            and normalize_text(old.get("abstract"))
+            and bool(old.get("authors"))
+            and normalize_text(old.get("record_status")).casefold() != "placeholder"
+        )
+        if old_complete:
             record = dict(old)
             record["title"] = stub["title"]
             record["paper_title"] = stub["title"]
@@ -300,6 +318,7 @@ def collect_official_catalog(
             "expected_catalog_count": expected_count,
             "catalog_count": len(stubs),
             "canonical_records_reused": reused_count,
+            "canonical_records_refreshed": refreshed_count,
             "retitle_mapping_count": len(retitle_mappings),
             "detail_pages_fetched": len(detail_stubs),
             "detail_pages_failed": len(failed),
@@ -461,9 +480,39 @@ def _openreview_id(item: Mapping[str, Any]) -> str:
 
 
 def _track(sourceurl: str) -> tuple[str, str, str]:
-    if sourceurl.endswith("/Position_Paper_Track"):
+    """Map an official group URL to the canonical historical track contract.
+
+    The historical ICML event feed uses a CMT source URL (or no source URL at
+    all), while NeurIPS exposes several OpenReview groups in the same feed.
+    Keeping this mapping here means the 404 abstract-endpoint fallback does
+    not silently collapse adjunct tracks into the main conference.
+    """
+    lower = normalize_text(sourceurl).casefold()
+    if "position_paper" in lower:
         return "position_paper_track", "Position Paper Track", "other"
-    return "conference", "Conference", "main"
+    if "datasets_and_benchmarks" in lower:
+        return "datasets_and_benchmarks_track", "Datasets and Benchmarks Track", "other"
+    if "ml_reproducibility" in lower or "reproducibility_challenge" in lower:
+        return "ml_reproducibility_challenge", "ML Reproducibility Challenge", "other"
+    if "journal_track_tmlr" in lower or "tmlr" in lower:
+        return "journal_track_tmlr", "Journal Track (TMLR)", "other"
+    if "journal_track_jmlr" in lower or "jmlr" in lower:
+        return "journal_track_jmlr", "Journal Track (JMLR)", "other"
+    if "journal_track_rescience" in lower or "rescience" in lower:
+        return "journal_track_rescience", "Journal Track (ReScience)", "other"
+    if "journal_track_annals_of_statistics" in lower:
+        return "journal_track_annals_of_statistics", "Journal Track (Annals of Statistics)", "other"
+    if "journal_track" in lower:
+        return "journal_track", "Journal Track", "other"
+    if "conference" in lower:
+        return "conference", "Conference", "main"
+    if "cmt3.research.microsoft.com" in lower:
+        return "main", "Main", "main"
+    if not lower:
+        # ICML 2021's official historical feed has no sourceurl and its
+        # canonical corpus uses the historical ``main`` track.
+        return "main", "Main", "main"
+    return "other", "Other", "other"
 
 
 def _presentation(decision: str, eventtype: str) -> str:
@@ -581,6 +630,11 @@ def dedupe_records(records: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def allowed_sourceurls(venue: str, year: int) -> set[str] | None:
     """Return conference-only OpenReview group URLs for one target."""
+    if year < 2026 and venue in {"ICML", "NEURIPS"}:
+        # Historical virtual feeds are the complete official event catalogs;
+        # their sourceurl values include adjunct tracks which are part of the
+        # existing corpus and must not be filtered out before deduplication.
+        return None
     if venue == "ICLR":
         return {f"https://openreview.net/group?id=ICLR.cc/{year}/Conference"}
     if venue == "ICML":
@@ -631,6 +685,8 @@ def collect_target(
     sources = [events_url, abstracts_url]
     output.parent.mkdir(parents=True, exist_ok=True)
     official_error: Exception | None = None
+    historical_event_fallback = year < 2026 and venue in {"ICML", "NEURIPS"}
+    provider = "official"
     page_metrics: dict[str, Any] = {}
     try:
         events, page_metrics = fetch_complete_events(events_url, timeout=timeout, retries=retries)
@@ -645,9 +701,19 @@ def collect_target(
                 metrics=page_metrics,
             )
             return {"outcome": "no_update", "sidecar": str(sidecar), "count": 0}
-        abstracts = fetch_json(abstracts_url, timeout=timeout, retries=retries)
-        events = merge_abstracts(events, abstracts)
-        provider = "official"
+        try:
+            abstracts = fetch_json(abstracts_url, timeout=timeout, retries=retries)
+        except HttpFetchError as exc:
+            if not historical_event_fallback or exc.status_code != 404:
+                raise
+            # The historical event endpoint already carries authors and full
+            # abstracts.  The separate abstract map was retired, so a 404 is
+            # an approved source fallback rather than an incomplete catalog.
+            official_error = exc
+            provider = "official_historical_events"
+        else:
+            events = merge_abstracts(events, abstracts)
+            provider = "official"
     except (ApprovedPaginationIncomplete, HttpFetchError, RuntimeError) as exc:
         official_error = exc
         if venue == "ICML" and year == 2026:
@@ -708,6 +774,12 @@ def collect_target(
             metrics={**page_metrics, "raw_events": len(events), "filtered_events": len(filtered)},
         )
         raise RuntimeError(f"Filtered virtual source is empty; sidecar={sidecar}")
+    sourceurl_groups = sorted(
+        {
+            normalize_text(item.get("sourceurl")) or "<none>"
+            for item in filtered
+        }
+    )
     payload = {
         "query": {"venue_code": venue, "year": year, "provider": provider},
         "source": {
@@ -722,12 +794,17 @@ def collect_target(
             "filtered_event_count": len(filtered),
         },
         "group_coverage": {
-            "expected_group_count": len(allowed_sourceurls(venue, year) or sources),
-            "covered_group_count": len(allowed_sourceurls(venue, year) or sources),
-            "groups": sorted(allowed_sourceurls(venue, year) or sources),
+            "expected_group_count": len(allowed_sourceurls(venue, year) or sourceurl_groups),
+            "covered_group_count": len(sourceurl_groups),
+            "groups": sourceurl_groups,
             "raw_event_count": len(events),
             "filtered_event_count": len(filtered),
             "unique_paper_count": len(records),
+            "fallback_reason": (
+                "historical_event_payload_used_after_abstract_endpoint_404"
+                if provider == "official_historical_events"
+                else "official_virtual_json"
+            ),
         },
         "papers": records,
     }

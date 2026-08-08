@@ -159,6 +159,60 @@ class TestCollectors(unittest.TestCase):
         )
         self.assertEqual(merged[0]["abstract"], "Official abstract")
 
+    def test_historical_virtual_feed_uses_event_abstracts_when_map_is_404(self) -> None:
+        events = [
+            {
+                "id": 7,
+                "name": "Historical paper",
+                "authors": [{"fullname": "Alice", "institution": "Example University"}],
+                "abstract": "Abstract carried by the event feed.",
+                "sourceurl": "https://cmt3.research.microsoft.com/api/odata/icml2022",
+                "eventtype": "Poster",
+            }
+        ]
+        forbidden_map = HttpFetchError(
+            url="https://icml.cc/static/virtual/data/icml-2022-abstracts.json",
+            category="http_not_found",
+            message="Not Found",
+            status_code=404,
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "ICML-22.json"
+            with patch(
+                "janussearch.collectors.virtual.fetch_complete_events",
+                return_value=(events, {"declared_count": 1, "fetched_count": 1, "pages": 1}),
+            ), patch(
+                "janussearch.collectors.virtual.fetch_json",
+                side_effect=forbidden_map,
+            ):
+                result = collect_target("ICML", 2022, output)
+            self.assertEqual(result["outcome"], "collected")
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload["source"]["provider"], "official_historical_events")
+            self.assertEqual(payload["papers"][0]["record_status"], "resolved")
+            self.assertEqual(payload["papers"][0]["track"], "main")
+            self.assertIn("abstract_endpoint_404", payload["group_coverage"]["fallback_reason"])
+
+    def test_historical_neurips_group_urls_preserve_adjunct_tracks(self) -> None:
+        record = build_record(
+            {
+                "id": "9",
+                "title": "Dataset paper",
+                "authors": ["Alice"],
+                "abstract": "Abstract",
+                "sourceurl": (
+                    "https://openreview.net/group?id="
+                    "NeurIPS.cc/2024/Datasets_and_Benchmarks_Track"
+                ),
+            },
+            venue="NEURIPS",
+            year=2024,
+            collected_at="2026-08-07T00:00:00+00:00",
+            provider="official_historical_events",
+        )
+        self.assertEqual(record["track"], "datasets_and_benchmarks_track")
+        self.assertEqual(record["track_group"], "other")
+
     def test_virtual_duplicate_presentation_keeps_submission_id_and_oral_level(self) -> None:
         poster = {
             "title": "Same paper",
@@ -363,6 +417,59 @@ class TestCollectors(unittest.TestCase):
             retitled = next(item for item in payload["papers"] if item["title"] == "Final Title")
             self.assertEqual(retitled["paper_id"], "S2-stable")
             self.assertEqual(retitled["source_ids"]["openreview_id"], "forum-7")
+
+    def test_official_catalog_refreshes_canonical_placeholder_details(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            canonical = root / "raw" / "aistats" / "2026.json"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text(
+                json.dumps(
+                    {
+                        "papers": [
+                            {
+                                "paper_id": "S2-placeholder",
+                                "title": "Paper Seven",
+                                "paper_title": "Paper Seven",
+                                "authors": [],
+                                "abstract": "",
+                                "record_status": "placeholder",
+                                "source_ids": {"aistats_virtual_event_id": "7"},
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            catalog = '<li><a href="/virtual/2026/poster/7">Paper Seven</a></li>'
+            detail = """
+            <script type="application/ld+json">{
+              "name":"Paper Seven","author":[{"name":"Alice"}]
+            }</script>
+            <div class="abstract-text-inner">Recovered abstract.</div>
+            <span class="event-type-badge">Poster</span>
+            """
+
+            def fake_fetch(url: str, **_: object) -> str:
+                return catalog if "papers.html" in url else detail
+
+            with patch.dict(
+                "janussearch.collectors.virtual.OFFICIAL_CATALOG_EXPECTED_COUNTS",
+                {("AISTATS", 2026): 1},
+                clear=True,
+            ), patch("janussearch.collectors.virtual.fetch_text", side_effect=fake_fetch):
+                output = root / "AISTATS-26.json"
+                collect_official_catalog(
+                    "AISTATS", 2026, output,
+                    timeout=1.0, retries=1, canonical_root=root / "raw", workers=1,
+                )
+
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload["group_coverage"]["canonical_records_reused"], 0)
+            self.assertEqual(payload["group_coverage"]["canonical_records_refreshed"], 1)
+            self.assertEqual(payload["papers"][0]["authors"], ["Alice"])
+            self.assertEqual(payload["papers"][0]["abstract"], "Recovered abstract.")
+            self.assertEqual(payload["papers"][0]["record_status"], "resolved")
 
     def test_aistats_catalog_applies_uniform_poster_policy(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

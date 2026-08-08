@@ -529,6 +529,46 @@ class TestM3Pipeline(unittest.TestCase):
         self.assertEqual(third["summary"]["embedded_count"], 3)
         self.assertTrue(third["force_rebuild_vectors"])
 
+    def test_build_vectors_reembeds_legacy_vectors_despite_matching_marker(self) -> None:
+        patches = self._patch_m3()
+        for item in patches:
+            item.start()
+        try:
+            run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+            for row in self.registry[self.collection_name].rows.values():
+                row["metadata"].pop("embedding_text_sha256", None)
+
+            repaired = run_build_vectors(
+                db_path=self.db_path,
+                vectors_root=self.vectors_root,
+                collection_name=self.collection_name,
+                embed_base_url="http://127.0.0.1:1234/v1",
+                embed_model="text-embedding-qwen3-embedding-8b",
+                embed_batch_size=32,
+                embed_timeout_seconds=60.0,
+                embed_cooldown_seconds=0.0,
+                exclude_placeholder=True,
+                embed_api_key=None,
+            )
+        finally:
+            for item in reversed(patches):
+                item.stop()
+
+        self.assertEqual(repaired["summary"]["embedded_count"], 3)
+        self.assertEqual(repaired["summary"]["source_files_skipped_by_marker"], 0)
+        self.assertEqual(repaired["summary"]["reembedded_changed_count"], 3)
+
     def test_build_vectors_embeds_only_missing_or_changed_papers(self) -> None:
         patches = self._patch_m3()
         for item in patches:
